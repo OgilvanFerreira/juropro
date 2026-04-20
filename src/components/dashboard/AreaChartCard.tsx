@@ -83,8 +83,8 @@ export function AreaChartCard({
                 color: "var(--foreground)",
               }}
               labelStyle={{ color: "var(--muted-foreground)" }}
-              formatter={(value: number) => [
-                formatValue ? formatValue(value) : value,
+              formatter={(value) => [
+                formatValue ? formatValue(Number(value)) : String(value),
                 tooltipLabel,
               ]}
             />
