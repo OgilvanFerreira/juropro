@@ -5,6 +5,7 @@ import {
   Users,
   FileText,
   Plus,
+  UserPlus,
 } from "lucide-react";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/dashboard/AppSidebar";
@@ -124,10 +125,16 @@ function Dashboard() {
                 Dashboard
               </h2>
             </div>
-            <Button className="bg-success text-success-foreground shadow-sm hover:bg-success/90">
-              <Plus className="h-4 w-4" />
-              <span className="hidden sm:inline">Novo Empréstimo</span>
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button className="bg-success text-success-foreground shadow-sm hover:bg-success/90">
+                <Plus className="h-4 w-4" />
+                <span className="hidden sm:inline">Novo Empréstimo</span>
+              </Button>
+              <Button className="bg-success text-success-foreground shadow-sm hover:bg-success/90">
+                <UserPlus className="h-4 w-4" />
+                <span className="hidden sm:inline">Novo Cliente</span>
+              </Button>
+            </div>
           </header>
 
           <main className="flex-1 space-y-6 p-4 md:p-6 lg:p-8">
