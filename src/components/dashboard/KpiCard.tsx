@@ -7,6 +7,8 @@ interface KpiCardProps {
   hint: string;
   icon: LucideIcon;
   tone: "warning" | "destructive" | "info" | "success";
+  loading?: boolean;
+  empty?: boolean;
 }
 
 const toneStyles: Record<KpiCardProps["tone"], string> = {
@@ -16,7 +18,15 @@ const toneStyles: Record<KpiCardProps["tone"], string> = {
   success: "bg-success/15 text-success",
 };
 
-export function KpiCard({ label, value, hint, icon: Icon, tone }: KpiCardProps) {
+export function KpiCard({
+  label,
+  value,
+  hint,
+  icon: Icon,
+  tone,
+  loading = false,
+  empty = false,
+}: KpiCardProps) {
   return (
     <div className="rounded-lg border bg-card p-5 shadow-sm">
       <div className="flex items-start justify-between gap-3">
@@ -24,9 +34,18 @@ export function KpiCard({ label, value, hint, icon: Icon, tone }: KpiCardProps) 
           <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
             {label}
           </p>
-          <p className="mt-2 text-3xl font-semibold tracking-tight text-foreground">
-            {value}
-          </p>
+          {loading ? (
+            <div className="mt-2 h-9 w-20 animate-pulse rounded-md bg-muted" />
+          ) : (
+            <p
+              className={cn(
+                "mt-2 text-3xl font-semibold tracking-tight",
+                empty ? "text-muted-foreground/60" : "text-foreground",
+              )}
+            >
+              {value}
+            </p>
+          )}
         </div>
         <div
           className={cn(
@@ -37,7 +56,9 @@ export function KpiCard({ label, value, hint, icon: Icon, tone }: KpiCardProps) 
           <Icon className="h-5 w-5" />
         </div>
       </div>
-      <p className="mt-3 text-xs text-muted-foreground">{hint}</p>
+      <p className="mt-3 text-xs text-muted-foreground">
+        {loading ? "Carregando..." : empty ? "Nenhum dado encontrado" : hint}
+      </p>
     </div>
   );
 }
