@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/dashboard/AppSidebar";
+import { NewClientsChart } from "@/components/dashboard/NewClientsChart";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -64,11 +65,7 @@ function Dashboard() {
               ))}
             </div>
 
-            <div className="rounded-lg border bg-card p-8 text-center shadow-sm">
-              <p className="text-sm text-muted-foreground">
-                Gráficos serão adicionados em breve.
-              </p>
-            </div>
+            <NewClientsChart />
           </main>
         </div>
       </div>

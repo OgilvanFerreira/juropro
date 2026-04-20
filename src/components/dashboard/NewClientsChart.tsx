@@ -23,6 +23,9 @@ const data = [
   { month: "Abr", clientes: 217 },
 ];
 
+const EMERALD = "oklch(0.62 0.15 160)";
+const EMERALD_GLOW = "oklch(0.7 0.16 160)";
+
 export function NewClientsChart() {
   return (
     <div className="rounded-lg border bg-card p-5 shadow-sm">
@@ -43,54 +46,46 @@ export function NewClientsChart() {
           >
             <defs>
               <linearGradient id="emeraldFill" x1="0" y1="0" x2="0" y2="1">
-                <stop
-                  offset="0%"
-                  stopColor="hsl(var(--chart-emerald, 160 84% 39%))"
-                  stopOpacity={0.45}
-                />
-                <stop
-                  offset="100%"
-                  stopColor="hsl(var(--chart-emerald, 160 84% 39%))"
-                  stopOpacity={0}
-                />
+                <stop offset="0%" stopColor={EMERALD_GLOW} stopOpacity={0.5} />
+                <stop offset="100%" stopColor={EMERALD} stopOpacity={0} />
               </linearGradient>
             </defs>
 
             <CartesianGrid
               strokeDasharray="3 3"
-              stroke="hsl(var(--border))"
+              stroke="var(--border)"
               vertical={false}
             />
             <XAxis
               dataKey="month"
-              stroke="hsl(var(--muted-foreground))"
+              stroke="var(--muted-foreground)"
               fontSize={12}
               tickLine={false}
               axisLine={false}
             />
             <YAxis
-              stroke="hsl(var(--muted-foreground))"
+              stroke="var(--muted-foreground)"
               fontSize={12}
               tickLine={false}
               axisLine={false}
               width={36}
             />
             <Tooltip
-              cursor={{ stroke: "hsl(var(--border))", strokeWidth: 1 }}
+              cursor={{ stroke: "var(--border)", strokeWidth: 1 }}
               contentStyle={{
-                background: "hsl(var(--card))",
-                border: "1px solid hsl(var(--border))",
+                background: "var(--card)",
+                border: "1px solid var(--border)",
                 borderRadius: 8,
                 fontSize: 12,
-                color: "hsl(var(--foreground))",
+                color: "var(--foreground)",
               }}
-              labelStyle={{ color: "hsl(var(--muted-foreground))" }}
-              formatter={(value: number) => [`${value} clientes`, "Novos"]}
+              labelStyle={{ color: "var(--muted-foreground)" }}
+              formatter={(value) => [`${value} clientes`, "Novos"]}
             />
             <Area
               type="monotone"
               dataKey="clientes"
-              stroke="hsl(var(--chart-emerald, 160 84% 39%))"
+              stroke={EMERALD}
               strokeWidth={2}
               fill="url(#emeraldFill)"
             />
