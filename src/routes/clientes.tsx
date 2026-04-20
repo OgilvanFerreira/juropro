@@ -17,6 +17,7 @@ import {
 import { Card } from "@/components/ui/card";
 import { NovoClienteDialog } from "@/components/clientes/NovoClienteDialog";
 import { listClientes } from "@/integrations/external-supabase/clientes.functions";
+import { formatCpfCnpj, formatTelefone } from "@/lib/masks";
 
 const clientesQuery = () =>
   queryOptions({
@@ -154,10 +155,10 @@ function ClientesPage() {
                           {c.email ?? "—"}
                         </TableCell>
                         <TableCell className="text-muted-foreground">
-                          {c.telefone ?? "—"}
+                          {formatTelefone(c.telefone)}
                         </TableCell>
                         <TableCell className="text-muted-foreground">
-                          {c.cpf_cnpj ?? "—"}
+                          {formatCpfCnpj(c.cpf_cnpj)}
                         </TableCell>
                         <TableCell className="text-muted-foreground">
                           {c.cidade && c.uf

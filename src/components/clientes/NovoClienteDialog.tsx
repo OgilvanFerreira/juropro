@@ -29,6 +29,14 @@ import { useServerFn } from "@tanstack/react-start";
 
 import { createCliente } from "@/integrations/external-supabase/clientes.functions";
 import { BRAZIL_UFS, lookupCep } from "@/lib/cep";
+import {
+  isValidCep,
+  isValidCpfCnpj,
+  isValidTelefone,
+  maskCep,
+  maskCpfCnpj,
+  maskTelefone,
+} from "@/lib/masks";
 
 const formSchema = z.object({
   nome: z.string().trim().min(1, "Informe o nome"),
@@ -38,12 +46,24 @@ const formSchema = z.object({
     .email("E-mail inválido")
     .or(z.literal(""))
     .optional(),
-  telefone: z.string().trim().optional(),
+  telefone: z
+    .string()
+    .trim()
+    .min(1, "Informe o telefone")
+    .refine(isValidTelefone, "Telefone inválido"),
   data_nascimento: z.string().trim().optional(),
-  cpf_cnpj: z.string().trim().optional(),
+  cpf_cnpj: z
+    .string()
+    .trim()
+    .min(1, "Informe o CPF ou CNPJ")
+    .refine(isValidCpfCnpj, "CPF/CNPJ inválido"),
   rg: z.string().trim().optional(),
-  cep: z.string().trim().optional(),
-  endereco: z.string().trim().optional(),
+  cep: z
+    .string()
+    .trim()
+    .min(1, "Informe o CEP")
+    .refine(isValidCep, "CEP inválido"),
+  endereco: z.string().trim().min(1, "Informe o endereço"),
   numero: z.string().trim().optional(),
   complemento: z.string().trim().optional(),
   bairro: z.string().trim().optional(),
@@ -164,12 +184,23 @@ export function NovoClienteDialog({ open, onOpenChange }: NovoClienteDialogProps
               )}
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="telefone">Telefone</Label>
+              <Label htmlFor="telefone">Telefone *</Label>
               <Input
                 id="telefone"
                 placeholder="(00) 00000-0000"
-                {...form.register("telefone")}
+                inputMode="tel"
+                value={form.watch("telefone") ?? ""}
+                onChange={(e) =>
+                  form.setValue("telefone", maskTelefone(e.target.value), {
+                    shouldValidate: true,
+                  })
+                }
               />
+              {form.formState.errors.telefone && (
+                <p className="text-xs text-destructive">
+                  {form.formState.errors.telefone.message}
+                </p>
+              )}
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="data_nascimento">Data de nascimento</Label>
@@ -180,8 +211,23 @@ export function NovoClienteDialog({ open, onOpenChange }: NovoClienteDialogProps
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="cpf_cnpj">CPF / CNPJ</Label>
-              <Input id="cpf_cnpj" {...form.register("cpf_cnpj")} />
+              <Label htmlFor="cpf_cnpj">CPF / CNPJ *</Label>
+              <Input
+                id="cpf_cnpj"
+                placeholder="000.000.000-00"
+                inputMode="numeric"
+                value={form.watch("cpf_cnpj") ?? ""}
+                onChange={(e) =>
+                  form.setValue("cpf_cnpj", maskCpfCnpj(e.target.value), {
+                    shouldValidate: true,
+                  })
+                }
+              />
+              {form.formState.errors.cpf_cnpj && (
+                <p className="text-xs text-destructive">
+                  {form.formState.errors.cpf_cnpj.message}
+                </p>
+              )}
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="rg">RG</Label>
@@ -197,12 +243,23 @@ export function NovoClienteDialog({ open, onOpenChange }: NovoClienteDialogProps
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-[1fr_auto]">
               <div className="space-y-1.5">
-                <Label htmlFor="cep">CEP</Label>
+                <Label htmlFor="cep">CEP *</Label>
                 <Input
                   id="cep"
                   placeholder="00000-000"
-                  {...form.register("cep")}
+                  inputMode="numeric"
+                  value={form.watch("cep") ?? ""}
+                  onChange={(e) =>
+                    form.setValue("cep", maskCep(e.target.value), {
+                      shouldValidate: true,
+                    })
+                  }
                 />
+                {form.formState.errors.cep && (
+                  <p className="text-xs text-destructive">
+                    {form.formState.errors.cep.message}
+                  </p>
+                )}
               </div>
               <div className="flex items-end">
                 <Button
@@ -223,8 +280,13 @@ export function NovoClienteDialog({ open, onOpenChange }: NovoClienteDialogProps
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-[1fr_140px]">
               <div className="space-y-1.5">
-                <Label htmlFor="endereco">Endereço</Label>
+                <Label htmlFor="endereco">Endereço *</Label>
                 <Input id="endereco" {...form.register("endereco")} />
+                {form.formState.errors.endereco && (
+                  <p className="text-xs text-destructive">
+                    {form.formState.errors.endereco.message}
+                  </p>
+                )}
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="numero">Número</Label>
