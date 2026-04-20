@@ -155,10 +155,10 @@ function ClientesPage() {
                           {c.email ?? "—"}
                         </TableCell>
                         <TableCell className="text-muted-foreground">
-                          {c.telefone ?? "—"}
+                          {formatTelefone(c.telefone)}
                         </TableCell>
                         <TableCell className="text-muted-foreground">
-                          {c.cpf_cnpj ?? "—"}
+                          {formatCpfCnpj(c.cpf_cnpj)}
                         </TableCell>
                         <TableCell className="text-muted-foreground">
                           {c.cidade && c.uf
