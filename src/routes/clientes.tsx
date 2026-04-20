@@ -64,6 +64,7 @@ function ClientesPage() {
   const { novo } = Route.useSearch();
   const navigate = useNavigate({ from: "/clientes" });
   const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
 
   useEffect(() => {
     if (novo) {
@@ -74,6 +75,31 @@ function ClientesPage() {
 
   const clientes = data.data;
   const hasError = !!data.error;
+
+  // Atribui ID sequencial estável: #001 = mais antigo. Como a lista vem
+  // ordenada por created_at desc, o índice reverso dá a sequência correta.
+  const clientesComId = useMemo(() => {
+    const total = clientes.length;
+    return clientes.map((c, idx) => ({
+      ...c,
+      seqId: total - idx,
+    }));
+  }, [clientes]);
+
+  // Filtro em tempo real por Nome ou CPF/CNPJ
+  const clientesFiltrados = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    if (!term) return clientesComId;
+    const termDigits = term.replace(/\D/g, "");
+    return clientesComId.filter((c) => {
+      const nome = (c.nome ?? "").toLowerCase();
+      const cpfDigits = (c.cpf_cnpj ?? "").replace(/\D/g, "");
+      const matchNome = nome.includes(term);
+      const matchCpf =
+        termDigits.length > 0 && cpfDigits.includes(termDigits);
+      return matchNome || matchCpf;
+    });
+  }, [clientesComId, search]);
 
   return (
     <SidebarProvider>
