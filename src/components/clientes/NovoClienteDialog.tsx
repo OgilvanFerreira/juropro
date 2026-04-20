@@ -243,12 +243,23 @@ export function NovoClienteDialog({ open, onOpenChange }: NovoClienteDialogProps
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-[1fr_auto]">
               <div className="space-y-1.5">
-                <Label htmlFor="cep">CEP</Label>
+                <Label htmlFor="cep">CEP *</Label>
                 <Input
                   id="cep"
                   placeholder="00000-000"
-                  {...form.register("cep")}
+                  inputMode="numeric"
+                  value={form.watch("cep") ?? ""}
+                  onChange={(e) =>
+                    form.setValue("cep", maskCep(e.target.value), {
+                      shouldValidate: true,
+                    })
+                  }
                 />
+                {form.formState.errors.cep && (
+                  <p className="text-xs text-destructive">
+                    {form.formState.errors.cep.message}
+                  </p>
+                )}
               </div>
               <div className="flex items-end">
                 <Button
