@@ -211,12 +211,12 @@ function Dashboard() {
 }
 
 function KpiGrid() {
-  const { data, isFetching } = useSuspenseQuery(dashboardKpisQuery());
+  const { data } = useSuspenseQuery(dashboardKpisQuery());
   const kpis = buildKpis(data);
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
       {kpis.map((k) => (
-        <KpiCard key={k.label} {...k} loading={isFetching && data.totalClientes === 0 && data.contratosAtivos === 0 && data.parcelasAtrasadas === 0 && data.vencimentosHoje === 0 ? false : false} />
+        <KpiCard key={k.label} {...k} />
       ))}
     </div>
   );
