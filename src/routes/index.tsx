@@ -140,6 +140,9 @@ const formatBRL = (v: number) =>
   v >= 1000 ? `R$ ${(v / 1000).toFixed(0)}k` : `R$ ${v}`;
 
 function Dashboard() {
+  const { data } = useSuspenseQuery(dashboardKpisQuery());
+  const kpis = buildKpis(data);
+
   return (
     <SidebarProvider>
       <div className="flex min-h-screen w-full bg-secondary">
@@ -175,9 +178,11 @@ function Dashboard() {
               </p>
             </div>
 
-            <Suspense fallback={<KpiSkeleton />}>
-              <KpiGrid />
-            </Suspense>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+              {kpis.map((k) => (
+                <KpiCard key={k.label} {...k} />
+              ))}
+            </div>
 
             <AreaChartCard
               title="Evolução de Novos Clientes"
@@ -214,27 +219,5 @@ function Dashboard() {
         </div>
       </div>
     </SidebarProvider>
-  );
-}
-
-function KpiGrid() {
-  const { data } = useSuspenseQuery(dashboardKpisQuery());
-  const kpis = buildKpis(data);
-  return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-      {kpis.map((k) => (
-        <KpiCard key={k.label} {...k} />
-      ))}
-    </div>
-  );
-}
-
-function KpiSkeleton() {
-  return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-      {Array.from({ length: 4 }).map((_, i) => (
-        <div key={i} className="h-[112px] animate-pulse rounded-lg border bg-card shadow-sm" />
-      ))}
-    </div>
   );
 }
