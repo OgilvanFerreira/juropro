@@ -66,7 +66,7 @@ function ClientesPage() {
   useEffect(() => {
     if (novo) {
       setOpen(true);
-      navigate({ search: {}, replace: true });
+      navigate({ search: { novo: undefined }, replace: true });
     }
   }, [novo, navigate]);
 
