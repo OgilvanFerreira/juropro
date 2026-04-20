@@ -17,6 +17,7 @@ import {
 import { Card } from "@/components/ui/card";
 import { NovoClienteDialog } from "@/components/clientes/NovoClienteDialog";
 import { listClientes } from "@/integrations/external-supabase/clientes.functions";
+import { formatCpfCnpj, formatTelefone } from "@/lib/masks";
 
 const clientesQuery = () =>
   queryOptions({
