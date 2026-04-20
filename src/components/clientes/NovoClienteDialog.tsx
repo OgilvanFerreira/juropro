@@ -106,6 +106,14 @@ export function NovoClienteDialog({ open, onOpenChange }: NovoClienteDialogProps
     mutationFn: (values: FormValues) => createClienteFn({ data: values }),
     onSuccess: (res) => {
       if (!res.ok) {
+        if (res.code === "DUPLICATE_CPF_CNPJ") {
+          form.setError("cpf_cnpj", {
+            type: "manual",
+            message: "CPF/CNPJ já cadastrado no sistema.",
+          });
+          toast.error("CPF/CNPJ já cadastrado no sistema.");
+          return;
+        }
         toast.error("Erro ao cadastrar cliente", {
           description: res.error ?? "Verifique os dados e tente novamente.",
         });
