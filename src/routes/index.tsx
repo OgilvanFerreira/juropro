@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import {
   CalendarClock,
   AlertTriangle,
@@ -12,6 +13,16 @@ import { AppSidebar } from "@/components/dashboard/AppSidebar";
 import { AreaChartCard } from "@/components/dashboard/AreaChartCard";
 import { KpiCard } from "@/components/dashboard/KpiCard";
 import { Button } from "@/components/ui/button";
+import {
+  getDashboardKpis,
+  type DashboardKpis,
+} from "@/integrations/external-supabase/dashboard.functions";
+
+const dashboardKpisQuery = () =>
+  queryOptions({
+    queryKey: ["dashboard", "kpis"],
+    queryFn: () => getDashboardKpis(),
+  });
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -24,39 +35,51 @@ export const Route = createFileRoute("/")({
       },
     ],
   }),
+  loader: ({ context: { queryClient } }) => {
+    queryClient.ensureQueryData(dashboardKpisQuery());
+  },
   component: Dashboard,
 });
 
-const kpis = [
-  {
-    label: "Vencimentos Hoje",
-    value: "27",
-    hint: "+12% vs. mês anterior",
-    icon: CalendarClock,
-    tone: "warning" as const,
-  },
-  {
-    label: "Parcelas Atrasadas",
-    value: "14",
-    hint: "+3% vs. mês anterior",
-    icon: AlertTriangle,
-    tone: "destructive" as const,
-  },
-  {
-    label: "Total de Clientes",
-    value: "1.284",
-    hint: "+8,4% vs. mês anterior",
-    icon: Users,
-    tone: "info" as const,
-  },
-  {
-    label: "Contratos Ativos",
-    value: "892",
-    hint: "+15% vs. mês anterior",
-    icon: FileText,
-    tone: "success" as const,
-  },
-];
+const formatNumber = (n: number) =>
+  new Intl.NumberFormat("pt-BR").format(n);
+
+function buildKpis(data: DashboardKpis) {
+  return [
+    {
+      label: "Vencimentos Hoje",
+      value: formatNumber(data.vencimentosHoje),
+      hint: "Parcelas com vencimento hoje",
+      icon: CalendarClock,
+      tone: "warning" as const,
+      empty: data.vencimentosHoje === 0,
+    },
+    {
+      label: "Parcelas Atrasadas",
+      value: formatNumber(data.parcelasAtrasadas),
+      hint: "Pendentes vencidas + status atrasado",
+      icon: AlertTriangle,
+      tone: "destructive" as const,
+      empty: data.parcelasAtrasadas === 0,
+    },
+    {
+      label: "Total de Clientes",
+      value: formatNumber(data.totalClientes),
+      hint: "Carteira ativa",
+      icon: Users,
+      tone: "info" as const,
+      empty: data.totalClientes === 0,
+    },
+    {
+      label: "Contratos Ativos",
+      value: formatNumber(data.contratosAtivos),
+      hint: "Empréstimos com status ativo",
+      icon: FileText,
+      tone: "success" as const,
+      empty: data.contratosAtivos === 0,
+    },
+  ];
+}
 
 const newClientsData = [
   { month: "Mai", value: 42 },
@@ -147,11 +170,7 @@ function Dashboard() {
               </p>
             </div>
 
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-              {kpis.map((k) => (
-                <KpiCard key={k.label} {...k} />
-              ))}
-            </div>
+            <DashboardKpis />
 
             <AreaChartCard
               title="Evolução de Novos Clientes"
