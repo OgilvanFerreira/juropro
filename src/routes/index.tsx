@@ -170,7 +170,7 @@ function Dashboard() {
               </p>
             </div>
 
-            <DashboardKpis />
+            <KpiGrid />
 
             <AreaChartCard
               title="Evolução de Novos Clientes"
