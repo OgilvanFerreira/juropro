@@ -131,6 +131,13 @@ function ClientesPage() {
               <p className="text-sm text-muted-foreground">
                 {clientes.length}{" "}
                 {clientes.length === 1 ? "cliente cadastrado" : "clientes cadastrados"}
+                {search.trim() && (
+                  <>
+                    {" • "}
+                    {clientesFiltrados.length}{" "}
+                    {clientesFiltrados.length === 1 ? "resultado" : "resultados"}
+                  </>
+                )}
               </p>
             </div>
 
@@ -161,44 +168,68 @@ function ClientesPage() {
                   </Button>
                 </div>
               ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Nome</TableHead>
-                      <TableHead>E-mail</TableHead>
-                      <TableHead>Telefone</TableHead>
-                      <TableHead>CPF/CNPJ</TableHead>
-                      <TableHead>Cidade/UF</TableHead>
-                      <TableHead>Cadastrado em</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {clientes.map((c) => (
-                      <TableRow key={String(c.id)}>
-                        <TableCell className="font-medium text-foreground">
-                          {c.nome ?? "—"}
-                        </TableCell>
-                        <TableCell className="text-muted-foreground">
-                          {c.email ?? "—"}
-                        </TableCell>
-                        <TableCell className="text-muted-foreground">
-                          {formatTelefone(c.telefone)}
-                        </TableCell>
-                        <TableCell className="text-muted-foreground">
-                          {formatCpfCnpj(c.cpf_cnpj)}
-                        </TableCell>
-                        <TableCell className="text-muted-foreground">
-                          {c.cidade && c.uf
-                            ? `${c.cidade}/${c.uf}`
-                            : c.cidade ?? c.uf ?? "—"}
-                        </TableCell>
-                        <TableCell className="text-muted-foreground">
-                          {formatDate(c.created_at)}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                <>
+                  <div className="border-b bg-muted/30 p-3">
+                    <div className="relative max-w-md">
+                      <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                      <Input
+                        type="search"
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                        placeholder="Buscar por nome ou CPF/CNPJ..."
+                        className="pl-9"
+                      />
+                    </div>
+                  </div>
+                  {clientesFiltrados.length === 0 ? (
+                    <div className="p-12 text-center text-sm text-muted-foreground">
+                      Nenhum cliente encontrado para &quot;{search}&quot;.
+                    </div>
+                  ) : (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="w-20">ID</TableHead>
+                          <TableHead>Nome</TableHead>
+                          <TableHead>E-mail</TableHead>
+                          <TableHead>Telefone</TableHead>
+                          <TableHead>CPF/CNPJ</TableHead>
+                          <TableHead>Cidade/UF</TableHead>
+                          <TableHead>Cadastrado em</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {clientesFiltrados.map((c) => (
+                          <TableRow key={String(c.id)}>
+                            <TableCell className="font-mono text-xs text-muted-foreground">
+                              #{String(c.seqId).padStart(3, "0")}
+                            </TableCell>
+                            <TableCell className="font-medium text-foreground">
+                              {c.nome ?? "—"}
+                            </TableCell>
+                            <TableCell className="text-muted-foreground">
+                              {c.email ?? "—"}
+                            </TableCell>
+                            <TableCell className="text-muted-foreground">
+                              {formatTelefone(c.telefone)}
+                            </TableCell>
+                            <TableCell className="text-muted-foreground">
+                              {formatCpfCnpj(c.cpf_cnpj)}
+                            </TableCell>
+                            <TableCell className="text-muted-foreground">
+                              {c.cidade && c.uf
+                                ? `${c.cidade}/${c.uf}`
+                                : c.cidade ?? c.uf ?? "—"}
+                            </TableCell>
+                            <TableCell className="text-muted-foreground">
+                              {formatDate(c.created_at)}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  )}
+                </>
               )}
             </Card>
           </main>
