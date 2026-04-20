@@ -31,6 +31,7 @@ export function AreaChartCard({
   formatValue,
   tooltipLabel,
 }: AreaChartCardProps) {
+  const allZero = data.every((d) => d.value === 0);
   return (
     <div className="rounded-lg border bg-card p-5 shadow-sm">
       <div className="mb-4 flex flex-col gap-1">
@@ -72,6 +73,9 @@ export function AreaChartCard({
               axisLine={false}
               width={48}
               tickFormatter={formatValue}
+              domain={allZero ? [0, 0] : ["auto", "auto"]}
+              ticks={allZero ? [0] : undefined}
+              allowDecimals={false}
             />
             <Tooltip
               cursor={{ stroke: "var(--border)", strokeWidth: 1 }}
