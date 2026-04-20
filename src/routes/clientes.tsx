@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { createFileRoute } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { UserPlus, Users as UsersIcon } from "lucide-react";
 
@@ -25,6 +25,9 @@ const clientesQuery = () =>
   });
 
 export const Route = createFileRoute("/clientes")({
+  validateSearch: (search: Record<string, unknown>) => ({
+    novo: search.novo === true || search.novo === "true" ? true : undefined,
+  }),
   head: () => ({
     meta: [
       { title: "Clientes — JuroPro" },
@@ -56,7 +59,16 @@ function formatDate(value: string | null) {
 
 function ClientesPage() {
   const { data } = useSuspenseQuery(clientesQuery());
+  const { novo } = Route.useSearch();
+  const navigate = useNavigate({ from: "/clientes" });
   const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    if (novo) {
+      setOpen(true);
+      navigate({ search: {}, replace: true });
+    }
+  }, [novo, navigate]);
 
   const clientes = data.data;
   const hasError = !!data.error;
