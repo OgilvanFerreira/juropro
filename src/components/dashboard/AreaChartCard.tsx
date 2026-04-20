@@ -71,7 +71,7 @@ export function AreaChartCard({
                   color: "var(--color-popover-foreground)",
                   boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
                 }}
-                formatter={(value: number) => [valueFormatter(value), title]}
+                formatter={(value) => [valueFormatter(Number(value)), title] as [string, string]}
                 labelStyle={{ color: "var(--color-muted-foreground)", fontWeight: 500 }}
               />
               <Area
