@@ -184,12 +184,23 @@ export function NovoClienteDialog({ open, onOpenChange }: NovoClienteDialogProps
               )}
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="telefone">Telefone</Label>
+              <Label htmlFor="telefone">Telefone *</Label>
               <Input
                 id="telefone"
                 placeholder="(00) 00000-0000"
-                {...form.register("telefone")}
+                inputMode="tel"
+                value={form.watch("telefone") ?? ""}
+                onChange={(e) =>
+                  form.setValue("telefone", maskTelefone(e.target.value), {
+                    shouldValidate: true,
+                  })
+                }
               />
+              {form.formState.errors.telefone && (
+                <p className="text-xs text-destructive">
+                  {form.formState.errors.telefone.message}
+                </p>
+              )}
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="data_nascimento">Data de nascimento</Label>
@@ -200,8 +211,23 @@ export function NovoClienteDialog({ open, onOpenChange }: NovoClienteDialogProps
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="cpf_cnpj">CPF / CNPJ</Label>
-              <Input id="cpf_cnpj" {...form.register("cpf_cnpj")} />
+              <Label htmlFor="cpf_cnpj">CPF / CNPJ *</Label>
+              <Input
+                id="cpf_cnpj"
+                placeholder="000.000.000-00"
+                inputMode="numeric"
+                value={form.watch("cpf_cnpj") ?? ""}
+                onChange={(e) =>
+                  form.setValue("cpf_cnpj", maskCpfCnpj(e.target.value), {
+                    shouldValidate: true,
+                  })
+                }
+              />
+              {form.formState.errors.cpf_cnpj && (
+                <p className="text-xs text-destructive">
+                  {form.formState.errors.cpf_cnpj.message}
+                </p>
+              )}
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="rg">RG</Label>
