@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import {
   CalendarClock,
@@ -127,9 +127,11 @@ function Dashboard() {
                 <Plus className="h-4 w-4" />
                 <span className="hidden sm:inline">Novo Empréstimo</span>
               </Button>
-              <Button className="bg-success text-success-foreground shadow-sm hover:bg-success/90">
-                <UserPlus className="h-4 w-4" />
-                <span className="hidden sm:inline">Novo Cliente</span>
+              <Button asChild className="bg-success text-success-foreground shadow-sm hover:bg-success/90">
+                <Link to="/clientes" search={{ novo: true }}>
+                  <UserPlus className="h-4 w-4" />
+                  <span className="hidden sm:inline">Novo Cliente</span>
+                </Link>
               </Button>
             </div>
           </header>
