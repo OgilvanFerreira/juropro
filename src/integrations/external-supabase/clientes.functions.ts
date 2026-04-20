@@ -65,22 +65,55 @@ export type ClienteInsert = z.infer<typeof clienteInsertSchema>;
 
 export const createCliente = createServerFn({ method: "POST" })
   .inputValidator((input: ClienteInsert) => clienteInsertSchema.parse(input))
-  .handler(async ({ data }): Promise<{ ok: boolean; error: string | null }> => {
-    const supabase = getServerClient();
+  .handler(
+    async ({
+      data,
+    }): Promise<{ ok: boolean; error: string | null; code?: string }> => {
+      const supabase = getServerClient();
 
-    // Limpa strings vazias para null para evitar problemas com colunas tipadas (date, etc.)
-    const payload: Record<string, unknown> = {};
-    for (const [k, v] of Object.entries(data)) {
-      if (v === undefined) continue;
-      if (typeof v === "string" && v.trim() === "") continue;
-      payload[k] = v;
-    }
+      // Limpa strings vazias para null para evitar problemas com colunas tipadas (date, etc.)
+      const payload: Record<string, unknown> = {};
+      for (const [k, v] of Object.entries(data)) {
+        if (v === undefined) continue;
+        if (typeof v === "string" && v.trim() === "") continue;
+        payload[k] = v;
+      }
 
-    const { error } = await supabase.from("clientes").insert(payload);
+      // Verificação de duplicidade de CPF/CNPJ (apenas dígitos para evitar diferenças de máscara)
+      const cpfCnpjRaw = typeof payload.cpf_cnpj === "string" ? payload.cpf_cnpj : "";
+      const cpfCnpjDigits = cpfCnpjRaw.replace(/\D/g, "");
+      if (cpfCnpjDigits.length > 0) {
+        const { data: existing, error: checkError } = await supabase
+          .from("clientes")
+          .select("id, cpf_cnpj")
+          .not("cpf_cnpj", "is", null)
+          .limit(1000);
 
-    if (error) {
-      console.error("createCliente error:", error);
-      return { ok: false, error: error.message };
-    }
-    return { ok: true, error: null };
-  });
+        if (checkError) {
+          console.error("createCliente duplicate-check error:", checkError);
+          return { ok: false, error: checkError.message };
+        }
+
+        const duplicate = (existing ?? []).some((row) => {
+          const rowDigits = String(row.cpf_cnpj ?? "").replace(/\D/g, "");
+          return rowDigits === cpfCnpjDigits;
+        });
+
+        if (duplicate) {
+          return {
+            ok: false,
+            error: "CPF/CNPJ já cadastrado no sistema.",
+            code: "DUPLICATE_CPF_CNPJ",
+          };
+        }
+      }
+
+      const { error } = await supabase.from("clientes").insert(payload);
+
+      if (error) {
+        console.error("createCliente error:", error);
+        return { ok: false, error: error.message };
+      }
+      return { ok: true, error: null };
+    },
+  );
