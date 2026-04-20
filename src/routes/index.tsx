@@ -14,10 +14,14 @@ import { AppSidebar } from "@/components/dashboard/AppSidebar";
 import { AreaChartCard } from "@/components/dashboard/AreaChartCard";
 import { KpiCard } from "@/components/dashboard/KpiCard";
 import { Button } from "@/components/ui/button";
-import {
-  getDashboardKpis,
-  type DashboardKpis,
-} from "@/integrations/external-supabase/dashboard.functions";
+import { getDashboardKpis } from "@/integrations/external-supabase/dashboard.functions";
+
+type DashboardKpis = {
+  totalClientes: number;
+  contratosAtivos: number;
+  parcelasAtrasadas: number;
+  vencimentosHoje: number;
+};
 
 const dashboardKpisQuery = () =>
   queryOptions({
