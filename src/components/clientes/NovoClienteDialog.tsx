@@ -225,11 +225,12 @@ export function NovoClienteDialog({ open, onOpenChange }: NovoClienteDialogProps
                 placeholder="000.000.000-00"
                 inputMode="numeric"
                 value={form.watch("cpf_cnpj") ?? ""}
-                onChange={(e) =>
+                onChange={(e) => {
+                  form.clearErrors("cpf_cnpj");
                   form.setValue("cpf_cnpj", maskCpfCnpj(e.target.value), {
                     shouldValidate: true,
-                  })
-                }
+                  });
+                }}
               />
               {form.formState.errors.cpf_cnpj && (
                 <p className="text-xs text-destructive">
