@@ -1,4 +1,3 @@
-
 import { createFileRoute } from "@tanstack/react-router";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import {
@@ -14,7 +13,10 @@ import { AppSidebar } from "@/components/dashboard/AppSidebar";
 import { AreaChartCard } from "@/components/dashboard/AreaChartCard";
 import { KpiCard } from "@/components/dashboard/KpiCard";
 import { Button } from "@/components/ui/button";
-import { getDashboardKpis } from "@/integrations/external-supabase/dashboard.functions";
+import {
+  getDashboardKpis,
+  getDashboardCharts,
+} from "@/integrations/external-supabase/dashboard.functions";
 
 type DashboardKpis = {
   totalClientes: number;
@@ -27,6 +29,13 @@ const dashboardKpisQuery = () =>
   queryOptions({
     queryKey: ["dashboard", "kpis"],
     queryFn: () => getDashboardKpis(),
+  });
+
+const dashboardChartsQuery = () =>
+  queryOptions({
+    queryKey: ["dashboard", "charts"],
+    queryFn: () => getDashboardCharts(),
+    staleTime: 60_000,
   });
 
 export const Route = createFileRoute("/")({
@@ -42,6 +51,7 @@ export const Route = createFileRoute("/")({
   }),
   loader: ({ context: { queryClient } }) => {
     queryClient.ensureQueryData(dashboardKpisQuery());
+    queryClient.ensureQueryData(dashboardChartsQuery());
   },
   component: Dashboard,
 });
@@ -86,51 +96,6 @@ function buildKpis(data: DashboardKpis) {
   ];
 }
 
-const newClientsData = [
-  { month: "Mai", value: 42 },
-  { month: "Jun", value: 58 },
-  { month: "Jul", value: 71 },
-  { month: "Ago", value: 65 },
-  { month: "Set", value: 89 },
-  { month: "Out", value: 102 },
-  { month: "Nov", value: 118 },
-  { month: "Dez", value: 134 },
-  { month: "Jan", value: 151 },
-  { month: "Fev", value: 168 },
-  { month: "Mar", value: 192 },
-  { month: "Abr", value: 217 },
-];
-
-const contractsData = [
-  { month: "Mai", value: 28 },
-  { month: "Jun", value: 41 },
-  { month: "Jul", value: 53 },
-  { month: "Ago", value: 47 },
-  { month: "Set", value: 68 },
-  { month: "Out", value: 82 },
-  { month: "Nov", value: 95 },
-  { month: "Dez", value: 108 },
-  { month: "Jan", value: 121 },
-  { month: "Fev", value: 137 },
-  { month: "Mar", value: 154 },
-  { month: "Abr", value: 178 },
-];
-
-const volumeData = [
-  { month: "Mai", value: 145000 },
-  { month: "Jun", value: 198000 },
-  { month: "Jul", value: 252000 },
-  { month: "Ago", value: 231000 },
-  { month: "Set", value: 318000 },
-  { month: "Out", value: 402000 },
-  { month: "Nov", value: 478000 },
-  { month: "Dez", value: 542000 },
-  { month: "Jan", value: 615000 },
-  { month: "Fev", value: 702000 },
-  { month: "Mar", value: 824000 },
-  { month: "Abr", value: 968000 },
-];
-
 const EMERALD = "oklch(0.62 0.15 160)";
 const EMERALD_GLOW = "oklch(0.7 0.16 160)";
 const NAVY = "oklch(0.32 0.08 255)";
@@ -141,6 +106,7 @@ const formatBRL = (v: number) =>
 
 function Dashboard() {
   const { data } = useSuspenseQuery(dashboardKpisQuery());
+  const { data: charts } = useSuspenseQuery(dashboardChartsQuery());
   const kpis = buildKpis(data);
 
   return (
@@ -186,8 +152,8 @@ function Dashboard() {
 
             <AreaChartCard
               title="Evolução de Novos Clientes"
-              subtitle="Últimos 12 meses — total acumulado por mês"
-              data={newClientsData}
+              subtitle="Últimos 12 meses — total por mês"
+              data={charts.novosClientes}
               color={EMERALD}
               colorGlow={EMERALD_GLOW}
               gradientId="emeraldFill"
@@ -198,7 +164,7 @@ function Dashboard() {
               <AreaChartCard
                 title="Número de Contratos"
                 subtitle="Contratos firmados por mês"
-                data={contractsData}
+                data={charts.contratos}
                 color={NAVY}
                 colorGlow={NAVY_GLOW}
                 gradientId="navyFill"
@@ -207,7 +173,7 @@ function Dashboard() {
               <AreaChartCard
                 title="Volume Financeiro (R$)"
                 subtitle="Valor total emprestado por mês"
-                data={volumeData}
+                data={charts.volume}
                 color={EMERALD}
                 colorGlow={EMERALD_GLOW}
                 gradientId="volumeFill"
