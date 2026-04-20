@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import {
@@ -170,7 +171,9 @@ function Dashboard() {
               </p>
             </div>
 
-            <KpiGrid />
+            <Suspense fallback={<KpiSkeleton />}>
+              <KpiGrid />
+            </Suspense>
 
             <AreaChartCard
               title="Evolução de Novos Clientes"
