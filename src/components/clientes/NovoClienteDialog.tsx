@@ -29,6 +29,14 @@ import { useServerFn } from "@tanstack/react-start";
 
 import { createCliente } from "@/integrations/external-supabase/clientes.functions";
 import { BRAZIL_UFS, lookupCep } from "@/lib/cep";
+import {
+  isValidCep,
+  isValidCpfCnpj,
+  isValidTelefone,
+  maskCep,
+  maskCpfCnpj,
+  maskTelefone,
+} from "@/lib/masks";
 
 const formSchema = z.object({
   nome: z.string().trim().min(1, "Informe o nome"),
@@ -38,12 +46,24 @@ const formSchema = z.object({
     .email("E-mail inválido")
     .or(z.literal(""))
     .optional(),
-  telefone: z.string().trim().optional(),
+  telefone: z
+    .string()
+    .trim()
+    .min(1, "Informe o telefone")
+    .refine(isValidTelefone, "Telefone inválido"),
   data_nascimento: z.string().trim().optional(),
-  cpf_cnpj: z.string().trim().optional(),
+  cpf_cnpj: z
+    .string()
+    .trim()
+    .min(1, "Informe o CPF ou CNPJ")
+    .refine(isValidCpfCnpj, "CPF/CNPJ inválido"),
   rg: z.string().trim().optional(),
-  cep: z.string().trim().optional(),
-  endereco: z.string().trim().optional(),
+  cep: z
+    .string()
+    .trim()
+    .min(1, "Informe o CEP")
+    .refine(isValidCep, "CEP inválido"),
+  endereco: z.string().trim().min(1, "Informe o endereço"),
   numero: z.string().trim().optional(),
   complemento: z.string().trim().optional(),
   bairro: z.string().trim().optional(),
