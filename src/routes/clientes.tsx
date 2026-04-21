@@ -84,8 +84,13 @@ function ClientesPage() {
   const { data } = useSuspenseQuery(clientesQuery());
   const { novo } = Route.useSearch();
   const navigate = useNavigate({ from: "/clientes" });
+  const queryClient = useQueryClient();
+  const deleteClienteFn = useServerFn(deleteCliente);
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
+  const [clienteParaExcluir, setClienteParaExcluir] = useState<Cliente | null>(
+    null,
+  );
 
   useEffect(() => {
     if (novo) {
@@ -96,6 +101,23 @@ function ClientesPage() {
 
   const clientes = data.data;
   const hasError = !!data.error;
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string | number) => deleteClienteFn({ data: { id } }),
+    onSuccess: (result, _id) => {
+      if (!result.ok) {
+        toast.error(result.error ?? "Erro ao excluir cliente.");
+        return;
+      }
+      toast.success("Cliente excluído com sucesso!");
+      queryClient.invalidateQueries({ queryKey: ["clientes", "list"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard", "kpis"] });
+      setClienteParaExcluir(null);
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "Erro inesperado.");
+    },
+  });
 
   // Atribui ID sequencial estável: #001 = mais antigo. Como a lista vem
   // ordenada por created_at desc, o índice reverso dá a sequência correta.
