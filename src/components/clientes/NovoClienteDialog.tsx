@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -27,7 +27,11 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { useServerFn } from "@tanstack/react-start";
 
-import { createCliente } from "@/integrations/external-supabase/clientes.functions";
+import {
+  createCliente,
+  updateCliente,
+  type ClienteFull,
+} from "@/integrations/external-supabase/clientes.functions";
 import { BRAZIL_UFS, lookupCep } from "@/lib/cep";
 import {
   isValidCep,
@@ -73,63 +77,115 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema>;
 
+const EMPTY_VALUES: FormValues = {
+  nome: "",
+  email: "",
+  telefone: "",
+  data_nascimento: "",
+  cpf_cnpj: "",
+  rg: "",
+  cep: "",
+  endereco: "",
+  numero: "",
+  complemento: "",
+  bairro: "",
+  cidade: "",
+  uf: "",
+};
+
+function clienteToFormValues(c: ClienteFull): FormValues {
+  return {
+    nome: c.nome ?? "",
+    email: c.email ?? "",
+    telefone: c.telefone ? maskTelefone(c.telefone) : "",
+    data_nascimento: c.data_nascimento ?? "",
+    cpf_cnpj: c.cpf_cnpj ? maskCpfCnpj(c.cpf_cnpj) : "",
+    rg: c.rg ?? "",
+    cep: c.cep ? maskCep(c.cep) : "",
+    endereco: c.endereco ?? "",
+    numero: c.numero ?? "",
+    complemento: c.complemento ?? "",
+    bairro: c.bairro ?? "",
+    cidade: c.cidade ?? "",
+    uf: c.uf ?? "",
+  };
+}
+
 interface NovoClienteDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  cliente?: ClienteFull | null;
 }
 
-export function NovoClienteDialog({ open, onOpenChange }: NovoClienteDialogProps) {
+export function NovoClienteDialog({
+  open,
+  onOpenChange,
+  cliente,
+}: NovoClienteDialogProps) {
   const queryClient = useQueryClient();
   const createClienteFn = useServerFn(createCliente);
+  const updateClienteFn = useServerFn(updateCliente);
   const [cepLoading, setCepLoading] = useState(false);
+  const isEdit = !!cliente;
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
-    defaultValues: {
-      nome: "",
-      email: "",
-      telefone: "",
-      data_nascimento: "",
-      cpf_cnpj: "",
-      rg: "",
-      cep: "",
-      endereco: "",
-      numero: "",
-      complemento: "",
-      bairro: "",
-      cidade: "",
-      uf: "",
-    },
+    defaultValues: EMPTY_VALUES,
   });
 
+  // Quando abrir, preencher com dados do cliente em edição (ou limpar)
+  useEffect(() => {
+    if (!open) return;
+    if (cliente) {
+      form.reset(clienteToFormValues(cliente));
+    } else {
+      form.reset(EMPTY_VALUES);
+    }
+  }, [open, cliente, form]);
+
   const mutation = useMutation({
-    mutationFn: (values: FormValues) => createClienteFn({ data: values }),
+    mutationFn: async (values: FormValues) => {
+      if (isEdit && cliente) {
+        return updateClienteFn({ data: { ...values, id: cliente.id } });
+      }
+      return createClienteFn({ data: values });
+    },
     onSuccess: (res) => {
       if (!res.ok) {
         if (res.code === "DUPLICATE_CPF_CNPJ") {
           form.setError("cpf_cnpj", {
             type: "manual",
-            message: "CPF/CNPJ já cadastrado no sistema.",
+            message: res.error ?? "CPF/CNPJ já cadastrado no sistema.",
           });
-          toast.error("CPF/CNPJ já cadastrado no sistema.");
+          toast.error(res.error ?? "CPF/CNPJ já cadastrado no sistema.");
           return;
         }
-        toast.error("Erro ao cadastrar cliente", {
-          description: res.error ?? "Verifique os dados e tente novamente.",
-        });
+        toast.error(
+          isEdit ? "Erro ao atualizar cliente" : "Erro ao cadastrar cliente",
+          {
+            description: res.error ?? "Verifique os dados e tente novamente.",
+          },
+        );
         return;
       }
-      toast.success("Cliente cadastrado com sucesso!");
+      toast.success(
+        isEdit
+          ? "Cliente atualizado com sucesso!"
+          : "Cliente cadastrado com sucesso!",
+      );
       queryClient.invalidateQueries({ queryKey: ["clientes", "list"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard", "kpis"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard", "charts"] });
-      form.reset();
+      form.reset(EMPTY_VALUES);
       onOpenChange(false);
     },
     onError: (err) => {
-      toast.error("Erro ao cadastrar cliente", {
-        description: err instanceof Error ? err.message : "Erro desconhecido",
-      });
+      toast.error(
+        isEdit ? "Erro ao atualizar cliente" : "Erro ao cadastrar cliente",
+        {
+          description: err instanceof Error ? err.message : "Erro desconhecido",
+        },
+      );
     },
   });
 
@@ -155,7 +211,7 @@ export function NovoClienteDialog({ open, onOpenChange }: NovoClienteDialogProps
   };
 
   const handleClose = (next: boolean) => {
-    if (!next) form.reset();
+    if (!next) form.reset(EMPTY_VALUES);
     onOpenChange(next);
   };
 
@@ -165,7 +221,7 @@ export function NovoClienteDialog({ open, onOpenChange }: NovoClienteDialogProps
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Novo Cliente</DialogTitle>
+          <DialogTitle>{isEdit ? "Editar Cliente" : "Novo Cliente"}</DialogTitle>
           <DialogDescription>
             Preencha os dados do cliente. Campos com * são obrigatórios.
           </DialogDescription>
@@ -356,7 +412,7 @@ export function NovoClienteDialog({ open, onOpenChange }: NovoClienteDialogProps
               {mutation.isPending && (
                 <Loader2 className="h-4 w-4 animate-spin" />
               )}
-              Cadastrar
+              {isEdit ? "Salvar Alterações" : "Cadastrar"}
             </Button>
           </DialogFooter>
         </form>
