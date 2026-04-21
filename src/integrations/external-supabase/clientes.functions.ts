@@ -73,7 +73,7 @@ export const createCliente = createServerFn({ method: "POST" })
     async ({
       data,
     }): Promise<{ ok: boolean; error: string | null; code?: string }> => {
-      const supabase = getServerClient();
+      const supabase = getServerClient({ admin: true });
 
       // Limpa strings vazias para null para evitar problemas com colunas tipadas (date, etc.)
       const payload: Record<string, unknown> = {};
