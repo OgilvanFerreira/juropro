@@ -253,7 +253,7 @@ export function NovoClienteDialog({ open, onOpenChange }: NovoClienteDialogProps
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-[1fr_auto]">
               <div className="space-y-1.5">
-                <Label htmlFor="cep">CEP *</Label>
+                <Label htmlFor="cep">CEP</Label>
                 <Input
                   id="cep"
                   placeholder="00000-000"
@@ -290,7 +290,7 @@ export function NovoClienteDialog({ open, onOpenChange }: NovoClienteDialogProps
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-[1fr_140px]">
               <div className="space-y-1.5">
-                <Label htmlFor="endereco">Endereço *</Label>
+                <Label htmlFor="endereco">Endereço</Label>
                 <Input id="endereco" {...form.register("endereco")} />
                 {form.formState.errors.endereco && (
                   <p className="text-xs text-destructive">
