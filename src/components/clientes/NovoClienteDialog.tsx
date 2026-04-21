@@ -220,7 +220,7 @@ export function NovoClienteDialog({ open, onOpenChange }: NovoClienteDialogProps
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="cpf_cnpj">CPF / CNPJ *</Label>
+              <Label htmlFor="cpf_cnpj">CPF / CNPJ</Label>
               <Input
                 id="cpf_cnpj"
                 placeholder="000.000.000-00"
