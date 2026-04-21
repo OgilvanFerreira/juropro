@@ -122,6 +122,7 @@ export function NovoClienteDialog({ open, onOpenChange }: NovoClienteDialogProps
       toast.success("Cliente cadastrado com sucesso!");
       queryClient.invalidateQueries({ queryKey: ["clientes", "list"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard", "kpis"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard", "charts"] });
       form.reset();
       onOpenChange(false);
     },

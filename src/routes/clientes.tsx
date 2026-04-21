@@ -112,6 +112,7 @@ function ClientesPage() {
       toast.success("Cliente excluído com sucesso!");
       queryClient.invalidateQueries({ queryKey: ["clientes", "list"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard", "kpis"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard", "charts"] });
       setClienteParaExcluir(null);
     },
     onError: (error) => {
