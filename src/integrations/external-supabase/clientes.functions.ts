@@ -67,6 +67,103 @@ const clienteInsertSchema = z.object({
 
 export type ClienteInsert = z.infer<typeof clienteInsertSchema>;
 
+const getClienteSchema = z.object({
+  id: z.union([z.string().min(1), z.number()]),
+});
+
+export const getCliente = createServerFn({ method: "GET" })
+  .inputValidator((input: { id: string | number }) => getClienteSchema.parse(input))
+  .handler(
+    async ({
+      data,
+    }): Promise<{ data: Record<string, unknown> | null; error: string | null }> => {
+      const supabase = getServerClient();
+      const { data: row, error } = await supabase
+        .from("clientes")
+        .select("*")
+        .eq("id", data.id)
+        .maybeSingle();
+      if (error) {
+        console.error("getCliente error:", error);
+        return { data: null, error: error.message };
+      }
+      return { data: row ?? null, error: null };
+    },
+  );
+
+const clienteUpdateSchema = clienteInsertSchema.extend({
+  id: z.union([z.string().min(1), z.number()]),
+});
+
+export type ClienteUpdate = z.infer<typeof clienteUpdateSchema>;
+
+export const updateCliente = createServerFn({ method: "POST" })
+  .inputValidator((input: ClienteUpdate) => clienteUpdateSchema.parse(input))
+  .handler(
+    async ({
+      data,
+    }): Promise<{ ok: boolean; error: string | null; code?: string }> => {
+      const supabase = getServerClient({ admin: true });
+      const { id, ...rest } = data;
+
+      const payload: Record<string, unknown> = {};
+      for (const [k, v] of Object.entries(rest)) {
+        if (v === undefined) continue;
+        if (typeof v === "string" && v.trim() === "") {
+          payload[k] = null;
+          continue;
+        }
+        payload[k] = v;
+      }
+
+      // Verifica duplicidade de CPF/CNPJ contra outros registros
+      const cpfCnpjRaw = typeof payload.cpf_cnpj === "string" ? payload.cpf_cnpj : "";
+      const cpfCnpjDigits = cpfCnpjRaw.replace(/\D/g, "");
+      if (cpfCnpjDigits.length > 0) {
+        const { data: existing, error: checkError } = await supabase
+          .from("clientes")
+          .select("id, cpf_cnpj")
+          .not("cpf_cnpj", "is", null)
+          .limit(1000);
+        if (checkError) {
+          console.error("updateCliente duplicate-check error:", checkError);
+          return { ok: false, error: checkError.message };
+        }
+        const duplicate = (existing ?? []).some((row) => {
+          if (String(row.id) === String(id)) return false;
+          const rowDigits = String(row.cpf_cnpj ?? "").replace(/\D/g, "");
+          return rowDigits === cpfCnpjDigits;
+        });
+        if (duplicate) {
+          return {
+            ok: false,
+            error: "CPF/CNPJ já cadastrado em outro cliente.",
+            code: "DUPLICATE_CPF_CNPJ",
+          };
+        }
+      }
+
+      const { data: updated, error } = await supabase
+        .from("clientes")
+        .update(payload)
+        .eq("id", id)
+        .select("id");
+
+      if (error) {
+        console.error("updateCliente error:", error);
+        return { ok: false, error: error.message };
+      }
+      if (!updated || updated.length === 0) {
+        return {
+          ok: false,
+          error:
+            "Nenhum registro foi atualizado. Verifique as permissões (RLS) da tabela clientes.",
+        };
+      }
+      return { ok: true, error: null };
+    },
+  );
+
 export const createCliente = createServerFn({ method: "POST" })
   .inputValidator((input: ClienteInsert) => clienteInsertSchema.parse(input))
   .handler(
