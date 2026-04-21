@@ -49,21 +49,21 @@ const formSchema = z.object({
   telefone: z
     .string()
     .trim()
-    .min(1, "Informe o telefone")
-    .refine(isValidTelefone, "Telefone inválido"),
+    .min(1, "Informe o celular")
+    .refine(isValidTelefone, "Celular inválido"),
   data_nascimento: z.string().trim().optional(),
   cpf_cnpj: z
     .string()
     .trim()
-    .min(1, "Informe o CPF ou CNPJ")
-    .refine(isValidCpfCnpj, "CPF/CNPJ inválido"),
+    .refine((v) => !v || isValidCpfCnpj(v), "CPF/CNPJ inválido")
+    .optional(),
   rg: z.string().trim().optional(),
   cep: z
     .string()
     .trim()
-    .min(1, "Informe o CEP")
-    .refine(isValidCep, "CEP inválido"),
-  endereco: z.string().trim().min(1, "Informe o endereço"),
+    .refine((v) => !v || isValidCep(v), "CEP inválido")
+    .optional(),
+  endereco: z.string().trim().optional(),
   numero: z.string().trim().optional(),
   complemento: z.string().trim().optional(),
   bairro: z.string().trim().optional(),
