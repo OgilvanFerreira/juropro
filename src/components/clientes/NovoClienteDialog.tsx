@@ -49,21 +49,21 @@ const formSchema = z.object({
   telefone: z
     .string()
     .trim()
-    .min(1, "Informe o telefone")
-    .refine(isValidTelefone, "Telefone inválido"),
+    .min(1, "Informe o celular")
+    .refine(isValidTelefone, "Celular inválido"),
   data_nascimento: z.string().trim().optional(),
   cpf_cnpj: z
     .string()
     .trim()
-    .min(1, "Informe o CPF ou CNPJ")
-    .refine(isValidCpfCnpj, "CPF/CNPJ inválido"),
+    .refine((v) => !v || isValidCpfCnpj(v), "CPF/CNPJ inválido")
+    .optional(),
   rg: z.string().trim().optional(),
   cep: z
     .string()
     .trim()
-    .min(1, "Informe o CEP")
-    .refine(isValidCep, "CEP inválido"),
-  endereco: z.string().trim().min(1, "Informe o endereço"),
+    .refine((v) => !v || isValidCep(v), "CEP inválido")
+    .optional(),
+  endereco: z.string().trim().optional(),
   numero: z.string().trim().optional(),
   complemento: z.string().trim().optional(),
   bairro: z.string().trim().optional(),
@@ -193,7 +193,7 @@ export function NovoClienteDialog({ open, onOpenChange }: NovoClienteDialogProps
               )}
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="telefone">Telefone *</Label>
+              <Label htmlFor="telefone">Celular *</Label>
               <Input
                 id="telefone"
                 placeholder="(00) 00000-0000"
@@ -220,7 +220,7 @@ export function NovoClienteDialog({ open, onOpenChange }: NovoClienteDialogProps
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="cpf_cnpj">CPF / CNPJ *</Label>
+              <Label htmlFor="cpf_cnpj">CPF / CNPJ</Label>
               <Input
                 id="cpf_cnpj"
                 placeholder="000.000.000-00"
@@ -253,7 +253,7 @@ export function NovoClienteDialog({ open, onOpenChange }: NovoClienteDialogProps
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-[1fr_auto]">
               <div className="space-y-1.5">
-                <Label htmlFor="cep">CEP *</Label>
+                <Label htmlFor="cep">CEP</Label>
                 <Input
                   id="cep"
                   placeholder="00000-000"
@@ -290,7 +290,7 @@ export function NovoClienteDialog({ open, onOpenChange }: NovoClienteDialogProps
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-[1fr_140px]">
               <div className="space-y-1.5">
-                <Label htmlFor="endereco">Endereço *</Label>
+                <Label htmlFor="endereco">Endereço</Label>
                 <Input id="endereco" {...form.register("endereco")} />
                 {form.formState.errors.endereco && (
                   <p className="text-xs text-destructive">
