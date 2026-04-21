@@ -2,15 +2,19 @@ import { createServerFn } from "@tanstack/react-start";
 import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
 
-function getServerClient() {
+function getServerClient(opts?: { admin?: boolean }) {
   const url = process.env.EXTERNAL_SUPABASE_URL;
   const anonKey = process.env.EXTERNAL_SUPABASE_ANON_KEY;
+  const serviceKey = process.env.EXTERNAL_SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !anonKey) {
     throw new Error(
       "EXTERNAL_SUPABASE_URL ou EXTERNAL_SUPABASE_ANON_KEY não configurados.",
     );
   }
-  return createClient(url, anonKey, {
+  // Para operações de escrita/exclusão usamos service_role (se disponível)
+  // para bypassar RLS do projeto externo. Cai pra anon se não houver.
+  const key = opts?.admin && serviceKey ? serviceKey : anonKey;
+  return createClient(url, key, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
 }
