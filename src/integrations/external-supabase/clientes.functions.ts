@@ -67,6 +67,24 @@ const clienteInsertSchema = z.object({
 
 export type ClienteInsert = z.infer<typeof clienteInsertSchema>;
 
+export type ClienteFull = {
+  id: string | number;
+  nome: string | null;
+  email: string | null;
+  telefone: string | null;
+  data_nascimento: string | null;
+  cpf_cnpj: string | null;
+  rg: string | null;
+  cep: string | null;
+  endereco: string | null;
+  numero: string | null;
+  complemento: string | null;
+  bairro: string | null;
+  cidade: string | null;
+  uf: string | null;
+  created_at: string | null;
+};
+
 const getClienteSchema = z.object({
   id: z.union([z.string().min(1), z.number()]),
 });
@@ -76,7 +94,7 @@ export const getCliente = createServerFn({ method: "GET" })
   .handler(
     async ({
       data,
-    }): Promise<{ data: Record<string, unknown> | null; error: string | null }> => {
+    }): Promise<{ data: ClienteFull | null; error: string | null }> => {
       const supabase = getServerClient();
       const { data: row, error } = await supabase
         .from("clientes")
@@ -87,7 +105,7 @@ export const getCliente = createServerFn({ method: "GET" })
         console.error("getCliente error:", error);
         return { data: null, error: error.message };
       }
-      return { data: row ?? null, error: null };
+      return { data: (row as ClienteFull | null) ?? null, error: null };
     },
   );
 
