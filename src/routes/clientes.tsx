@@ -239,6 +239,7 @@ function ClientesPage() {
                           <TableHead>CPF/CNPJ</TableHead>
                           <TableHead>Cidade/UF</TableHead>
                           <TableHead>Cadastrado em</TableHead>
+                          <TableHead className="w-16 text-right">Ações</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -267,6 +268,17 @@ function ClientesPage() {
                             <TableCell className="text-muted-foreground">
                               {formatDate(c.created_at)}
                             </TableCell>
+                            <TableCell className="text-right">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                                onClick={() => setClienteParaExcluir(c)}
+                                aria-label={`Excluir cliente ${c.nome ?? ""}`}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
@@ -279,6 +291,53 @@ function ClientesPage() {
         </div>
 
         <NovoClienteDialog open={open} onOpenChange={setOpen} />
+
+        <AlertDialog
+          open={clienteParaExcluir !== null}
+          onOpenChange={(next) => {
+            if (!next && !deleteMutation.isPending) {
+              setClienteParaExcluir(null);
+            }
+          }}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Excluir cliente</AlertDialogTitle>
+              <AlertDialogDescription>
+                Tem certeza que deseja excluir o cliente{" "}
+                <span className="font-semibold text-foreground">
+                  {clienteParaExcluir?.nome ?? "—"}
+                </span>
+                ? Todos os empréstimos e parcelas vinculados a ele serão
+                excluídos permanentemente. Esta ação não pode ser desfeita.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={deleteMutation.isPending}>
+                Cancelar
+              </AlertDialogCancel>
+              <AlertDialogAction
+                onClick={(e) => {
+                  e.preventDefault();
+                  if (clienteParaExcluir) {
+                    deleteMutation.mutate(clienteParaExcluir.id);
+                  }
+                }}
+                disabled={deleteMutation.isPending}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                {deleteMutation.isPending ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Excluindo...
+                  </>
+                ) : (
+                  "Excluir cliente"
+                )}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </SidebarProvider>
   );
