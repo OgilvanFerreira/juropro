@@ -230,60 +230,131 @@ function ClientesPage() {
                       Nenhum cliente encontrado para &quot;{search}&quot;.
                     </div>
                   ) : (
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead className="w-20">ID</TableHead>
-                          <TableHead>Nome</TableHead>
-                          <TableHead>E-mail</TableHead>
-                          <TableHead>Telefone</TableHead>
-                          <TableHead>CPF/CNPJ</TableHead>
-                          <TableHead>Cidade/UF</TableHead>
-                          <TableHead>Cadastrado em</TableHead>
-                          <TableHead className="w-16 text-right">Ações</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
+                    <>
+                      {/* Desktop: Tabela */}
+                      <div className="hidden md:block">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead className="w-20">ID</TableHead>
+                              <TableHead>Nome</TableHead>
+                              <TableHead>E-mail</TableHead>
+                              <TableHead>Telefone</TableHead>
+                              <TableHead>CPF/CNPJ</TableHead>
+                              <TableHead>Cidade/UF</TableHead>
+                              <TableHead>Cadastrado em</TableHead>
+                              <TableHead className="w-16 text-right">Ações</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {clientesFiltrados.map((c) => (
+                              <TableRow key={String(c.id)}>
+                                <TableCell className="font-mono text-xs text-muted-foreground">
+                                  #{String(c.seqId).padStart(3, "0")}
+                                </TableCell>
+                                <TableCell className="font-medium text-foreground">
+                                  {c.nome ?? "—"}
+                                </TableCell>
+                                <TableCell className="text-muted-foreground">
+                                  {c.email ?? "—"}
+                                </TableCell>
+                                <TableCell className="text-muted-foreground">
+                                  {formatTelefone(c.telefone)}
+                                </TableCell>
+                                <TableCell className="text-muted-foreground">
+                                  {formatCpfCnpj(c.cpf_cnpj)}
+                                </TableCell>
+                                <TableCell className="text-muted-foreground">
+                                  {c.cidade && c.uf
+                                    ? `${c.cidade}/${c.uf}`
+                                    : c.cidade ?? c.uf ?? "—"}
+                                </TableCell>
+                                <TableCell className="text-muted-foreground">
+                                  {formatDate(c.created_at)}
+                                </TableCell>
+                                <TableCell className="text-right">
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                                    onClick={() => setClienteParaExcluir(c)}
+                                    aria-label={`Excluir cliente ${c.nome ?? ""}`}
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+
+                      {/* Mobile: Cards empilhados */}
+                      <div className="block divide-y md:hidden">
                         {clientesFiltrados.map((c) => (
-                          <TableRow key={String(c.id)}>
-                            <TableCell className="font-mono text-xs text-muted-foreground">
-                              #{String(c.seqId).padStart(3, "0")}
-                            </TableCell>
-                            <TableCell className="font-medium text-foreground">
-                              {c.nome ?? "—"}
-                            </TableCell>
-                            <TableCell className="text-muted-foreground">
-                              {c.email ?? "—"}
-                            </TableCell>
-                            <TableCell className="text-muted-foreground">
-                              {formatTelefone(c.telefone)}
-                            </TableCell>
-                            <TableCell className="text-muted-foreground">
-                              {formatCpfCnpj(c.cpf_cnpj)}
-                            </TableCell>
-                            <TableCell className="text-muted-foreground">
-                              {c.cidade && c.uf
-                                ? `${c.cidade}/${c.uf}`
-                                : c.cidade ?? c.uf ?? "—"}
-                            </TableCell>
-                            <TableCell className="text-muted-foreground">
-                              {formatDate(c.created_at)}
-                            </TableCell>
-                            <TableCell className="text-right">
+                          <div key={String(c.id)} className="space-y-3 p-4">
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-baseline gap-2">
+                                  <h3 className="truncate text-base font-semibold text-foreground">
+                                    {c.nome ?? "—"}
+                                  </h3>
+                                  <span className="font-mono text-xs text-muted-foreground">
+                                    #{String(c.seqId).padStart(3, "0")}
+                                  </span>
+                                </div>
+                                {c.email && (
+                                  <p className="truncate text-xs text-muted-foreground">
+                                    {c.email}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-2 text-xs">
+                              <div>
+                                <p className="text-muted-foreground">Telefone</p>
+                                <p className="font-medium text-foreground">
+                                  {formatTelefone(c.telefone) || "—"}
+                                </p>
+                              </div>
+                              <div>
+                                <p className="text-muted-foreground">CPF/CNPJ</p>
+                                <p className="font-medium text-foreground">
+                                  {formatCpfCnpj(c.cpf_cnpj) || "—"}
+                                </p>
+                              </div>
+                              <div>
+                                <p className="text-muted-foreground">Cidade/UF</p>
+                                <p className="font-medium text-foreground">
+                                  {c.cidade && c.uf
+                                    ? `${c.cidade}/${c.uf}`
+                                    : c.cidade ?? c.uf ?? "—"}
+                                </p>
+                              </div>
+                              <div>
+                                <p className="text-muted-foreground">Cadastrado em</p>
+                                <p className="font-medium text-foreground">
+                                  {formatDate(c.created_at)}
+                                </p>
+                              </div>
+                            </div>
+
+                            <div className="flex justify-end gap-2 border-t pt-3">
                               <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                                variant="outline"
+                                size="sm"
+                                className="h-8 text-xs"
                                 onClick={() => setClienteParaExcluir(c)}
-                                aria-label={`Excluir cliente ${c.nome ?? ""}`}
                               >
-                                <Trash2 className="h-4 w-4" />
+                                <Trash2 className="h-3.5 w-3.5" />
+                                Excluir
                               </Button>
-                            </TableCell>
-                          </TableRow>
+                            </div>
+                          </div>
                         ))}
-                      </TableBody>
-                    </Table>
+                      </div>
+                    </>
                   )}
                 </>
               )}
