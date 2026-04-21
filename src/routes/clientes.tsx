@@ -311,15 +311,31 @@ function ClientesPage() {
                                   {formatDate(c.created_at)}
                                 </TableCell>
                                 <TableCell className="text-right">
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-8 w-8 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-                                    onClick={() => setClienteParaExcluir(c)}
-                                    aria-label={`Excluir cliente ${c.nome ?? ""}`}
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
+                                  <div className="flex justify-end gap-1">
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-8 w-8 text-muted-foreground hover:bg-primary/10 hover:text-primary"
+                                      onClick={() => handleEditar(c.id)}
+                                      disabled={loadingEditId === c.id}
+                                      aria-label={`Editar cliente ${c.nome ?? ""}`}
+                                    >
+                                      {loadingEditId === c.id ? (
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                      ) : (
+                                        <Pencil className="h-4 w-4" />
+                                      )}
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-8 w-8 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                                      onClick={() => setClienteParaExcluir(c)}
+                                      aria-label={`Excluir cliente ${c.nome ?? ""}`}
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </div>
                                 </TableCell>
                               </TableRow>
                             ))}
@@ -383,6 +399,20 @@ function ClientesPage() {
                                 variant="outline"
                                 size="sm"
                                 className="h-8 text-xs"
+                                onClick={() => handleEditar(c.id)}
+                                disabled={loadingEditId === c.id}
+                              >
+                                {loadingEditId === c.id ? (
+                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                ) : (
+                                  <Pencil className="h-3.5 w-3.5" />
+                                )}
+                                Editar
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-8 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive"
                                 onClick={() => setClienteParaExcluir(c)}
                               >
                                 <Trash2 className="h-3.5 w-3.5" />
@@ -400,7 +430,11 @@ function ClientesPage() {
           </main>
         </div>
 
-        <NovoClienteDialog open={open} onOpenChange={setOpen} />
+        <NovoClienteDialog
+          open={open}
+          onOpenChange={handleDialogChange}
+          cliente={clienteEditando}
+        />
 
         <AlertDialog
           open={clienteParaExcluir !== null}
