@@ -2,15 +2,19 @@ import { createServerFn } from "@tanstack/react-start";
 import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
 
-function getServerClient() {
+function getServerClient(opts?: { admin?: boolean }) {
   const url = process.env.EXTERNAL_SUPABASE_URL;
   const anonKey = process.env.EXTERNAL_SUPABASE_ANON_KEY;
+  const serviceKey = process.env.EXTERNAL_SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !anonKey) {
     throw new Error(
       "EXTERNAL_SUPABASE_URL ou EXTERNAL_SUPABASE_ANON_KEY não configurados.",
     );
   }
-  return createClient(url, anonKey, {
+  // Para operações de escrita/exclusão usamos service_role (se disponível)
+  // para bypassar RLS do projeto externo. Cai pra anon se não houver.
+  const key = opts?.admin && serviceKey ? serviceKey : anonKey;
+  return createClient(url, key, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
 }
@@ -69,7 +73,7 @@ export const createCliente = createServerFn({ method: "POST" })
     async ({
       data,
     }): Promise<{ ok: boolean; error: string | null; code?: string }> => {
-      const supabase = getServerClient();
+      const supabase = getServerClient({ admin: true });
 
       // Limpa strings vazias para null para evitar problemas com colunas tipadas (date, etc.)
       const payload: Record<string, unknown> = {};
@@ -128,15 +132,26 @@ export const deleteCliente = createServerFn({ method: "POST" })
   .inputValidator((input: DeleteClienteInput) => deleteClienteSchema.parse(input))
   .handler(
     async ({ data }): Promise<{ ok: boolean; error: string | null }> => {
-      const supabase = getServerClient();
-      const { error } = await supabase
+      const supabase = getServerClient({ admin: true });
+      // .select() força o retorno das linhas afetadas para sabermos se
+      // o DELETE realmente removeu algo (RLS pode silenciosamente bloquear).
+      const { data: deleted, error } = await supabase
         .from("clientes")
         .delete()
-        .eq("id", data.id);
+        .eq("id", data.id)
+        .select("id");
 
       if (error) {
         console.error("deleteCliente error:", error);
         return { ok: false, error: error.message };
+      }
+      if (!deleted || deleted.length === 0) {
+        console.error("deleteCliente: nenhuma linha removida (RLS?) id=", data.id);
+        return {
+          ok: false,
+          error:
+            "Nenhum registro foi excluído. Verifique as permissões (RLS) da tabela clientes ou se o SERVICE_ROLE_KEY do Supabase externo está configurado.",
+        };
       }
       return { ok: true, error: null };
     },
