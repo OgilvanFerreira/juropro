@@ -1,7 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
-import { Search, UserPlus, Users as UsersIcon } from "lucide-react";
+import {
+  queryOptions,
+  useMutation,
+  useQueryClient,
+  useSuspenseQuery,
+} from "@tanstack/react-query";
+import { Loader2, Search, Trash2, UserPlus, Users as UsersIcon } from "lucide-react";
+import { toast } from "sonner";
+import { useServerFn } from "@tanstack/react-start";
 
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/dashboard/AppSidebar";
@@ -16,8 +23,22 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Card } from "@/components/ui/card";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { NovoClienteDialog } from "@/components/clientes/NovoClienteDialog";
-import { listClientes } from "@/integrations/external-supabase/clientes.functions";
+import {
+  deleteCliente,
+  listClientes,
+  type Cliente,
+} from "@/integrations/external-supabase/clientes.functions";
 import { formatCpfCnpj, formatTelefone } from "@/lib/masks";
 
 const clientesQuery = () =>
@@ -63,8 +84,13 @@ function ClientesPage() {
   const { data } = useSuspenseQuery(clientesQuery());
   const { novo } = Route.useSearch();
   const navigate = useNavigate({ from: "/clientes" });
+  const queryClient = useQueryClient();
+  const deleteClienteFn = useServerFn(deleteCliente);
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
+  const [clienteParaExcluir, setClienteParaExcluir] = useState<Cliente | null>(
+    null,
+  );
 
   useEffect(() => {
     if (novo) {
@@ -75,6 +101,23 @@ function ClientesPage() {
 
   const clientes = data.data;
   const hasError = !!data.error;
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string | number) => deleteClienteFn({ data: { id } }),
+    onSuccess: (result, _id) => {
+      if (!result.ok) {
+        toast.error(result.error ?? "Erro ao excluir cliente.");
+        return;
+      }
+      toast.success("Cliente excluído com sucesso!");
+      queryClient.invalidateQueries({ queryKey: ["clientes", "list"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard", "kpis"] });
+      setClienteParaExcluir(null);
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "Erro inesperado.");
+    },
+  });
 
   // Atribui ID sequencial estável: #001 = mais antigo. Como a lista vem
   // ordenada por created_at desc, o índice reverso dá a sequência correta.
@@ -196,6 +239,7 @@ function ClientesPage() {
                           <TableHead>CPF/CNPJ</TableHead>
                           <TableHead>Cidade/UF</TableHead>
                           <TableHead>Cadastrado em</TableHead>
+                          <TableHead className="w-16 text-right">Ações</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -224,6 +268,17 @@ function ClientesPage() {
                             <TableCell className="text-muted-foreground">
                               {formatDate(c.created_at)}
                             </TableCell>
+                            <TableCell className="text-right">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                                onClick={() => setClienteParaExcluir(c)}
+                                aria-label={`Excluir cliente ${c.nome ?? ""}`}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
@@ -236,6 +291,53 @@ function ClientesPage() {
         </div>
 
         <NovoClienteDialog open={open} onOpenChange={setOpen} />
+
+        <AlertDialog
+          open={clienteParaExcluir !== null}
+          onOpenChange={(next) => {
+            if (!next && !deleteMutation.isPending) {
+              setClienteParaExcluir(null);
+            }
+          }}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Excluir cliente</AlertDialogTitle>
+              <AlertDialogDescription>
+                Tem certeza que deseja excluir o cliente{" "}
+                <span className="font-semibold text-foreground">
+                  {clienteParaExcluir?.nome ?? "—"}
+                </span>
+                ? Todos os empréstimos e parcelas vinculados a ele serão
+                excluídos permanentemente. Esta ação não pode ser desfeita.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={deleteMutation.isPending}>
+                Cancelar
+              </AlertDialogCancel>
+              <AlertDialogAction
+                onClick={(e) => {
+                  e.preventDefault();
+                  if (clienteParaExcluir) {
+                    deleteMutation.mutate(clienteParaExcluir.id);
+                  }
+                }}
+                disabled={deleteMutation.isPending}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                {deleteMutation.isPending ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Excluindo...
+                  </>
+                ) : (
+                  "Excluir cliente"
+                )}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </SidebarProvider>
   );

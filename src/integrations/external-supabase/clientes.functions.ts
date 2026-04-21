@@ -117,3 +117,27 @@ export const createCliente = createServerFn({ method: "POST" })
       return { ok: true, error: null };
     },
   );
+
+const deleteClienteSchema = z.object({
+  id: z.union([z.string().min(1), z.number()]),
+});
+
+export type DeleteClienteInput = z.infer<typeof deleteClienteSchema>;
+
+export const deleteCliente = createServerFn({ method: "POST" })
+  .inputValidator((input: DeleteClienteInput) => deleteClienteSchema.parse(input))
+  .handler(
+    async ({ data }): Promise<{ ok: boolean; error: string | null }> => {
+      const supabase = getServerClient();
+      const { error } = await supabase
+        .from("clientes")
+        .delete()
+        .eq("id", data.id);
+
+      if (error) {
+        console.error("deleteCliente error:", error);
+        return { ok: false, error: error.message };
+      }
+      return { ok: true, error: null };
+    },
+  );
