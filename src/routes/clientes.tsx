@@ -6,7 +6,14 @@ import {
   useQueryClient,
   useSuspenseQuery,
 } from "@tanstack/react-query";
-import { Loader2, Search, Trash2, UserPlus, Users as UsersIcon } from "lucide-react";
+import {
+  Loader2,
+  Pencil,
+  Search,
+  Trash2,
+  UserPlus,
+  Users as UsersIcon,
+} from "lucide-react";
 import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
 
@@ -36,8 +43,10 @@ import {
 import { NovoClienteDialog } from "@/components/clientes/NovoClienteDialog";
 import {
   deleteCliente,
+  getCliente,
   listClientes,
   type Cliente,
+  type ClienteFull,
 } from "@/integrations/external-supabase/clientes.functions";
 import { formatCpfCnpj, formatTelefone } from "@/lib/masks";
 
@@ -86,11 +95,40 @@ function ClientesPage() {
   const navigate = useNavigate({ from: "/clientes" });
   const queryClient = useQueryClient();
   const deleteClienteFn = useServerFn(deleteCliente);
+  const getClienteFn = useServerFn(getCliente);
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [clienteParaExcluir, setClienteParaExcluir] = useState<Cliente | null>(
     null,
   );
+  const [clienteEditando, setClienteEditando] = useState<ClienteFull | null>(
+    null,
+  );
+  const [loadingEditId, setLoadingEditId] = useState<string | number | null>(
+    null,
+  );
+
+  const handleEditar = async (id: string | number) => {
+    setLoadingEditId(id);
+    try {
+      const res = await getClienteFn({ data: { id } });
+      if (!res.data) {
+        toast.error(res.error ?? "Cliente não encontrado.");
+        return;
+      }
+      setClienteEditando(res.data);
+      setOpen(true);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao carregar cliente.");
+    } finally {
+      setLoadingEditId(null);
+    }
+  };
+
+  const handleDialogChange = (next: boolean) => {
+    setOpen(next);
+    if (!next) setClienteEditando(null);
+  };
 
   useEffect(() => {
     if (novo) {
@@ -273,15 +311,31 @@ function ClientesPage() {
                                   {formatDate(c.created_at)}
                                 </TableCell>
                                 <TableCell className="text-right">
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-8 w-8 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-                                    onClick={() => setClienteParaExcluir(c)}
-                                    aria-label={`Excluir cliente ${c.nome ?? ""}`}
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
+                                  <div className="flex justify-end gap-1">
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-8 w-8 text-muted-foreground hover:bg-primary/10 hover:text-primary"
+                                      onClick={() => handleEditar(c.id)}
+                                      disabled={loadingEditId === c.id}
+                                      aria-label={`Editar cliente ${c.nome ?? ""}`}
+                                    >
+                                      {loadingEditId === c.id ? (
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                      ) : (
+                                        <Pencil className="h-4 w-4" />
+                                      )}
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-8 w-8 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                                      onClick={() => setClienteParaExcluir(c)}
+                                      aria-label={`Excluir cliente ${c.nome ?? ""}`}
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </div>
                                 </TableCell>
                               </TableRow>
                             ))}
@@ -345,6 +399,20 @@ function ClientesPage() {
                                 variant="outline"
                                 size="sm"
                                 className="h-8 text-xs"
+                                onClick={() => handleEditar(c.id)}
+                                disabled={loadingEditId === c.id}
+                              >
+                                {loadingEditId === c.id ? (
+                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                ) : (
+                                  <Pencil className="h-3.5 w-3.5" />
+                                )}
+                                Editar
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-8 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive"
                                 onClick={() => setClienteParaExcluir(c)}
                               >
                                 <Trash2 className="h-3.5 w-3.5" />
@@ -362,7 +430,11 @@ function ClientesPage() {
           </main>
         </div>
 
-        <NovoClienteDialog open={open} onOpenChange={setOpen} />
+        <NovoClienteDialog
+          open={open}
+          onOpenChange={handleDialogChange}
+          cliente={clienteEditando}
+        />
 
         <AlertDialog
           open={clienteParaExcluir !== null}
