@@ -1,7 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
-import { Search, UserPlus, Users as UsersIcon } from "lucide-react";
+import {
+  queryOptions,
+  useMutation,
+  useQueryClient,
+  useSuspenseQuery,
+} from "@tanstack/react-query";
+import { Loader2, Search, Trash2, UserPlus, Users as UsersIcon } from "lucide-react";
+import { toast } from "sonner";
+import { useServerFn } from "@tanstack/react-start";
 
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/dashboard/AppSidebar";
@@ -16,8 +23,22 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Card } from "@/components/ui/card";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { NovoClienteDialog } from "@/components/clientes/NovoClienteDialog";
-import { listClientes } from "@/integrations/external-supabase/clientes.functions";
+import {
+  deleteCliente,
+  listClientes,
+  type Cliente,
+} from "@/integrations/external-supabase/clientes.functions";
 import { formatCpfCnpj, formatTelefone } from "@/lib/masks";
 
 const clientesQuery = () =>
