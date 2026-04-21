@@ -132,15 +132,26 @@ export const deleteCliente = createServerFn({ method: "POST" })
   .inputValidator((input: DeleteClienteInput) => deleteClienteSchema.parse(input))
   .handler(
     async ({ data }): Promise<{ ok: boolean; error: string | null }> => {
-      const supabase = getServerClient();
-      const { error } = await supabase
+      const supabase = getServerClient({ admin: true });
+      // .select() força o retorno das linhas afetadas para sabermos se
+      // o DELETE realmente removeu algo (RLS pode silenciosamente bloquear).
+      const { data: deleted, error } = await supabase
         .from("clientes")
         .delete()
-        .eq("id", data.id);
+        .eq("id", data.id)
+        .select("id");
 
       if (error) {
         console.error("deleteCliente error:", error);
         return { ok: false, error: error.message };
+      }
+      if (!deleted || deleted.length === 0) {
+        console.error("deleteCliente: nenhuma linha removida (RLS?) id=", data.id);
+        return {
+          ok: false,
+          error:
+            "Nenhum registro foi excluído. Verifique as permissões (RLS) da tabela clientes ou se o SERVICE_ROLE_KEY do Supabase externo está configurado.",
+        };
       }
       return { ok: true, error: null };
     },
