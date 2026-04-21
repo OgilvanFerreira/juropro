@@ -193,7 +193,7 @@ export function NovoClienteDialog({ open, onOpenChange }: NovoClienteDialogProps
               )}
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="telefone">Telefone *</Label>
+              <Label htmlFor="telefone">Celular *</Label>
               <Input
                 id="telefone"
                 placeholder="(00) 00000-0000"
