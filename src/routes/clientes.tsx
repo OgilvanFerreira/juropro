@@ -6,7 +6,14 @@ import {
   useQueryClient,
   useSuspenseQuery,
 } from "@tanstack/react-query";
-import { Loader2, Search, Trash2, UserPlus, Users as UsersIcon } from "lucide-react";
+import {
+  Loader2,
+  Pencil,
+  Search,
+  Trash2,
+  UserPlus,
+  Users as UsersIcon,
+} from "lucide-react";
 import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
 
@@ -36,8 +43,10 @@ import {
 import { NovoClienteDialog } from "@/components/clientes/NovoClienteDialog";
 import {
   deleteCliente,
+  getCliente,
   listClientes,
   type Cliente,
+  type ClienteFull,
 } from "@/integrations/external-supabase/clientes.functions";
 import { formatCpfCnpj, formatTelefone } from "@/lib/masks";
 
@@ -86,11 +95,40 @@ function ClientesPage() {
   const navigate = useNavigate({ from: "/clientes" });
   const queryClient = useQueryClient();
   const deleteClienteFn = useServerFn(deleteCliente);
+  const getClienteFn = useServerFn(getCliente);
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [clienteParaExcluir, setClienteParaExcluir] = useState<Cliente | null>(
     null,
   );
+  const [clienteEditando, setClienteEditando] = useState<ClienteFull | null>(
+    null,
+  );
+  const [loadingEditId, setLoadingEditId] = useState<string | number | null>(
+    null,
+  );
+
+  const handleEditar = async (id: string | number) => {
+    setLoadingEditId(id);
+    try {
+      const res = await getClienteFn({ data: { id } });
+      if (!res.data) {
+        toast.error(res.error ?? "Cliente não encontrado.");
+        return;
+      }
+      setClienteEditando(res.data);
+      setOpen(true);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao carregar cliente.");
+    } finally {
+      setLoadingEditId(null);
+    }
+  };
+
+  const handleDialogChange = (next: boolean) => {
+    setOpen(next);
+    if (!next) setClienteEditando(null);
+  };
 
   useEffect(() => {
     if (novo) {
