@@ -408,6 +408,29 @@ export function NovoEmprestimoDialog({
   const mutation = useMutation({
     mutationFn: async () => {
       if (!form.clienteId || !resultado) throw new Error("Dados inválidos");
+      const parcelasPayload = resultado.parcelas.map((p) => ({
+        numero: p.numero,
+        data_vencimento: p.vencimentoIso,
+        valor: Number(p.valor.toFixed(2)),
+      }));
+      if (isEdit && emprestimo) {
+        const res = await updateEmprestimoFn({
+          data: {
+            id: emprestimo.id,
+            cliente_id: form.clienteId,
+            valor_principal: parseFloat(form.valorPrincipal),
+            taxa_juros: parseFloat(form.taxaJuros),
+            numero_parcelas: parseInt(form.numParcelas),
+            tipo_juros: form.tipoJuros,
+            periodicidade: form.periodicidade,
+            data_inicio: form.dataInicio,
+            observacoes: form.observacoes,
+            parcelas: parcelasPayload,
+          },
+        });
+        if (!res.ok) throw new Error(res.error ?? "Erro ao atualizar empréstimo");
+        return res;
+      }
       const res = await createEmprestimoFn({
         data: {
           cliente_id: form.clienteId,
@@ -418,20 +441,21 @@ export function NovoEmprestimoDialog({
           periodicidade: form.periodicidade,
           data_inicio: form.dataInicio,
           observacoes: form.observacoes,
-          parcelas: resultado.parcelas.map((p) => ({
-            numero: p.numero,
-            data_vencimento: p.vencimentoIso,
-            valor: Number(p.valor.toFixed(2)),
-          })),
+          parcelas: parcelasPayload,
         },
       });
       if (!res.ok) throw new Error(res.error ?? "Erro ao salvar empréstimo");
       return res;
     },
     onSuccess: () => {
-      toast.success("Empréstimo cadastrado com sucesso!");
+      toast.success(
+        isEdit
+          ? "Empréstimo atualizado com sucesso!"
+          : "Empréstimo cadastrado com sucesso!",
+      );
       queryClient.invalidateQueries({ queryKey: ["dashboard", "kpis"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard", "charts"] });
+      queryClient.invalidateQueries({ queryKey: ["emprestimos", "list"] });
       onOpenChange(false);
     },
     onError: (err: Error) => {
