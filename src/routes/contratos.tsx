@@ -229,13 +229,69 @@ function ContratosPage() {
                     <table className="w-full text-sm">
                       <thead className="bg-muted/50 text-xs uppercase tracking-wider text-muted-foreground">
                         <tr>
-                          <th className="px-3 py-2 text-left">ID</th>
-                          <th className="px-3 py-2 text-left">Cliente</th>
-                          <th className="px-3 py-2 text-right">Principal</th>
-                          <th className="px-3 py-2 text-right">Taxa</th>
-                          <th className="px-3 py-2 text-center">Parcelas</th>
-                          <th className="px-3 py-2 text-left">Início</th>
-                          <th className="px-3 py-2 text-center">Status</th>
+                          <th className="px-3 py-2 text-left">
+                            <button
+                              type="button"
+                              onClick={() => handleSort("id")}
+                              className="inline-flex items-center gap-1 hover:text-foreground transition-colors"
+                            >
+                              ID <SortIcon column="id" />
+                            </button>
+                          </th>
+                          <th className="px-3 py-2 text-left">
+                            <button
+                              type="button"
+                              onClick={() => handleSort("cliente")}
+                              className="inline-flex items-center gap-1 hover:text-foreground transition-colors"
+                            >
+                              Cliente <SortIcon column="cliente" />
+                            </button>
+                          </th>
+                          <th className="px-3 py-2 text-right">
+                            <button
+                              type="button"
+                              onClick={() => handleSort("principal")}
+                              className="inline-flex items-center gap-1 hover:text-foreground transition-colors ml-auto"
+                            >
+                              Principal <SortIcon column="principal" />
+                            </button>
+                          </th>
+                          <th className="px-3 py-2 text-right">
+                            <button
+                              type="button"
+                              onClick={() => handleSort("taxa")}
+                              className="inline-flex items-center gap-1 hover:text-foreground transition-colors ml-auto"
+                            >
+                              Taxa <SortIcon column="taxa" />
+                            </button>
+                          </th>
+                          <th className="px-3 py-2 text-center">
+                            <button
+                              type="button"
+                              onClick={() => handleSort("parcelas")}
+                              className="inline-flex items-center gap-1 hover:text-foreground transition-colors mx-auto"
+                            >
+                              Parcelas <SortIcon column="parcelas" />
+                            </button>
+                          </th>
+                          <th className="px-3 py-2 text-left">
+                            <button
+                              type="button"
+                              onClick={() => handleSort("data_inicio")}
+                              className="inline-flex items-center gap-1 hover:text-foreground transition-colors"
+                            >
+                              Início <SortIcon column="data_inicio" />
+                            </button>
+                          </th>
+                          <th className="px-3 py-2 text-center">
+                            <button
+                              type="button"
+                              onClick={() => handleSort("status")}
+                              className="inline-flex items-center gap-1 hover:text-foreground transition-colors mx-auto"
+                            >
+                              Status <SortIcon column="status" />
+                            </button>
+                          </th>
                         </tr>
                       </thead>
                       <tbody>
