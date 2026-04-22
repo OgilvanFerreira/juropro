@@ -550,7 +550,17 @@ function RowDesktop({
   );
 }
 
-function CardMobile({ item }: { item: EmprestimoListItem }) {
+function CardMobile({
+  item,
+  onEdit,
+  onDelete,
+  isLoadingEdit,
+}: {
+  item: EmprestimoListItem;
+  onEdit: () => void;
+  onDelete: () => void;
+  isLoadingEdit: boolean;
+}) {
   const progresso =
     item.parcelas_total > 0
       ? Math.round((item.parcelas_pagas / item.parcelas_total) * 100)
@@ -592,6 +602,33 @@ function CardMobile({ item }: { item: EmprestimoListItem }) {
           <p className="text-muted-foreground">Início</p>
           <p className="font-semibold text-foreground">{fmtDate(item.data_inicio)}</p>
         </div>
+      </div>
+      <div className="mt-3 flex justify-end gap-2 border-t pt-3">
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="h-8 gap-1"
+          onClick={onEdit}
+          disabled={isLoadingEdit}
+        >
+          {isLoadingEdit ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <Pencil className="h-3.5 w-3.5" />
+          )}
+          Editar
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="h-8 gap-1 text-destructive hover:bg-destructive/10 hover:text-destructive"
+          onClick={onDelete}
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+          Excluir
+        </Button>
       </div>
     </div>
   );
