@@ -474,7 +474,17 @@ function KpiBox({
   );
 }
 
-function RowDesktop({ item }: { item: EmprestimoListItem }) {
+function RowDesktop({
+  item,
+  onEdit,
+  onDelete,
+  isLoadingEdit,
+}: {
+  item: EmprestimoListItem;
+  onEdit: () => void;
+  onDelete: () => void;
+  isLoadingEdit: boolean;
+}) {
   const progresso =
     item.parcelas_total > 0
       ? Math.round((item.parcelas_pagas / item.parcelas_total) * 100)
@@ -506,6 +516,35 @@ function RowDesktop({ item }: { item: EmprestimoListItem }) {
         >
           {item.status ?? "—"}
         </Badge>
+      </td>
+      <td className="px-3 py-3 text-right">
+        <div className="flex items-center justify-end gap-1">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-muted-foreground hover:text-foreground"
+            onClick={onEdit}
+            disabled={isLoadingEdit}
+            aria-label="Editar empréstimo"
+          >
+            {isLoadingEdit ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Pencil className="h-4 w-4" />
+            )}
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-muted-foreground hover:text-destructive"
+            onClick={onDelete}
+            aria-label="Excluir empréstimo"
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
       </td>
     </tr>
   );
