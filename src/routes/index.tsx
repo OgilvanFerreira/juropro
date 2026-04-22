@@ -210,6 +210,10 @@ function Dashboard() {
           </main>
         </div>
       </div>
+      <NovoEmprestimoDialog
+        open={novoEmprestimoOpen}
+        onOpenChange={setNovoEmprestimoOpen}
+      />
     </SidebarProvider>
   );
 }
