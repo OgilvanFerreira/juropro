@@ -44,6 +44,110 @@ const createEmprestimoSchema = z.object({
 
 export type CreateEmprestimoInput = z.infer<typeof createEmprestimoSchema>;
 
+export type EmprestimoListItem = {
+  id: string | number;
+  cliente_id: string | number | null;
+  cliente_nome: string | null;
+  valor_principal: number;
+  taxa_juros: number;
+  numero_parcelas: number;
+  tipo_juros: string | null;
+  data_inicio: string | null;
+  status: string | null;
+  observacoes: string | null;
+  created_at: string | null;
+  parcelas_pagas: number;
+  parcelas_total: number;
+  total_pago: number;
+  total_a_receber: number;
+};
+
+export const listEmprestimos = createServerFn({ method: "GET" }).handler(
+  async (): Promise<{ data: EmprestimoListItem[]; error: string | null }> => {
+    const supabase = getServerClient();
+
+    const { data: emps, error: empErr } = await supabase
+      .from("emprestimos")
+      .select(
+        "id, cliente_id, valor_principal, taxa_juros, numero_parcelas, tipo_juros, data_inicio, status, observacoes, created_at",
+      )
+      .order("created_at", { ascending: false })
+      .limit(500);
+
+    if (empErr) {
+      console.error("listEmprestimos error:", empErr);
+      return { data: [], error: empErr.message };
+    }
+
+    const list = emps ?? [];
+    if (list.length === 0) return { data: [], error: null };
+
+    const clienteIds = Array.from(
+      new Set(list.map((e) => e.cliente_id).filter((v) => v !== null && v !== undefined)),
+    );
+    const empIds = list.map((e) => e.id);
+
+    const [{ data: clientesRows }, { data: parcRows }] = await Promise.all([
+      clienteIds.length
+        ? supabase.from("clientes").select("id, nome").in("id", clienteIds as (string | number)[])
+        : Promise.resolve({ data: [] as { id: string | number; nome: string | null }[] }),
+      supabase
+        .from("parcelas")
+        .select("emprestimo_id, valor_parcela, status")
+        .in("emprestimo_id", empIds as (string | number)[]),
+    ]);
+
+    const nomeMap = new Map<string, string | null>();
+    (clientesRows ?? []).forEach((c) => nomeMap.set(String(c.id), c.nome));
+
+    const parcMap = new Map<
+      string,
+      { pagas: number; total: number; pago: number; receber: number }
+    >();
+    (parcRows ?? []).forEach((p) => {
+      const key = String(p.emprestimo_id);
+      const cur = parcMap.get(key) ?? { pagas: 0, total: 0, pago: 0, receber: 0 };
+      cur.total += 1;
+      const valor = Number(p.valor_parcela ?? 0);
+      if (p.status === "pago" || p.status === "paga") {
+        cur.pagas += 1;
+        cur.pago += valor;
+      } else {
+        cur.receber += valor;
+      }
+      parcMap.set(key, cur);
+    });
+
+    const out: EmprestimoListItem[] = list.map((e) => {
+      const stats = parcMap.get(String(e.id)) ?? {
+        pagas: 0,
+        total: e.numero_parcelas ?? 0,
+        pago: 0,
+        receber: 0,
+      };
+      return {
+        id: e.id,
+        cliente_id: e.cliente_id,
+        cliente_nome: e.cliente_id ? (nomeMap.get(String(e.cliente_id)) ?? null) : null,
+        valor_principal: Number(e.valor_principal ?? 0),
+        taxa_juros: Number(e.taxa_juros ?? 0),
+        numero_parcelas: Number(e.numero_parcelas ?? 0),
+        tipo_juros: e.tipo_juros ?? null,
+        data_inicio: e.data_inicio ?? null,
+        status: e.status ?? null,
+        observacoes: e.observacoes ?? null,
+        created_at: e.created_at ?? null,
+        parcelas_pagas: stats.pagas,
+        parcelas_total: stats.total,
+        total_pago: stats.pago,
+        total_a_receber: stats.receber,
+      };
+    });
+
+    return { data: out, error: null };
+  },
+);
+
 export const createEmprestimo = createServerFn({ method: "POST" })
   .inputValidator((input: CreateEmprestimoInput) =>
     createEmprestimoSchema.parse(input),
