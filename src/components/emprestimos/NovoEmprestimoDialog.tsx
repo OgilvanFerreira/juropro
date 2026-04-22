@@ -650,10 +650,11 @@ export function NovoEmprestimoDialog({
               >
                 {mutation.isPending ? (
                   <>
-                    <Loader2 className="h-4 w-4 animate-spin" /> Salvando...
+                    <Loader2 className="h-4 w-4 animate-spin" />{" "}
+                    {isEdit ? "Atualizando..." : "Salvando..."}
                   </>
                 ) : (
-                  <>💾 Salvar Empréstimo</>
+                  <>{isEdit ? "💾 Atualizar Empréstimo" : "💾 Salvar Empréstimo"}</>
                 )}
               </Button>
             </div>
