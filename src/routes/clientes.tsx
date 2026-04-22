@@ -110,6 +110,26 @@ function ClientesPage() {
   const [loadingEditId, setLoadingEditId] = useState<string | number | null>(
     null,
   );
+  type SortKey =
+    | "seqId"
+    | "nome"
+    | "email"
+    | "telefone"
+    | "cpf_cnpj"
+    | "cidade"
+    | "created_at";
+  type SortDir = "asc" | "desc";
+  const [sortKey, setSortKey] = useState<SortKey | null>(null);
+  const [sortDir, setSortDir] = useState<SortDir>("asc");
+
+  const handleSort = (key: SortKey) => {
+    if (sortKey !== key) {
+      setSortKey(key);
+      setSortDir("asc");
+    } else {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    }
+  };
 
   const handleEditar = async (id: string | number) => {
     setLoadingEditId(id);
