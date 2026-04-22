@@ -74,6 +74,7 @@ export type DashboardCharts = {
   novosClientes: ChartPoint[];
   contratos: ChartPoint[];
   volume: ChartPoint[];
+  recebimentos: ChartPoint[];
 };
 
 const MONTH_LABELS_PT = [
@@ -144,20 +145,23 @@ export const getDashboardCharts = createServerFn({ method: "GET" }).handler(
   async (): Promise<DashboardCharts> => {
     const supabase = getServerClient();
 
-    const [clientesRes, contratosRes, volumeRes] = await Promise.all([
+    const [clientesRes, contratosRes, volumeRes, recebimentosRes] = await Promise.all([
       supabase.rpc("get_clientes_por_mes"),
       supabase.rpc("get_contratos_por_mes"),
       supabase.rpc("get_volume_por_mes"),
+      supabase.rpc("get_recebimentos_por_mes"),
     ]);
 
     if (clientesRes.error) console.error("RPC get_clientes_por_mes:", clientesRes.error);
     if (contratosRes.error) console.error("RPC get_contratos_por_mes:", contratosRes.error);
     if (volumeRes.error) console.error("RPC get_volume_por_mes:", volumeRes.error);
+    if (recebimentosRes.error) console.error("RPC get_recebimentos_por_mes:", recebimentosRes.error);
 
     return {
       novosClientes: mapToBuckets((clientesRes.data as RpcRow[]) ?? null),
       contratos: mapToBuckets((contratosRes.data as RpcRow[]) ?? null),
       volume: mapToBuckets((volumeRes.data as RpcRow[]) ?? null),
+      recebimentos: mapToBuckets((recebimentosRes.data as RpcRow[]) ?? null),
     };
   },
 );
