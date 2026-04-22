@@ -187,6 +187,17 @@ function Dashboard() {
                 tooltipLabel="Volume"
               />
             </div>
+
+            <AreaChartCard
+              title="Recebimentos"
+              subtitle="Total recebido por mês — últimos 12 meses"
+              data={charts.recebimentos}
+              color={EMERALD}
+              colorGlow={EMERALD_GLOW}
+              gradientId="recebimentosFill"
+              formatValue={formatBRL}
+              tooltipLabel="Recebido"
+            />
           </main>
         </div>
       </div>
