@@ -7,6 +7,9 @@ import {
   useSuspenseQuery,
 } from "@tanstack/react-query";
 import {
+  ArrowDown,
+  ArrowUp,
+  ArrowUpDown,
   Loader2,
   Pencil,
   Search,
@@ -107,6 +110,26 @@ function ClientesPage() {
   const [loadingEditId, setLoadingEditId] = useState<string | number | null>(
     null,
   );
+  type SortKey =
+    | "seqId"
+    | "nome"
+    | "email"
+    | "telefone"
+    | "cpf_cnpj"
+    | "cidade"
+    | "created_at";
+  type SortDir = "asc" | "desc";
+  const [sortKey, setSortKey] = useState<SortKey | null>(null);
+  const [sortDir, setSortDir] = useState<SortDir>("asc");
+
+  const handleSort = (key: SortKey) => {
+    if (sortKey !== key) {
+      setSortKey(key);
+      setSortDir("asc");
+    } else {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    }
+  };
 
   const handleEditar = async (id: string | number) => {
     setLoadingEditId(id);
@@ -171,17 +194,64 @@ function ClientesPage() {
   // Filtro em tempo real por Nome ou CPF/CNPJ
   const clientesFiltrados = useMemo(() => {
     const term = search.trim().toLowerCase();
-    if (!term) return clientesComId;
     const termDigits = term.replace(/\D/g, "");
-    return clientesComId.filter((c) => {
-      const nome = (c.nome ?? "").toLowerCase();
-      const cpfDigits = (c.cpf_cnpj ?? "").replace(/\D/g, "");
-      const matchNome = nome.includes(term);
-      const matchCpf =
-        termDigits.length > 0 && cpfDigits.includes(termDigits);
-      return matchNome || matchCpf;
+    const filtered = !term
+      ? clientesComId
+      : clientesComId.filter((c) => {
+          const nome = (c.nome ?? "").toLowerCase();
+          const cpfDigits = (c.cpf_cnpj ?? "").replace(/\D/g, "");
+          const matchNome = nome.includes(term);
+          const matchCpf =
+            termDigits.length > 0 && cpfDigits.includes(termDigits);
+          return matchNome || matchCpf;
+        });
+
+    if (!sortKey) return filtered;
+
+    const dir = sortDir === "asc" ? 1 : -1;
+    const getVal = (c: (typeof filtered)[number]): string | number => {
+      switch (sortKey) {
+        case "seqId":
+          return c.seqId;
+        case "created_at":
+          return c.created_at ? new Date(c.created_at).getTime() : 0;
+        case "cpf_cnpj":
+          return (c.cpf_cnpj ?? "").replace(/\D/g, "");
+        case "telefone":
+          return (c.telefone ?? "").replace(/\D/g, "");
+        case "cidade":
+          return (c.cidade ?? "").toLowerCase();
+        case "email":
+          return (c.email ?? "").toLowerCase();
+        case "nome":
+        default:
+          return (c.nome ?? "").toLowerCase();
+      }
+    };
+
+    return [...filtered].sort((a, b) => {
+      const av = getVal(a);
+      const bv = getVal(b);
+      // empty values sempre por último
+      const aEmpty = av === "" || av === 0;
+      const bEmpty = bv === "" || bv === 0;
+      if (aEmpty && !bEmpty) return 1;
+      if (!aEmpty && bEmpty) return -1;
+      if (av < bv) return -1 * dir;
+      if (av > bv) return 1 * dir;
+      return 0;
     });
-  }, [clientesComId, search]);
+  }, [clientesComId, search, sortKey, sortDir]);
+
+  const SortIcon = ({ column }: { column: SortKey }) => {
+    if (sortKey !== column)
+      return <ArrowUpDown className="h-3.5 w-3.5 opacity-50" />;
+    return sortDir === "asc" ? (
+      <ArrowUp className="h-3.5 w-3.5" />
+    ) : (
+      <ArrowDown className="h-3.5 w-3.5" />
+    );
+  };
 
   return (
     <SidebarProvider>
@@ -274,13 +344,69 @@ function ClientesPage() {
                         <Table>
                           <TableHeader>
                             <TableRow>
-                              <TableHead className="w-20">ID</TableHead>
-                              <TableHead>Nome</TableHead>
-                              <TableHead>E-mail</TableHead>
-                              <TableHead>Telefone</TableHead>
-                              <TableHead>CPF/CNPJ</TableHead>
-                              <TableHead>Cidade/UF</TableHead>
-                              <TableHead>Cadastrado em</TableHead>
+                              <TableHead className="w-20">
+                                <button
+                                  type="button"
+                                  onClick={() => handleSort("seqId")}
+                                  className="inline-flex items-center gap-1 hover:text-foreground"
+                                >
+                                  ID <SortIcon column="seqId" />
+                                </button>
+                              </TableHead>
+                              <TableHead>
+                                <button
+                                  type="button"
+                                  onClick={() => handleSort("nome")}
+                                  className="inline-flex items-center gap-1 hover:text-foreground"
+                                >
+                                  Nome <SortIcon column="nome" />
+                                </button>
+                              </TableHead>
+                              <TableHead>
+                                <button
+                                  type="button"
+                                  onClick={() => handleSort("email")}
+                                  className="inline-flex items-center gap-1 hover:text-foreground"
+                                >
+                                  E-mail <SortIcon column="email" />
+                                </button>
+                              </TableHead>
+                              <TableHead>
+                                <button
+                                  type="button"
+                                  onClick={() => handleSort("telefone")}
+                                  className="inline-flex items-center gap-1 hover:text-foreground"
+                                >
+                                  Telefone <SortIcon column="telefone" />
+                                </button>
+                              </TableHead>
+                              <TableHead>
+                                <button
+                                  type="button"
+                                  onClick={() => handleSort("cpf_cnpj")}
+                                  className="inline-flex items-center gap-1 hover:text-foreground"
+                                >
+                                  CPF/CNPJ <SortIcon column="cpf_cnpj" />
+                                </button>
+                              </TableHead>
+                              <TableHead>
+                                <button
+                                  type="button"
+                                  onClick={() => handleSort("cidade")}
+                                  className="inline-flex items-center gap-1 hover:text-foreground"
+                                >
+                                  Cidade/UF <SortIcon column="cidade" />
+                                </button>
+                              </TableHead>
+                              <TableHead>
+                                <button
+                                  type="button"
+                                  onClick={() => handleSort("created_at")}
+                                  className="inline-flex items-center gap-1 hover:text-foreground"
+                                >
+                                  Cadastrado em <SortIcon column="created_at" />
+                                </button>
+                              </TableHead>
                               <TableHead className="w-16 text-right">Ações</TableHead>
                             </TableRow>
                           </TableHeader>
