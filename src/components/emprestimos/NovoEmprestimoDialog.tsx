@@ -472,8 +472,14 @@ export function NovoEmprestimoDialog({
               <Wallet className="h-5 w-5" />
             </div>
             <div className="min-w-0 flex-1">
-              <DialogTitle className="text-lg">Novo Empréstimo</DialogTitle>
-              <DialogDescription>Simulação gerada em tempo real</DialogDescription>
+              <DialogTitle className="text-lg">
+                {isEdit ? "Editar Empréstimo" : "Novo Empréstimo"}
+              </DialogTitle>
+              <DialogDescription>
+                {isEdit
+                  ? "Altere os dados e regenere as parcelas"
+                  : "Simulação gerada em tempo real"}
+              </DialogDescription>
             </div>
           </DialogHeader>
         </div>
