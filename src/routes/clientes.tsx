@@ -194,17 +194,64 @@ function ClientesPage() {
   // Filtro em tempo real por Nome ou CPF/CNPJ
   const clientesFiltrados = useMemo(() => {
     const term = search.trim().toLowerCase();
-    if (!term) return clientesComId;
     const termDigits = term.replace(/\D/g, "");
-    return clientesComId.filter((c) => {
-      const nome = (c.nome ?? "").toLowerCase();
-      const cpfDigits = (c.cpf_cnpj ?? "").replace(/\D/g, "");
-      const matchNome = nome.includes(term);
-      const matchCpf =
-        termDigits.length > 0 && cpfDigits.includes(termDigits);
-      return matchNome || matchCpf;
+    const filtered = !term
+      ? clientesComId
+      : clientesComId.filter((c) => {
+          const nome = (c.nome ?? "").toLowerCase();
+          const cpfDigits = (c.cpf_cnpj ?? "").replace(/\D/g, "");
+          const matchNome = nome.includes(term);
+          const matchCpf =
+            termDigits.length > 0 && cpfDigits.includes(termDigits);
+          return matchNome || matchCpf;
+        });
+
+    if (!sortKey) return filtered;
+
+    const dir = sortDir === "asc" ? 1 : -1;
+    const getVal = (c: (typeof filtered)[number]): string | number => {
+      switch (sortKey) {
+        case "seqId":
+          return c.seqId;
+        case "created_at":
+          return c.created_at ? new Date(c.created_at).getTime() : 0;
+        case "cpf_cnpj":
+          return (c.cpf_cnpj ?? "").replace(/\D/g, "");
+        case "telefone":
+          return (c.telefone ?? "").replace(/\D/g, "");
+        case "cidade":
+          return (c.cidade ?? "").toLowerCase();
+        case "email":
+          return (c.email ?? "").toLowerCase();
+        case "nome":
+        default:
+          return (c.nome ?? "").toLowerCase();
+      }
+    };
+
+    return [...filtered].sort((a, b) => {
+      const av = getVal(a);
+      const bv = getVal(b);
+      // empty values sempre por último
+      const aEmpty = av === "" || av === 0;
+      const bEmpty = bv === "" || bv === 0;
+      if (aEmpty && !bEmpty) return 1;
+      if (!aEmpty && bEmpty) return -1;
+      if (av < bv) return -1 * dir;
+      if (av > bv) return 1 * dir;
+      return 0;
     });
-  }, [clientesComId, search]);
+  }, [clientesComId, search, sortKey, sortDir]);
+
+  const SortIcon = ({ column }: { column: SortKey }) => {
+    if (sortKey !== column)
+      return <ArrowUpDown className="h-3.5 w-3.5 opacity-50" />;
+    return sortDir === "asc" ? (
+      <ArrowUp className="h-3.5 w-3.5" />
+    ) : (
+      <ArrowDown className="h-3.5 w-3.5" />
+    );
+  };
 
   return (
     <SidebarProvider>
