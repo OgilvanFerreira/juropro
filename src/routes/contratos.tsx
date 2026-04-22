@@ -362,11 +362,18 @@ function ContratosPage() {
                               Status <SortIcon column="status" />
                             </button>
                           </th>
+                          <th className="px-3 py-2 text-right">Ações</th>
                         </tr>
                       </thead>
                       <tbody>
                         {filtrados.map((e) => (
-                          <RowDesktop key={String(e.id)} item={e} />
+                          <RowDesktop
+                            key={String(e.id)}
+                            item={e}
+                            onEdit={() => handleEditar(e.id)}
+                            onDelete={() => setEmprestimoParaExcluir(e)}
+                            isLoadingEdit={loadingEditId === e.id}
+                          />
                         ))}
                       </tbody>
                     </table>
@@ -375,7 +382,13 @@ function ContratosPage() {
                   {/* MOBILE CARDS */}
                   <div className="space-y-3 md:hidden">
                     {filtrados.map((e) => (
-                      <CardMobile key={String(e.id)} item={e} />
+                      <CardMobile
+                        key={String(e.id)}
+                        item={e}
+                        onEdit={() => handleEditar(e.id)}
+                        onDelete={() => setEmprestimoParaExcluir(e)}
+                        isLoadingEdit={loadingEditId === e.id}
+                      />
                     ))}
                   </div>
                 </>
@@ -386,11 +399,50 @@ function ContratosPage() {
       </div>
       <NovoEmprestimoDialog
         open={novoOpen}
-        onOpenChange={(o) => {
-          setNovoOpen(o);
-          if (!o) query.refetch();
-        }}
+        onOpenChange={handleDialogChange}
+        emprestimo={emprestimoEditando}
       />
+
+      <AlertDialog
+        open={!!emprestimoParaExcluir}
+        onOpenChange={(o) => !o && setEmprestimoParaExcluir(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir empréstimo?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação removerá o empréstimo
+              {emprestimoParaExcluir?.cliente_nome
+                ? ` de ${emprestimoParaExcluir.cliente_nome}`
+                : ""}{" "}
+              e todas as suas parcelas. Esta operação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteMutation.isPending}>
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              disabled={deleteMutation.isPending}
+              onClick={(e) => {
+                e.preventDefault();
+                if (emprestimoParaExcluir) {
+                  deleteMutation.mutate(emprestimoParaExcluir.id);
+                }
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleteMutation.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" /> Excluindo...
+                </>
+              ) : (
+                "Excluir"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </SidebarProvider>
   );
 }
