@@ -344,13 +344,69 @@ function ClientesPage() {
                         <Table>
                           <TableHeader>
                             <TableRow>
-                              <TableHead className="w-20">ID</TableHead>
-                              <TableHead>Nome</TableHead>
-                              <TableHead>E-mail</TableHead>
-                              <TableHead>Telefone</TableHead>
-                              <TableHead>CPF/CNPJ</TableHead>
-                              <TableHead>Cidade/UF</TableHead>
-                              <TableHead>Cadastrado em</TableHead>
+                              <TableHead className="w-20">
+                                <button
+                                  type="button"
+                                  onClick={() => handleSort("seqId")}
+                                  className="inline-flex items-center gap-1 hover:text-foreground"
+                                >
+                                  ID <SortIcon column="seqId" />
+                                </button>
+                              </TableHead>
+                              <TableHead>
+                                <button
+                                  type="button"
+                                  onClick={() => handleSort("nome")}
+                                  className="inline-flex items-center gap-1 hover:text-foreground"
+                                >
+                                  Nome <SortIcon column="nome" />
+                                </button>
+                              </TableHead>
+                              <TableHead>
+                                <button
+                                  type="button"
+                                  onClick={() => handleSort("email")}
+                                  className="inline-flex items-center gap-1 hover:text-foreground"
+                                >
+                                  E-mail <SortIcon column="email" />
+                                </button>
+                              </TableHead>
+                              <TableHead>
+                                <button
+                                  type="button"
+                                  onClick={() => handleSort("telefone")}
+                                  className="inline-flex items-center gap-1 hover:text-foreground"
+                                >
+                                  Telefone <SortIcon column="telefone" />
+                                </button>
+                              </TableHead>
+                              <TableHead>
+                                <button
+                                  type="button"
+                                  onClick={() => handleSort("cpf_cnpj")}
+                                  className="inline-flex items-center gap-1 hover:text-foreground"
+                                >
+                                  CPF/CNPJ <SortIcon column="cpf_cnpj" />
+                                </button>
+                              </TableHead>
+                              <TableHead>
+                                <button
+                                  type="button"
+                                  onClick={() => handleSort("cidade")}
+                                  className="inline-flex items-center gap-1 hover:text-foreground"
+                                >
+                                  Cidade/UF <SortIcon column="cidade" />
+                                </button>
+                              </TableHead>
+                              <TableHead>
+                                <button
+                                  type="button"
+                                  onClick={() => handleSort("created_at")}
+                                  className="inline-flex items-center gap-1 hover:text-foreground"
+                                >
+                                  Cadastrado em <SortIcon column="created_at" />
+                                </button>
+                              </TableHead>
                               <TableHead className="w-16 text-right">Ações</TableHead>
                             </TableRow>
                           </TableHeader>
