@@ -68,6 +68,7 @@ function buildKpis(data: DashboardKpis) {
       icon: CalendarClock,
       tone: "warning" as const,
       empty: data.vencimentosHoje === 0,
+      to: "/vencimentos" as const,
     },
     {
       label: "Parcelas Atrasadas",
@@ -76,6 +77,7 @@ function buildKpis(data: DashboardKpis) {
       icon: AlertTriangle,
       tone: "destructive" as const,
       empty: data.parcelasAtrasadas === 0,
+      to: "/relatorios" as const,
     },
     {
       label: "Total de Clientes",
@@ -84,6 +86,7 @@ function buildKpis(data: DashboardKpis) {
       icon: Users,
       tone: "info" as const,
       empty: data.totalClientes === 0,
+      to: "/clientes" as const,
     },
     {
       label: "Contratos Ativos",
@@ -92,6 +95,7 @@ function buildKpis(data: DashboardKpis) {
       icon: FileText,
       tone: "success" as const,
       empty: data.contratosAtivos === 0,
+      to: "/contratos" as const,
     },
   ];
 }
