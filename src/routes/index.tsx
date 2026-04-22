@@ -105,8 +105,11 @@ const EMERALD_GLOW = "oklch(0.7 0.16 160)";
 const NAVY = "oklch(0.32 0.08 255)";
 const NAVY_GLOW = "oklch(0.5 0.14 255)";
 
-const formatBRL = (v: number) =>
-  v >= 1000 ? `R$ ${(v / 1000).toFixed(0)}k` : `R$ ${v}`;
+const formatBRL = (v: number) => {
+  if (v >= 1_000_000) return `R$ ${(v / 1_000_000).toFixed(1)}M`;
+  if (v >= 1_000) return `R$ ${(v / 1_000).toFixed(0)}k`;
+  return `R$ ${v.toLocaleString("pt-BR")}`;
+};
 
 function Dashboard() {
   const { data } = useSuspenseQuery(dashboardKpisQuery());
