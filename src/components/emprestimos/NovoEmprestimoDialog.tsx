@@ -17,7 +17,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { formatCpfCnpj } from "@/lib/masks";
 import { listClientes, type Cliente } from "@/integrations/external-supabase/clientes.functions";
-import { createEmprestimo } from "@/integrations/external-supabase/emprestimos.functions";
+import {
+  createEmprestimo,
+  updateEmprestimo,
+  type EmprestimoFull,
+} from "@/integrations/external-supabase/emprestimos.functions";
 
 type Periodicidade = "mensal" | "quinzenal" | "semanal" | "diario";
 type TipoJuros = "simples" | "composto" | "so_juros";
@@ -306,6 +310,7 @@ function CardMetrica({
 interface NovoEmprestimoDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  emprestimo?: EmprestimoFull | null;
 }
 
 const INITIAL_FORM = {
@@ -319,11 +324,36 @@ const INITIAL_FORM = {
   observacoes: "",
 };
 
-export function NovoEmprestimoDialog({ open, onOpenChange }: NovoEmprestimoDialogProps) {
+function extractPeriodicidade(obs: string | null): {
+  periodicidade: Periodicidade;
+  observacoes: string;
+} {
+  if (!obs) return { periodicidade: "mensal", observacoes: "" };
+  const match = obs.match(/^\[Periodicidade:\s*([^•\]]+)/i);
+  let periodicidade: Periodicidade = "mensal";
+  if (match) {
+    const label = match[1].trim().toLowerCase();
+    if (label.startsWith("quinzen")) periodicidade = "quinzenal";
+    else if (label.startsWith("seman")) periodicidade = "semanal";
+    else if (label.startsWith("diár") || label.startsWith("diar"))
+      periodicidade = "diario";
+    else periodicidade = "mensal";
+  }
+  const cleaned = obs.replace(/^\[Periodicidade:[^\]]*\]\s*\n*/i, "").trim();
+  return { periodicidade, observacoes: cleaned };
+}
+
+export function NovoEmprestimoDialog({
+  open,
+  onOpenChange,
+  emprestimo,
+}: NovoEmprestimoDialogProps) {
   const [form, setForm] = useState(INITIAL_FORM);
   const queryClient = useQueryClient();
   const listClientesFn = useServerFn(listClientes);
   const createEmprestimoFn = useServerFn(createEmprestimo);
+  const updateEmprestimoFn = useServerFn(updateEmprestimo);
+  const isEdit = !!emprestimo;
 
   const clientesQuery = useQuery({
     queryKey: ["clientes", "list"],
@@ -334,8 +364,30 @@ export function NovoEmprestimoDialog({ open, onOpenChange }: NovoEmprestimoDialo
   const clientes = clientesQuery.data?.data ?? [];
 
   useEffect(() => {
-    if (open) setForm(INITIAL_FORM);
-  }, [open]);
+    if (!open) return;
+    if (emprestimo) {
+      const { periodicidade, observacoes } = extractPeriodicidade(
+        emprestimo.observacoes,
+      );
+      const tj = (emprestimo.tipo_juros ?? "simples") as TipoJuros;
+      setForm({
+        clienteId: emprestimo.cliente_id ?? "",
+        valorPrincipal: String(emprestimo.valor_principal ?? ""),
+        taxaJuros: String(emprestimo.taxa_juros ?? ""),
+        numParcelas: String(emprestimo.numero_parcelas ?? ""),
+        tipoJuros: (["simples", "composto", "so_juros"] as const).includes(
+          tj as never,
+        )
+          ? tj
+          : "simples",
+        periodicidade,
+        dataInicio: emprestimo.data_inicio ?? "",
+        observacoes,
+      });
+    } else {
+      setForm(INITIAL_FORM);
+    }
+  }, [open, emprestimo]);
 
   const resultado = useMemo(
     () =>
@@ -356,6 +408,29 @@ export function NovoEmprestimoDialog({ open, onOpenChange }: NovoEmprestimoDialo
   const mutation = useMutation({
     mutationFn: async () => {
       if (!form.clienteId || !resultado) throw new Error("Dados inválidos");
+      const parcelasPayload = resultado.parcelas.map((p) => ({
+        numero: p.numero,
+        data_vencimento: p.vencimentoIso,
+        valor: Number(p.valor.toFixed(2)),
+      }));
+      if (isEdit && emprestimo) {
+        const res = await updateEmprestimoFn({
+          data: {
+            id: emprestimo.id,
+            cliente_id: form.clienteId,
+            valor_principal: parseFloat(form.valorPrincipal),
+            taxa_juros: parseFloat(form.taxaJuros),
+            numero_parcelas: parseInt(form.numParcelas),
+            tipo_juros: form.tipoJuros,
+            periodicidade: form.periodicidade,
+            data_inicio: form.dataInicio,
+            observacoes: form.observacoes,
+            parcelas: parcelasPayload,
+          },
+        });
+        if (!res.ok) throw new Error(res.error ?? "Erro ao atualizar empréstimo");
+        return res;
+      }
       const res = await createEmprestimoFn({
         data: {
           cliente_id: form.clienteId,
@@ -366,20 +441,21 @@ export function NovoEmprestimoDialog({ open, onOpenChange }: NovoEmprestimoDialo
           periodicidade: form.periodicidade,
           data_inicio: form.dataInicio,
           observacoes: form.observacoes,
-          parcelas: resultado.parcelas.map((p) => ({
-            numero: p.numero,
-            data_vencimento: p.vencimentoIso,
-            valor: Number(p.valor.toFixed(2)),
-          })),
+          parcelas: parcelasPayload,
         },
       });
       if (!res.ok) throw new Error(res.error ?? "Erro ao salvar empréstimo");
       return res;
     },
     onSuccess: () => {
-      toast.success("Empréstimo cadastrado com sucesso!");
+      toast.success(
+        isEdit
+          ? "Empréstimo atualizado com sucesso!"
+          : "Empréstimo cadastrado com sucesso!",
+      );
       queryClient.invalidateQueries({ queryKey: ["dashboard", "kpis"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard", "charts"] });
+      queryClient.invalidateQueries({ queryKey: ["emprestimos", "list"] });
       onOpenChange(false);
     },
     onError: (err: Error) => {
@@ -396,8 +472,14 @@ export function NovoEmprestimoDialog({ open, onOpenChange }: NovoEmprestimoDialo
               <Wallet className="h-5 w-5" />
             </div>
             <div className="min-w-0 flex-1">
-              <DialogTitle className="text-lg">Novo Empréstimo</DialogTitle>
-              <DialogDescription>Simulação gerada em tempo real</DialogDescription>
+              <DialogTitle className="text-lg">
+                {isEdit ? "Editar Empréstimo" : "Novo Empréstimo"}
+              </DialogTitle>
+              <DialogDescription>
+                {isEdit
+                  ? "Altere os dados e regenere as parcelas"
+                  : "Simulação gerada em tempo real"}
+              </DialogDescription>
             </div>
           </DialogHeader>
         </div>
@@ -568,10 +650,11 @@ export function NovoEmprestimoDialog({ open, onOpenChange }: NovoEmprestimoDialo
               >
                 {mutation.isPending ? (
                   <>
-                    <Loader2 className="h-4 w-4 animate-spin" /> Salvando...
+                    <Loader2 className="h-4 w-4 animate-spin" />{" "}
+                    {isEdit ? "Atualizando..." : "Salvando..."}
                   </>
                 ) : (
-                  <>💾 Salvar Empréstimo</>
+                  <>{isEdit ? "💾 Atualizar Empréstimo" : "💾 Salvar Empréstimo"}</>
                 )}
               </Button>
             </div>

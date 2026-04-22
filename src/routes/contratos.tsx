@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
   Plus,
@@ -11,15 +11,31 @@ import {
   ArrowUp,
   ArrowDown,
   ArrowUpDown,
+  Pencil,
+  Trash2,
 } from "lucide-react";
+import { toast } from "sonner";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/dashboard/AppSidebar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { NovoEmprestimoDialog } from "@/components/emprestimos/NovoEmprestimoDialog";
 import {
+  deleteEmprestimo,
+  getEmprestimo,
   listEmprestimos,
+  type EmprestimoFull,
   type EmprestimoListItem,
 } from "@/integrations/external-supabase/emprestimos.functions";
 import { cn } from "@/lib/utils";
@@ -70,7 +86,18 @@ function ContratosPage() {
   const [busca, setBusca] = useState("");
   const [sortKey, setSortKey] = useState<SortKey | null>(null);
   const [sortDir, setSortDir] = useState<SortDir>("asc");
+  const [emprestimoEditando, setEmprestimoEditando] =
+    useState<EmprestimoFull | null>(null);
+  const [loadingEditId, setLoadingEditId] = useState<string | number | null>(
+    null,
+  );
+  const [emprestimoParaExcluir, setEmprestimoParaExcluir] =
+    useState<EmprestimoListItem | null>(null);
+
+  const queryClient = useQueryClient();
   const listFn = useServerFn(listEmprestimos);
+  const getFn = useServerFn(getEmprestimo);
+  const deleteFn = useServerFn(deleteEmprestimo);
 
   const query = useQuery({
     queryKey: ["emprestimos", "list"],
@@ -78,6 +105,49 @@ function ContratosPage() {
   });
 
   const lista = query.data?.data ?? [];
+
+  const handleEditar = async (id: string | number) => {
+    setLoadingEditId(id);
+    try {
+      const res = await getFn({ data: { id } });
+      if (!res.data) {
+        toast.error(res.error ?? "Empréstimo não encontrado.");
+        return;
+      }
+      setEmprestimoEditando(res.data);
+      setNovoOpen(true);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao carregar.");
+    } finally {
+      setLoadingEditId(null);
+    }
+  };
+
+  const handleDialogChange = (next: boolean) => {
+    setNovoOpen(next);
+    if (!next) {
+      setEmprestimoEditando(null);
+      query.refetch();
+    }
+  };
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string | number) => deleteFn({ data: { id } }),
+    onSuccess: (result) => {
+      if (!result.ok) {
+        toast.error(result.error ?? "Erro ao excluir empréstimo.");
+        return;
+      }
+      toast.success("Empréstimo excluído com sucesso!");
+      queryClient.invalidateQueries({ queryKey: ["emprestimos", "list"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard", "kpis"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard", "charts"] });
+      setEmprestimoParaExcluir(null);
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "Erro inesperado.");
+    },
+  });
 
   const handleSort = (key: SortKey) => {
     if (sortKey !== key) {
@@ -292,11 +362,18 @@ function ContratosPage() {
                               Status <SortIcon column="status" />
                             </button>
                           </th>
+                          <th className="px-3 py-2 text-right">Ações</th>
                         </tr>
                       </thead>
                       <tbody>
                         {filtrados.map((e) => (
-                          <RowDesktop key={String(e.id)} item={e} />
+                          <RowDesktop
+                            key={String(e.id)}
+                            item={e}
+                            onEdit={() => handleEditar(e.id)}
+                            onDelete={() => setEmprestimoParaExcluir(e)}
+                            isLoadingEdit={loadingEditId === e.id}
+                          />
                         ))}
                       </tbody>
                     </table>
@@ -305,7 +382,13 @@ function ContratosPage() {
                   {/* MOBILE CARDS */}
                   <div className="space-y-3 md:hidden">
                     {filtrados.map((e) => (
-                      <CardMobile key={String(e.id)} item={e} />
+                      <CardMobile
+                        key={String(e.id)}
+                        item={e}
+                        onEdit={() => handleEditar(e.id)}
+                        onDelete={() => setEmprestimoParaExcluir(e)}
+                        isLoadingEdit={loadingEditId === e.id}
+                      />
                     ))}
                   </div>
                 </>
@@ -316,11 +399,50 @@ function ContratosPage() {
       </div>
       <NovoEmprestimoDialog
         open={novoOpen}
-        onOpenChange={(o) => {
-          setNovoOpen(o);
-          if (!o) query.refetch();
-        }}
+        onOpenChange={handleDialogChange}
+        emprestimo={emprestimoEditando}
       />
+
+      <AlertDialog
+        open={!!emprestimoParaExcluir}
+        onOpenChange={(o) => !o && setEmprestimoParaExcluir(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir empréstimo?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação removerá o empréstimo
+              {emprestimoParaExcluir?.cliente_nome
+                ? ` de ${emprestimoParaExcluir.cliente_nome}`
+                : ""}{" "}
+              e todas as suas parcelas. Esta operação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteMutation.isPending}>
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              disabled={deleteMutation.isPending}
+              onClick={(e) => {
+                e.preventDefault();
+                if (emprestimoParaExcluir) {
+                  deleteMutation.mutate(emprestimoParaExcluir.id);
+                }
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleteMutation.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" /> Excluindo...
+                </>
+              ) : (
+                "Excluir"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </SidebarProvider>
   );
 }
@@ -352,7 +474,17 @@ function KpiBox({
   );
 }
 
-function RowDesktop({ item }: { item: EmprestimoListItem }) {
+function RowDesktop({
+  item,
+  onEdit,
+  onDelete,
+  isLoadingEdit,
+}: {
+  item: EmprestimoListItem;
+  onEdit: () => void;
+  onDelete: () => void;
+  isLoadingEdit: boolean;
+}) {
   const progresso =
     item.parcelas_total > 0
       ? Math.round((item.parcelas_pagas / item.parcelas_total) * 100)
@@ -385,11 +517,50 @@ function RowDesktop({ item }: { item: EmprestimoListItem }) {
           {item.status ?? "—"}
         </Badge>
       </td>
+      <td className="px-3 py-3 text-right">
+        <div className="flex items-center justify-end gap-1">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-muted-foreground hover:text-foreground"
+            onClick={onEdit}
+            disabled={isLoadingEdit}
+            aria-label="Editar empréstimo"
+          >
+            {isLoadingEdit ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Pencil className="h-4 w-4" />
+            )}
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-muted-foreground hover:text-destructive"
+            onClick={onDelete}
+            aria-label="Excluir empréstimo"
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
+      </td>
     </tr>
   );
 }
 
-function CardMobile({ item }: { item: EmprestimoListItem }) {
+function CardMobile({
+  item,
+  onEdit,
+  onDelete,
+  isLoadingEdit,
+}: {
+  item: EmprestimoListItem;
+  onEdit: () => void;
+  onDelete: () => void;
+  isLoadingEdit: boolean;
+}) {
   const progresso =
     item.parcelas_total > 0
       ? Math.round((item.parcelas_pagas / item.parcelas_total) * 100)
@@ -431,6 +602,33 @@ function CardMobile({ item }: { item: EmprestimoListItem }) {
           <p className="text-muted-foreground">Início</p>
           <p className="font-semibold text-foreground">{fmtDate(item.data_inicio)}</p>
         </div>
+      </div>
+      <div className="mt-3 flex justify-end gap-2 border-t pt-3">
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="h-8 gap-1"
+          onClick={onEdit}
+          disabled={isLoadingEdit}
+        >
+          {isLoadingEdit ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <Pencil className="h-3.5 w-3.5" />
+          )}
+          Editar
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="h-8 gap-1 text-destructive hover:bg-destructive/10 hover:text-destructive"
+          onClick={onDelete}
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+          Excluir
+        </Button>
       </div>
     </div>
   );
