@@ -2,7 +2,16 @@ import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Plus, FileText, Search, Loader2, AlertCircle } from "lucide-react";
+import {
+  Plus,
+  FileText,
+  Search,
+  Loader2,
+  AlertCircle,
+  ArrowUp,
+  ArrowDown,
+  ArrowUpDown,
+} from "lucide-react";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/dashboard/AppSidebar";
 import { Button } from "@/components/ui/button";
@@ -46,9 +55,21 @@ function statusBadgeClass(status: string | null) {
   }
 }
 
+type SortKey =
+  | "id"
+  | "cliente"
+  | "principal"
+  | "taxa"
+  | "parcelas"
+  | "data_inicio"
+  | "status";
+type SortDir = "asc" | "desc";
+
 function ContratosPage() {
   const [novoOpen, setNovoOpen] = useState(false);
   const [busca, setBusca] = useState("");
+  const [sortKey, setSortKey] = useState<SortKey | null>(null);
+  const [sortDir, setSortDir] = useState<SortDir>("asc");
   const listFn = useServerFn(listEmprestimos);
 
   const query = useQuery({
@@ -58,17 +79,63 @@ function ContratosPage() {
 
   const lista = query.data?.data ?? [];
 
+  const handleSort = (key: SortKey) => {
+    if (sortKey !== key) {
+      setSortKey(key);
+      setSortDir("asc");
+    } else {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    }
+  };
+
   const filtrados = useMemo(() => {
     const q = busca.trim().toLowerCase();
-    if (!q) return lista;
-    return lista.filter((e) => {
-      return (
-        (e.cliente_nome ?? "").toLowerCase().includes(q) ||
-        String(e.id).toLowerCase().includes(q) ||
-        (e.status ?? "").toLowerCase().includes(q)
-      );
+    const base = !q
+      ? lista
+      : lista.filter((e) => {
+          return (
+            (e.cliente_nome ?? "").toLowerCase().includes(q) ||
+            String(e.id).toLowerCase().includes(q) ||
+            (e.status ?? "").toLowerCase().includes(q)
+          );
+        });
+
+    if (!sortKey) return base;
+
+    const dir = sortDir === "asc" ? 1 : -1;
+    const getVal = (e: EmprestimoListItem): string | number => {
+      switch (sortKey) {
+        case "id":
+          return String(e.id).toLowerCase();
+        case "cliente":
+          return (e.cliente_nome ?? "").toLowerCase();
+        case "principal":
+          return e.valor_principal;
+        case "taxa":
+          return e.taxa_juros;
+        case "parcelas":
+          return e.parcelas_total > 0 ? e.parcelas_pagas / e.parcelas_total : 0;
+        case "data_inicio":
+          return e.data_inicio ? new Date(e.data_inicio).getTime() : 0;
+        case "status":
+          return (e.status ?? "").toLowerCase();
+        default:
+          return 0;
+      }
+    };
+
+    return [...base].sort((a, b) => {
+      const av = getVal(a);
+      const bv = getVal(b);
+      const aEmpty = av === "" || av === 0;
+      const bEmpty = bv === "" || bv === 0;
+      if (aEmpty && !bEmpty) return 1;
+      if (!aEmpty && bEmpty) return -1;
+      if (av < bv) return -1 * dir;
+      if (av > bv) return 1 * dir;
+      return 0;
     });
-  }, [lista, busca]);
+  }, [lista, busca, sortKey, sortDir]);
 
   const totais = useMemo(() => {
     return lista.reduce(
@@ -82,6 +149,16 @@ function ContratosPage() {
       { principal: 0, aReceber: 0, recebido: 0, ativos: 0 },
     );
   }, [lista]);
+
+  const SortIcon = ({ column }: { column: SortKey }) => {
+    if (sortKey !== column)
+      return <ArrowUpDown className="h-3.5 w-3.5 opacity-50" />;
+    return sortDir === "asc" ? (
+      <ArrowUp className="h-3.5 w-3.5" />
+    ) : (
+      <ArrowDown className="h-3.5 w-3.5" />
+    );
+  };
 
   return (
     <SidebarProvider>
@@ -152,13 +229,69 @@ function ContratosPage() {
                     <table className="w-full text-sm">
                       <thead className="bg-muted/50 text-xs uppercase tracking-wider text-muted-foreground">
                         <tr>
-                          <th className="px-3 py-2 text-left">ID</th>
-                          <th className="px-3 py-2 text-left">Cliente</th>
-                          <th className="px-3 py-2 text-right">Principal</th>
-                          <th className="px-3 py-2 text-right">Taxa</th>
-                          <th className="px-3 py-2 text-center">Parcelas</th>
-                          <th className="px-3 py-2 text-left">Início</th>
-                          <th className="px-3 py-2 text-center">Status</th>
+                          <th className="px-3 py-2 text-left">
+                            <button
+                              type="button"
+                              onClick={() => handleSort("id")}
+                              className="inline-flex items-center gap-1 hover:text-foreground transition-colors"
+                            >
+                              ID <SortIcon column="id" />
+                            </button>
+                          </th>
+                          <th className="px-3 py-2 text-left">
+                            <button
+                              type="button"
+                              onClick={() => handleSort("cliente")}
+                              className="inline-flex items-center gap-1 hover:text-foreground transition-colors"
+                            >
+                              Cliente <SortIcon column="cliente" />
+                            </button>
+                          </th>
+                          <th className="px-3 py-2 text-right">
+                            <button
+                              type="button"
+                              onClick={() => handleSort("principal")}
+                              className="inline-flex items-center gap-1 hover:text-foreground transition-colors ml-auto"
+                            >
+                              Principal <SortIcon column="principal" />
+                            </button>
+                          </th>
+                          <th className="px-3 py-2 text-right">
+                            <button
+                              type="button"
+                              onClick={() => handleSort("taxa")}
+                              className="inline-flex items-center gap-1 hover:text-foreground transition-colors ml-auto"
+                            >
+                              Taxa <SortIcon column="taxa" />
+                            </button>
+                          </th>
+                          <th className="px-3 py-2 text-center">
+                            <button
+                              type="button"
+                              onClick={() => handleSort("parcelas")}
+                              className="inline-flex items-center gap-1 hover:text-foreground transition-colors mx-auto"
+                            >
+                              Parcelas <SortIcon column="parcelas" />
+                            </button>
+                          </th>
+                          <th className="px-3 py-2 text-left">
+                            <button
+                              type="button"
+                              onClick={() => handleSort("data_inicio")}
+                              className="inline-flex items-center gap-1 hover:text-foreground transition-colors"
+                            >
+                              Início <SortIcon column="data_inicio" />
+                            </button>
+                          </th>
+                          <th className="px-3 py-2 text-center">
+                            <button
+                              type="button"
+                              onClick={() => handleSort("status")}
+                              className="inline-flex items-center gap-1 hover:text-foreground transition-colors mx-auto"
+                            >
+                              Status <SortIcon column="status" />
+                            </button>
+                          </th>
                         </tr>
                       </thead>
                       <tbody>
