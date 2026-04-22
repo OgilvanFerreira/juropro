@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import {
@@ -13,6 +14,7 @@ import { AppSidebar } from "@/components/dashboard/AppSidebar";
 import { AreaChartCard } from "@/components/dashboard/AreaChartCard";
 import { KpiCard } from "@/components/dashboard/KpiCard";
 import { Button } from "@/components/ui/button";
+import { NovoEmprestimoDialog } from "@/components/emprestimos/NovoEmprestimoDialog";
 import {
   getDashboardKpis,
   getDashboardCharts,
@@ -115,6 +117,7 @@ function Dashboard() {
   const { data } = useSuspenseQuery(dashboardKpisQuery());
   const { data: charts } = useSuspenseQuery(dashboardChartsQuery());
   const kpis = buildKpis(data);
+  const [novoEmprestimoOpen, setNovoEmprestimoOpen] = useState(false);
 
   return (
     <SidebarProvider>
@@ -130,7 +133,10 @@ function Dashboard() {
               </h2>
             </div>
             <div className="flex items-center gap-2">
-              <Button className="bg-success text-success-foreground shadow-sm hover:bg-success/90">
+              <Button
+                onClick={() => setNovoEmprestimoOpen(true)}
+                className="bg-success text-success-foreground shadow-sm hover:bg-success/90"
+              >
                 <Plus className="h-4 w-4" />
                 <span className="hidden sm:inline">Novo Empréstimo</span>
               </Button>
@@ -204,6 +210,10 @@ function Dashboard() {
           </main>
         </div>
       </div>
+      <NovoEmprestimoDialog
+        open={novoEmprestimoOpen}
+        onOpenChange={setNovoEmprestimoOpen}
+      />
     </SidebarProvider>
   );
 }
