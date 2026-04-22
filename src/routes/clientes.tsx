@@ -7,6 +7,9 @@ import {
   useSuspenseQuery,
 } from "@tanstack/react-query";
 import {
+  ArrowDown,
+  ArrowUp,
+  ArrowUpDown,
   Loader2,
   Pencil,
   Search,
