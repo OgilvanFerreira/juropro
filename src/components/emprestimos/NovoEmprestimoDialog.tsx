@@ -310,6 +310,7 @@ function CardMetrica({
 interface NovoEmprestimoDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  emprestimo?: EmprestimoFull | null;
 }
 
 const INITIAL_FORM = {
@@ -323,11 +324,36 @@ const INITIAL_FORM = {
   observacoes: "",
 };
 
-export function NovoEmprestimoDialog({ open, onOpenChange }: NovoEmprestimoDialogProps) {
+function extractPeriodicidade(obs: string | null): {
+  periodicidade: Periodicidade;
+  observacoes: string;
+} {
+  if (!obs) return { periodicidade: "mensal", observacoes: "" };
+  const match = obs.match(/^\[Periodicidade:\s*([^•\]]+)/i);
+  let periodicidade: Periodicidade = "mensal";
+  if (match) {
+    const label = match[1].trim().toLowerCase();
+    if (label.startsWith("quinzen")) periodicidade = "quinzenal";
+    else if (label.startsWith("seman")) periodicidade = "semanal";
+    else if (label.startsWith("diár") || label.startsWith("diar"))
+      periodicidade = "diario";
+    else periodicidade = "mensal";
+  }
+  const cleaned = obs.replace(/^\[Periodicidade:[^\]]*\]\s*\n*/i, "").trim();
+  return { periodicidade, observacoes: cleaned };
+}
+
+export function NovoEmprestimoDialog({
+  open,
+  onOpenChange,
+  emprestimo,
+}: NovoEmprestimoDialogProps) {
   const [form, setForm] = useState(INITIAL_FORM);
   const queryClient = useQueryClient();
   const listClientesFn = useServerFn(listClientes);
   const createEmprestimoFn = useServerFn(createEmprestimo);
+  const updateEmprestimoFn = useServerFn(updateEmprestimo);
+  const isEdit = !!emprestimo;
 
   const clientesQuery = useQuery({
     queryKey: ["clientes", "list"],
@@ -338,8 +364,30 @@ export function NovoEmprestimoDialog({ open, onOpenChange }: NovoEmprestimoDialo
   const clientes = clientesQuery.data?.data ?? [];
 
   useEffect(() => {
-    if (open) setForm(INITIAL_FORM);
-  }, [open]);
+    if (!open) return;
+    if (emprestimo) {
+      const { periodicidade, observacoes } = extractPeriodicidade(
+        emprestimo.observacoes,
+      );
+      const tj = (emprestimo.tipo_juros ?? "simples") as TipoJuros;
+      setForm({
+        clienteId: emprestimo.cliente_id ?? "",
+        valorPrincipal: String(emprestimo.valor_principal ?? ""),
+        taxaJuros: String(emprestimo.taxa_juros ?? ""),
+        numParcelas: String(emprestimo.numero_parcelas ?? ""),
+        tipoJuros: (["simples", "composto", "so_juros"] as const).includes(
+          tj as never,
+        )
+          ? tj
+          : "simples",
+        periodicidade,
+        dataInicio: emprestimo.data_inicio ?? "",
+        observacoes,
+      });
+    } else {
+      setForm(INITIAL_FORM);
+    }
+  }, [open, emprestimo]);
 
   const resultado = useMemo(
     () =>
