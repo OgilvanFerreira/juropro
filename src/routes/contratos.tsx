@@ -55,9 +55,21 @@ function statusBadgeClass(status: string | null) {
   }
 }
 
+type SortKey =
+  | "id"
+  | "cliente"
+  | "principal"
+  | "taxa"
+  | "parcelas"
+  | "data_inicio"
+  | "status";
+type SortDir = "asc" | "desc";
+
 function ContratosPage() {
   const [novoOpen, setNovoOpen] = useState(false);
   const [busca, setBusca] = useState("");
+  const [sortKey, setSortKey] = useState<SortKey | null>(null);
+  const [sortDir, setSortDir] = useState<SortDir>("asc");
   const listFn = useServerFn(listEmprestimos);
 
   const query = useQuery({
@@ -67,17 +79,63 @@ function ContratosPage() {
 
   const lista = query.data?.data ?? [];
 
+  const handleSort = (key: SortKey) => {
+    if (sortKey !== key) {
+      setSortKey(key);
+      setSortDir("asc");
+    } else {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    }
+  };
+
   const filtrados = useMemo(() => {
     const q = busca.trim().toLowerCase();
-    if (!q) return lista;
-    return lista.filter((e) => {
-      return (
-        (e.cliente_nome ?? "").toLowerCase().includes(q) ||
-        String(e.id).toLowerCase().includes(q) ||
-        (e.status ?? "").toLowerCase().includes(q)
-      );
+    const base = !q
+      ? lista
+      : lista.filter((e) => {
+          return (
+            (e.cliente_nome ?? "").toLowerCase().includes(q) ||
+            String(e.id).toLowerCase().includes(q) ||
+            (e.status ?? "").toLowerCase().includes(q)
+          );
+        });
+
+    if (!sortKey) return base;
+
+    const dir = sortDir === "asc" ? 1 : -1;
+    const getVal = (e: EmprestimoListItem): string | number => {
+      switch (sortKey) {
+        case "id":
+          return String(e.id).toLowerCase();
+        case "cliente":
+          return (e.cliente_nome ?? "").toLowerCase();
+        case "principal":
+          return e.valor_principal;
+        case "taxa":
+          return e.taxa_juros;
+        case "parcelas":
+          return e.parcelas_total > 0 ? e.parcelas_pagas / e.parcelas_total : 0;
+        case "data_inicio":
+          return e.data_inicio ? new Date(e.data_inicio).getTime() : 0;
+        case "status":
+          return (e.status ?? "").toLowerCase();
+        default:
+          return 0;
+      }
+    };
+
+    return [...base].sort((a, b) => {
+      const av = getVal(a);
+      const bv = getVal(b);
+      const aEmpty = av === "" || av === 0;
+      const bEmpty = bv === "" || bv === 0;
+      if (aEmpty && !bEmpty) return 1;
+      if (!aEmpty && bEmpty) return -1;
+      if (av < bv) return -1 * dir;
+      if (av > bv) return 1 * dir;
+      return 0;
     });
-  }, [lista, busca]);
+  }, [lista, busca, sortKey, sortDir]);
 
   const totais = useMemo(() => {
     return lista.reduce(
@@ -91,6 +149,16 @@ function ContratosPage() {
       { principal: 0, aReceber: 0, recebido: 0, ativos: 0 },
     );
   }, [lista]);
+
+  const SortIcon = ({ column }: { column: SortKey }) => {
+    if (sortKey !== column)
+      return <ArrowUpDown className="h-3.5 w-3.5 opacity-50" />;
+    return sortDir === "asc" ? (
+      <ArrowUp className="h-3.5 w-3.5" />
+    ) : (
+      <ArrowDown className="h-3.5 w-3.5" />
+    );
+  };
 
   return (
     <SidebarProvider>
