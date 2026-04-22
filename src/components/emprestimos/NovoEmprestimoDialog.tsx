@@ -20,7 +20,7 @@ import { listClientes, type Cliente } from "@/integrations/external-supabase/cli
 import { createEmprestimo } from "@/integrations/external-supabase/emprestimos.functions";
 
 type Periodicidade = "mensal" | "quinzenal" | "semanal" | "diario";
-type TipoJuros = "simples" | "composto";
+type TipoJuros = "simples" | "composto" | "so_juros";
 
 const PERIODICIDADES: { value: Periodicidade; label: string; dias: number }[] = [
   { value: "mensal", label: "Mensal", dias: 30 },
@@ -32,7 +32,13 @@ const PERIODICIDADES: { value: Periodicidade; label: string; dias: number }[] = 
 const fmtBRL = (v: number) =>
   v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
-type Parcela = { numero: number; vencimento: string; vencimentoIso: string; valor: number };
+type Parcela = {
+  numero: number;
+  vencimento: string;
+  vencimentoIso: string;
+  valor: number;
+  ultima?: boolean;
+};
 type Resultado = {
   parcelas: Parcela[];
   totalPagar: number;
@@ -55,12 +61,27 @@ function calcular(form: {
   if (!valor || taxa < 0 || !n || !form.dataInicio || !per) return null;
   if (Number.isNaN(valor) || Number.isNaN(taxa) || Number.isNaN(n)) return null;
 
+  const inicio = new Date(form.dataInicio + "T00:00:00");
+  const buildData = (i: number) => {
+    const d = new Date(inicio);
+    d.setDate(d.getDate() + i * per.dias);
+    const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    return { vencimento: d.toLocaleDateString("pt-BR"), vencimentoIso: iso };
+  };
+
   let valorParcela: number;
   let totalPagar: number;
+  let parcelas: Parcela[];
+
   if (form.tipoJuros === "simples") {
     totalPagar = valor + valor * taxa * n;
     valorParcela = totalPagar / n;
-  } else {
+    parcelas = Array.from({ length: n }, (_, i) => ({
+      numero: i + 1,
+      ...buildData(i),
+      valor: valorParcela,
+    }));
+  } else if (form.tipoJuros === "composto") {
     if (taxa === 0) {
       valorParcela = valor / n;
       totalPagar = valor;
@@ -69,20 +90,26 @@ function calcular(form: {
         (valor * (taxa * Math.pow(1 + taxa, n))) / (Math.pow(1 + taxa, n) - 1);
       totalPagar = valorParcela * n;
     }
-  }
-
-  const inicio = new Date(form.dataInicio + "T00:00:00");
-  const parcelas: Parcela[] = Array.from({ length: n }, (_, i) => {
-    const d = new Date(inicio);
-    d.setDate(d.getDate() + i * per.dias);
-    const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-    return {
+    parcelas = Array.from({ length: n }, (_, i) => ({
       numero: i + 1,
-      vencimento: d.toLocaleDateString("pt-BR"),
-      vencimentoIso: iso,
+      ...buildData(i),
       valor: valorParcela,
-    };
-  });
+    }));
+  } else {
+    // Só Juros: parcelas intermediárias = juros; última = juros + principal
+    const juro = valor * taxa;
+    valorParcela = juro;
+    totalPagar = juro * n + valor;
+    parcelas = Array.from({ length: n }, (_, i) => {
+      const ultima = i === n - 1;
+      return {
+        numero: i + 1,
+        ...buildData(i),
+        valor: ultima ? juro + valor : juro,
+        ultima,
+      };
+    });
+  }
 
   return { parcelas, totalPagar, totalJuros: totalPagar - valor, valorParcela };
 }
@@ -453,19 +480,19 @@ export function NovoEmprestimoDialog({ open, onOpenChange }: NovoEmprestimoDialo
                 <div className="space-y-2">
                   <Label>Tipo de Juros *</Label>
                   <div className="flex gap-2">
-                    {(["simples", "composto"] as const).map((t) => (
+                    {(["simples", "composto", "so_juros"] as const).map((t) => (
                       <button
                         key={t}
                         type="button"
                         onClick={() => setForm((p) => ({ ...p, tipoJuros: t }))}
                         className={cn(
-                          "flex-1 rounded-md border-2 px-2 py-2 text-sm font-semibold transition-colors",
+                          "flex-1 rounded-md border-2 px-2 py-2 text-xs font-semibold transition-colors sm:text-sm",
                           form.tipoJuros === t
                             ? "border-success bg-success/5 text-success"
                             : "border-input bg-background text-muted-foreground hover:border-muted-foreground/40",
                         )}
                       >
-                        {t === "simples" ? "Simples" : "Composto"}
+                        {t === "simples" ? "Simples" : t === "composto" ? "Composto" : "Só Juros"}
                       </button>
                     ))}
                   </div>
@@ -593,11 +620,24 @@ export function NovoEmprestimoDialog({ open, onOpenChange }: NovoEmprestimoDialo
                   <div className="mt-3 rounded-md border-l-4 border-warning bg-warning/10 px-3 py-2">
                     <p className="text-xs text-foreground">
                       ⚠️ Juros{" "}
-                      {form.tipoJuros === "simples" ? "Simples" : "Compostos"} •{" "}
+                      {form.tipoJuros === "simples"
+                        ? "Simples"
+                        : form.tipoJuros === "composto"
+                          ? "Compostos"
+                          : "Só Juros"}{" "}
+                      •{" "}
                       {PERIODICIDADES.find((p) => p.value === form.periodicidade)?.label}{" "}
                       • {form.numParcelas} parcela(s)
                     </p>
                   </div>
+                  {form.tipoJuros === "so_juros" && (
+                    <div className="mt-2 rounded-md border-l-4 border-success bg-success/5 px-3 py-2">
+                      <p className="text-xs text-foreground">
+                        💡 O cliente pagará apenas os juros mensais, quitando o capital
+                        principal na última parcela.
+                      </p>
+                    </div>
+                  )}
                 </>
               )}
             </div>
@@ -630,7 +670,14 @@ export function NovoEmprestimoDialog({ open, onOpenChange }: NovoEmprestimoDialo
                             {p.vencimento}
                           </td>
                           <td className="px-3 py-2 font-semibold text-foreground">
-                            {fmtBRL(p.valor)}
+                            <div className="flex items-center gap-2">
+                              <span>{fmtBRL(p.valor)}</span>
+                              {p.ultima && form.tipoJuros === "so_juros" && (
+                                <span className="rounded-full bg-success/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-success">
+                                  Juros + Principal
+                                </span>
+                              )}
+                            </div>
                           </td>
                         </tr>
                       ))}
