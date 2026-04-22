@@ -74,6 +74,7 @@ export type DashboardCharts = {
   novosClientes: ChartPoint[];
   contratos: ChartPoint[];
   volume: ChartPoint[];
+  recebimentos: ChartPoint[];
 };
 
 const MONTH_LABELS_PT = [
