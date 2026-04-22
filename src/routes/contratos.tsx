@@ -86,7 +86,18 @@ function ContratosPage() {
   const [busca, setBusca] = useState("");
   const [sortKey, setSortKey] = useState<SortKey | null>(null);
   const [sortDir, setSortDir] = useState<SortDir>("asc");
+  const [emprestimoEditando, setEmprestimoEditando] =
+    useState<EmprestimoFull | null>(null);
+  const [loadingEditId, setLoadingEditId] = useState<string | number | null>(
+    null,
+  );
+  const [emprestimoParaExcluir, setEmprestimoParaExcluir] =
+    useState<EmprestimoListItem | null>(null);
+
+  const queryClient = useQueryClient();
   const listFn = useServerFn(listEmprestimos);
+  const getFn = useServerFn(getEmprestimo);
+  const deleteFn = useServerFn(deleteEmprestimo);
 
   const query = useQuery({
     queryKey: ["emprestimos", "list"],
@@ -94,6 +105,49 @@ function ContratosPage() {
   });
 
   const lista = query.data?.data ?? [];
+
+  const handleEditar = async (id: string | number) => {
+    setLoadingEditId(id);
+    try {
+      const res = await getFn({ data: { id } });
+      if (!res.data) {
+        toast.error(res.error ?? "Empréstimo não encontrado.");
+        return;
+      }
+      setEmprestimoEditando(res.data);
+      setNovoOpen(true);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao carregar.");
+    } finally {
+      setLoadingEditId(null);
+    }
+  };
+
+  const handleDialogChange = (next: boolean) => {
+    setNovoOpen(next);
+    if (!next) {
+      setEmprestimoEditando(null);
+      query.refetch();
+    }
+  };
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string | number) => deleteFn({ data: { id } }),
+    onSuccess: (result) => {
+      if (!result.ok) {
+        toast.error(result.error ?? "Erro ao excluir empréstimo.");
+        return;
+      }
+      toast.success("Empréstimo excluído com sucesso!");
+      queryClient.invalidateQueries({ queryKey: ["emprestimos", "list"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard", "kpis"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard", "charts"] });
+      setEmprestimoParaExcluir(null);
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "Erro inesperado.");
+    },
+  });
 
   const handleSort = (key: SortKey) => {
     if (sortKey !== key) {
