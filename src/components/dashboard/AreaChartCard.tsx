@@ -33,7 +33,7 @@ export function AreaChartCard({
 }: AreaChartCardProps) {
   const allZero = data.every((d) => d.value === 0);
   return (
-    <div className="rounded-lg border bg-card p-5 shadow-sm">
+    <div className="overflow-hidden rounded-lg border bg-card p-5 shadow-sm">
       <div className="mb-4 flex flex-col gap-1">
         <h3 className="text-base font-semibold tracking-tight text-foreground">
           {title}
@@ -41,8 +41,8 @@ export function AreaChartCard({
         <p className="text-xs text-muted-foreground">{subtitle}</p>
       </div>
 
-      <div className="h-64 w-full">
-        <ResponsiveContainer width="100%" height="100%">
+      <div className="h-64 w-full select-none overflow-hidden [touch-action:pan-y]">
+        <ResponsiveContainer width="99%" height="100%">
           <AreaChart
             data={data}
             margin={{ top: 8, right: 12, left: 0, bottom: 0 }}
