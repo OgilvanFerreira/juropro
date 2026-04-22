@@ -17,7 +17,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { formatCpfCnpj } from "@/lib/masks";
 import { listClientes, type Cliente } from "@/integrations/external-supabase/clientes.functions";
-import { createEmprestimo } from "@/integrations/external-supabase/emprestimos.functions";
+import {
+  createEmprestimo,
+  updateEmprestimo,
+  type EmprestimoFull,
+} from "@/integrations/external-supabase/emprestimos.functions";
 
 type Periodicidade = "mensal" | "quinzenal" | "semanal" | "diario";
 type TipoJuros = "simples" | "composto" | "so_juros";
