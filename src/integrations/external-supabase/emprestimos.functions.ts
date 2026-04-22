@@ -35,7 +35,7 @@ const createEmprestimoSchema = z.object({
   valor_principal: z.number().positive(),
   taxa_juros: z.number().min(0),
   numero_parcelas: z.number().int().min(1).max(360),
-  tipo_juros: z.enum(["simples", "composto"]),
+  tipo_juros: z.enum(["simples", "composto", "so_juros"]),
   periodicidade: z.enum(["mensal", "quinzenal", "semanal", "diario"]),
   data_inicio: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   observacoes: z.string().max(2000).optional().default(""),
