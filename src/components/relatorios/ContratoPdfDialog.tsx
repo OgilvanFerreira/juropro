@@ -504,6 +504,7 @@ export function ContratoPdfDialog({
                 </tr>
               </tbody>
             </table>
+            </div>
 
             <div
               className="assinaturas"
