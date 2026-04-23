@@ -38,12 +38,23 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   TablePagination,
   type PageSize,
 } from "@/components/ui/table-pagination";
 import { useAdminName } from "@/hooks/use-admin-name";
 import {
   baixaParcela,
+  estornoParcela,
   listParcelas,
   type ParcelaListItem,
 } from "@/integrations/external-supabase/parcelas.functions";
