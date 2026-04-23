@@ -14,6 +14,7 @@ import {
   TrendingUp,
   AlertTriangle,
   CheckCircle2,
+  Undo2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
@@ -37,12 +38,23 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   TablePagination,
   type PageSize,
 } from "@/components/ui/table-pagination";
 import { useAdminName } from "@/hooks/use-admin-name";
 import {
   baixaParcela,
+  estornoParcela,
   listParcelas,
   type ParcelaListItem,
 } from "@/integrations/external-supabase/parcelas.functions";
@@ -141,6 +153,8 @@ function VencimentosPage() {
   const [pagina, setPagina] = useState(1);
   const [porPagina, setPorPagina] = useState<PageSize>(10);
   const [modalParcela, setModalParcela] = useState<ParcelaProcessada | null>(null);
+  const [estornoParcelaState, setEstornoParcelaState] =
+    useState<ParcelaProcessada | null>(null);
 
   const processadas: ParcelaProcessada[] = useMemo(() => {
     return (data?.data ?? []).map((p) => ({ ...p, statusCalc: computeStatus(p) }));
@@ -250,6 +264,24 @@ function VencimentosPage() {
       }
       toast.success("Baixa registrada com sucesso!");
       setModalParcela(null);
+      queryClient.invalidateQueries({ queryKey: ["parcelas"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      queryClient.invalidateQueries({ queryKey: ["emprestimos"] });
+    },
+    onError: (e) => {
+      toast.error(e instanceof Error ? e.message : "Erro inesperado.");
+    },
+  });
+
+  const estornoMutation = useMutation({
+    mutationFn: (input: { id: string | number }) => estornoParcela({ data: input }),
+    onSuccess: (res) => {
+      if (!res.ok) {
+        toast.error(res.error ?? "Falha ao estornar pagamento.");
+        return;
+      }
+      toast.success("Pagamento estornado com sucesso!");
+      setEstornoParcelaState(null);
       queryClient.invalidateQueries({ queryKey: ["parcelas"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       queryClient.invalidateQueries({ queryKey: ["emprestimos"] });
@@ -428,6 +460,7 @@ function VencimentosPage() {
                             key={String(p.id)}
                             item={p}
                             onBaixa={() => setModalParcela(p)}
+                            onEstorno={() => setEstornoParcelaState(p)}
                             buildWhatsAppLink={buildWhatsAppLink}
                           />
                         ))}
@@ -443,6 +476,7 @@ function VencimentosPage() {
                       key={String(p.id)}
                       item={p}
                       onBaixa={() => setModalParcela(p)}
+                      onEstorno={() => setEstornoParcelaState(p)}
                       buildWhatsAppLink={buildWhatsAppLink}
                     />
                   ))}
@@ -487,6 +521,64 @@ function VencimentosPage() {
         }
         isLoading={baixaMutation.isPending}
       />
+
+      {/* Confirmação Estorno */}
+      <AlertDialog
+        open={!!estornoParcelaState}
+        onOpenChange={(open) => {
+          if (!open && !estornoMutation.isPending) setEstornoParcelaState(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Undo2 className="h-5 w-5 text-amber-600" />
+              Estornar Pagamento
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Deseja estornar este pagamento? A parcela voltará ao status{" "}
+              <strong>Pendente</strong> e o valor pago será zerado.
+              {estornoParcelaState && (
+                <span className="mt-3 block rounded-md bg-muted/50 p-2 text-xs">
+                  <strong>{estornoParcelaState.cliente_nome ?? "Cliente"}</strong> •{" "}
+                  {estornoParcelaState.contrato_codigo} • Parcela{" "}
+                  {estornoParcelaState.numero_parcela}/
+                  {estornoParcelaState.parcelas_total || estornoParcelaState.numero_parcela}
+                  {" — "}
+                  {fmtBRL(estornoParcelaState.valor_pago ?? estornoParcelaState.valor_parcela)}
+                </span>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={estornoMutation.isPending}>
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              disabled={estornoMutation.isPending}
+              onClick={(e) => {
+                e.preventDefault();
+                if (estornoParcelaState) {
+                  estornoMutation.mutate({ id: estornoParcelaState.id });
+                }
+              }}
+              className="bg-amber-600 hover:bg-amber-700"
+            >
+              {estornoMutation.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Estornando...
+                </>
+              ) : (
+                <>
+                  <Undo2 className="mr-2 h-4 w-4" />
+                  Confirmar Estorno
+                </>
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </SidebarProvider>
   );
 }
@@ -546,11 +638,13 @@ function WhatsAppIcon({ className }: { className?: string }) {
 function RowActions({
   item,
   onBaixa,
+  onEstorno,
   buildWhatsAppLink,
   variant = "desktop",
 }: {
   item: ParcelaProcessada;
   onBaixa: () => void;
+  onEstorno: () => void;
   buildWhatsAppLink: (p: ParcelaProcessada) => string | null;
   variant?: "desktop" | "mobile";
 }) {
@@ -583,20 +677,27 @@ function RowActions({
             Sem telefone
           </Button>
         )}
-        <Button
-          size="sm"
-          disabled={pago}
-          onClick={onBaixa}
-          className={cn(
-            "h-9 gap-1.5",
-            pago
-              ? "bg-muted text-muted-foreground hover:bg-muted"
-              : "bg-emerald-600 text-white hover:bg-emerald-700",
-          )}
-        >
-          <Check className="h-4 w-4" />
-          {pago ? "Recebido" : "Receber"}
-        </Button>
+        {pago ? (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={onEstorno}
+            aria-label="Estornar pagamento"
+            className="h-9 gap-1.5 border-amber-300 text-amber-700 hover:bg-amber-50 dark:border-amber-900 dark:text-amber-300 dark:hover:bg-amber-950"
+          >
+            <Undo2 className="h-4 w-4" />
+            Estornar
+          </Button>
+        ) : (
+          <Button
+            size="sm"
+            onClick={onBaixa}
+            className="h-9 gap-1.5 bg-emerald-600 text-white hover:bg-emerald-700"
+          >
+            <Check className="h-4 w-4" />
+            Receber
+          </Button>
+        )}
       </div>
     );
   }
@@ -624,21 +725,28 @@ function RowActions({
           <WhatsAppIcon className="h-4 w-4" />
         </Button>
       )}
-      <Button
-        variant="ghost"
-        size="icon"
-        disabled={pago}
-        onClick={onBaixa}
-        aria-label="Confirmar pagamento"
-        className={cn(
-          "h-8 w-8",
-          pago
-            ? "opacity-40"
-            : "text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950",
-        )}
-      >
-        <Check className="h-4 w-4" />
-      </Button>
+      {pago ? (
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onEstorno}
+          aria-label="Estornar pagamento"
+          title="Estornar pagamento"
+          className="h-8 w-8 text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950"
+        >
+          <Undo2 className="h-4 w-4" />
+        </Button>
+      ) : (
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onBaixa}
+          aria-label="Confirmar pagamento"
+          className="h-8 w-8 text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950"
+        >
+          <Check className="h-4 w-4" />
+        </Button>
+      )}
     </div>
   );
 }
@@ -646,10 +754,12 @@ function RowActions({
 function RowDesktop({
   item,
   onBaixa,
+  onEstorno,
   buildWhatsAppLink,
 }: {
   item: ParcelaProcessada;
   onBaixa: () => void;
+  onEstorno: () => void;
   buildWhatsAppLink: (p: ParcelaProcessada) => string | null;
 }) {
   return (
@@ -670,7 +780,12 @@ function RowDesktop({
         {item.valor_pago != null ? fmtBRL(item.valor_pago) : "—"}
       </td>
       <td className="px-3 py-2.5">
-        <RowActions item={item} onBaixa={onBaixa} buildWhatsAppLink={buildWhatsAppLink} />
+        <RowActions
+          item={item}
+          onBaixa={onBaixa}
+          onEstorno={onEstorno}
+          buildWhatsAppLink={buildWhatsAppLink}
+        />
       </td>
     </tr>
   );
@@ -679,10 +794,12 @@ function RowDesktop({
 function CardMobile({
   item,
   onBaixa,
+  onEstorno,
   buildWhatsAppLink,
 }: {
   item: ParcelaProcessada;
   onBaixa: () => void;
+  onEstorno: () => void;
   buildWhatsAppLink: (p: ParcelaProcessada) => string | null;
 }) {
   return (
@@ -723,6 +840,7 @@ function CardMobile({
         <RowActions
           item={item}
           onBaixa={onBaixa}
+          onEstorno={onEstorno}
           buildWhatsAppLink={buildWhatsAppLink}
           variant="mobile"
         />
