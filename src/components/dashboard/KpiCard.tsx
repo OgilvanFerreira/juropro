@@ -73,6 +73,7 @@ export function KpiCard({
     return (
       <Link
         to={to}
+        search={search as never}
         className={cn(
           baseClasses,
           "transition-all hover:-translate-y-0.5 hover:shadow-md hover:border-primary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
