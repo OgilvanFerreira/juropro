@@ -11,6 +11,7 @@ interface KpiCardProps {
   loading?: boolean;
   empty?: boolean;
   to?: "/vencimentos" | "/relatorios" | "/clientes" | "/contratos";
+  search?: Record<string, string>;
 }
 
 const toneStyles: Record<KpiCardProps["tone"], string> = {
@@ -29,6 +30,7 @@ export function KpiCard({
   loading = false,
   empty = false,
   to,
+  search,
 }: KpiCardProps) {
   const content = (
     <>
@@ -71,6 +73,7 @@ export function KpiCard({
     return (
       <Link
         to={to}
+        search={search as never}
         className={cn(
           baseClasses,
           "transition-all hover:-translate-y-0.5 hover:shadow-md hover:border-primary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
