@@ -521,9 +521,64 @@ function VencimentosPage() {
         }
         isLoading={baixaMutation.isPending}
       />
-    </SidebarProvider>
-  );
-}
+
+      {/* Confirmação Estorno */}
+      <AlertDialog
+        open={!!estornoParcelaState}
+        onOpenChange={(open) => {
+          if (!open && !estornoMutation.isPending) setEstornoParcelaState(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Undo2 className="h-5 w-5 text-amber-600" />
+              Estornar Pagamento
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Deseja estornar este pagamento? A parcela voltará ao status{" "}
+              <strong>Pendente</strong> e o valor pago será zerado.
+              {estornoParcelaState && (
+                <span className="mt-3 block rounded-md bg-muted/50 p-2 text-xs">
+                  <strong>{estornoParcelaState.cliente_nome ?? "Cliente"}</strong> •{" "}
+                  {estornoParcelaState.contrato_codigo} • Parcela{" "}
+                  {estornoParcelaState.numero_parcela}/
+                  {estornoParcelaState.parcelas_total || estornoParcelaState.numero_parcela}
+                  {" — "}
+                  {fmtBRL(estornoParcelaState.valor_pago ?? estornoParcelaState.valor_parcela)}
+                </span>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={estornoMutation.isPending}>
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              disabled={estornoMutation.isPending}
+              onClick={(e) => {
+                e.preventDefault();
+                if (estornoParcelaState) {
+                  estornoMutation.mutate({ id: estornoParcelaState.id });
+                }
+              }}
+              className="bg-amber-600 hover:bg-amber-700"
+            >
+              {estornoMutation.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Estornando...
+                </>
+              ) : (
+                <>
+                  <Undo2 className="mr-2 h-4 w-4" />
+                  Confirmar Estorno
+                </>
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
 // ====== Subcomponents ======
 
