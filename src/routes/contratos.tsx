@@ -90,6 +90,8 @@ function ContratosPage() {
   const [busca, setBusca] = useState("");
   const [sortKey, setSortKey] = useState<SortKey | null>(null);
   const [sortDir, setSortDir] = useState<SortDir>("asc");
+  const [pagina, setPagina] = useState(1);
+  const [porPagina, setPorPagina] = useState<PageSize>(10);
   const [emprestimoEditando, setEmprestimoEditando] =
     useState<EmprestimoFull | null>(null);
   const [loadingEditId, setLoadingEditId] = useState<string | number | null>(
