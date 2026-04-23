@@ -130,6 +130,24 @@ function ClienteCombobox({ value, onChange, clientes, loading }: ClienteCombobox
   const [aberto, setAberto] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
+  // Mapeia id do cliente -> número sequencial (#001, #002, ...)
+  // Mais antigo recebe #001 para manter consistência com Contratos/Vencimentos.
+  const seqMap = useMemo(() => {
+    const ordered = [...clientes].sort((a, b) => {
+      const da = a.created_at ? new Date(a.created_at).getTime() : 0;
+      const db = b.created_at ? new Date(b.created_at).getTime() : 0;
+      return da - db;
+    });
+    const m = new Map<string, string>();
+    ordered.forEach((c, idx) => {
+      m.set(String(c.id), `#${String(idx + 1).padStart(3, "0")}`);
+    });
+    return m;
+  }, [clientes]);
+
+  const codigoCliente = (id: string | number) =>
+    seqMap.get(String(id)) ?? `#${String(id).slice(0, 6)}`;
+
   const filtrados = useMemo(() => {
     const q = busca.trim().toLowerCase();
     if (!q) return clientes.slice(0, 100);
@@ -138,10 +156,16 @@ function ClienteCombobox({ value, onChange, clientes, loading }: ClienteCombobox
         const nome = (c.nome ?? "").toLowerCase();
         const cpf = (c.cpf_cnpj ?? "").replace(/\D/g, "");
         const id = String(c.id);
-        return nome.includes(q) || cpf.includes(q.replace(/\D/g, "")) || id.includes(q);
+        const codigo = (seqMap.get(id) ?? "").toLowerCase();
+        return (
+          nome.includes(q) ||
+          cpf.includes(q.replace(/\D/g, "")) ||
+          id.includes(q) ||
+          codigo.includes(q)
+        );
       })
       .slice(0, 100);
-  }, [busca, clientes]);
+  }, [busca, clientes, seqMap]);
 
   const sel = clientes.find((c) => String(c.id) === String(value));
 
