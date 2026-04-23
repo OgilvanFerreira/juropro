@@ -60,7 +60,7 @@ export const listParcelas = createServerFn({ method: "GET" }).handler(
     const { data: emps, error: empErr } = empIds.length
       ? await supabase
           .from("emprestimos")
-          .select("id, cliente_id, numero_parcelas, taxa_juros, valor_principal")
+          .select("id, cliente_id, numero_parcelas, taxa_juros, valor_principal, created_at")
           .in("id", empIds as (string | number)[])
       : { data: [], error: null };
 
@@ -76,6 +76,7 @@ export const listParcelas = createServerFn({ method: "GET" }).handler(
         numero_parcelas: number;
         taxa_juros: number;
         valor_principal: number;
+        created_at: string | null;
       }
     >();
     (emps ?? []).forEach((e) =>
@@ -84,8 +85,18 @@ export const listParcelas = createServerFn({ method: "GET" }).handler(
         numero_parcelas: Number(e.numero_parcelas ?? 0),
         taxa_juros: Number(e.taxa_juros ?? 0),
         valor_principal: Number(e.valor_principal ?? 0),
+        created_at: e.created_at ?? null,
       }),
     );
+
+    // Calcula seqId global de TODOS os empréstimos (mais antigo = #001)
+    const { data: allEmps } = await supabase
+      .from("emprestimos")
+      .select("id, created_at")
+      .order("created_at", { ascending: true })
+      .limit(2000);
+    const seqMap = new Map<string, number>();
+    (allEmps ?? []).forEach((e, idx) => seqMap.set(String(e.id), idx + 1));
 
     const clienteIds = Array.from(
       new Set(
@@ -114,10 +125,9 @@ export const listParcelas = createServerFn({ method: "GET" }).handler(
     const out: ParcelaListItem[] = list.map((p) => {
       const emp = empMap.get(String(p.emprestimo_id));
       const cli = emp?.cliente_id ? cliMap.get(String(emp.cliente_id)) : null;
-      // Mínimo = juros do principal (estimativa: principal * taxa%)
       const minimo = emp ? (emp.valor_principal * emp.taxa_juros) / 100 : 0;
-      const idStr = String(p.emprestimo_id);
-      const codigo = `#${idStr.slice(-4).toUpperCase()}`;
+      const seq = seqMap.get(String(p.emprestimo_id)) ?? 0;
+      const codigo = `#${String(seq).padStart(3, "0")}`;
       return {
         id: p.id,
         emprestimo_id: p.emprestimo_id,
@@ -133,6 +143,7 @@ export const listParcelas = createServerFn({ method: "GET" }).handler(
         cliente_nome: cli?.nome ?? null,
         cliente_telefone: cli?.telefone ?? null,
         contrato_codigo: codigo,
+        emprestimo_seq: seq,
       };
     });
 
