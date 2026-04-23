@@ -11,6 +11,7 @@ interface KpiCardProps {
   loading?: boolean;
   empty?: boolean;
   to?: "/vencimentos" | "/relatorios" | "/clientes" | "/contratos";
+  search?: Record<string, string>;
 }
 
 const toneStyles: Record<KpiCardProps["tone"], string> = {
