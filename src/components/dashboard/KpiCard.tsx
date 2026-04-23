@@ -30,6 +30,7 @@ export function KpiCard({
   loading = false,
   empty = false,
   to,
+  search,
 }: KpiCardProps) {
   const content = (
     <>
