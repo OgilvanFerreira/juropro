@@ -424,7 +424,7 @@ function ClientesPage() {
                             </TableRow>
                           </TableHeader>
                           <TableBody>
-                            {clientesFiltrados.map((c) => (
+                            {clientesPaginados.map((c) => (
                               <TableRow key={String(c.id)}>
                                 <TableCell className="font-mono text-xs text-muted-foreground">
                                   #{String(c.seqId).padStart(3, "0")}
@@ -484,7 +484,7 @@ function ClientesPage() {
 
                       {/* Mobile: Cards empilhados */}
                       <div className="block divide-y md:hidden">
-                        {clientesFiltrados.map((c) => (
+                        {clientesPaginados.map((c) => (
                           <div key={String(c.id)} className="space-y-3 p-4">
                             <div className="flex items-start justify-between gap-3">
                               <div className="min-w-0 flex-1">
