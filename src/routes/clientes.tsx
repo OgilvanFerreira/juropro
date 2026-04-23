@@ -125,6 +125,8 @@ function ClientesPage() {
   type SortDir = "asc" | "desc";
   const [sortKey, setSortKey] = useState<SortKey | null>(null);
   const [sortDir, setSortDir] = useState<SortDir>("asc");
+  const [pagina, setPagina] = useState(1);
+  const [porPagina, setPorPagina] = useState<PageSize>(10);
 
   const handleSort = (key: SortKey) => {
     if (sortKey !== key) {
