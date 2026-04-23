@@ -16,6 +16,9 @@ import {
   Trash2,
   UserPlus,
   Users as UsersIcon,
+  TrendingUp,
+  MapPin,
+  CalendarClock,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
