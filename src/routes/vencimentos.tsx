@@ -736,10 +736,12 @@ function RowDesktop({
 function CardMobile({
   item,
   onBaixa,
+  onEstorno,
   buildWhatsAppLink,
 }: {
   item: ParcelaProcessada;
   onBaixa: () => void;
+  onEstorno: () => void;
   buildWhatsAppLink: (p: ParcelaProcessada) => string | null;
 }) {
   return (
@@ -780,6 +782,7 @@ function CardMobile({
         <RowActions
           item={item}
           onBaixa={onBaixa}
+          onEstorno={onEstorno}
           buildWhatsAppLink={buildWhatsAppLink}
           variant="mobile"
         />
