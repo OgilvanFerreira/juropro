@@ -173,8 +173,11 @@ function ContratosPage() {
     const base = !q
       ? lista
       : lista.filter((e) => {
+          const seqStr = `#${String(e.seqId).padStart(3, "0")}`;
           return (
             (e.cliente_nome ?? "").toLowerCase().includes(q) ||
+            seqStr.toLowerCase().includes(q) ||
+            String(e.seqId).includes(q) ||
             String(e.id).toLowerCase().includes(q) ||
             (e.status ?? "").toLowerCase().includes(q)
           );
@@ -183,10 +186,10 @@ function ContratosPage() {
     if (!sortKey) return base;
 
     const dir = sortDir === "asc" ? 1 : -1;
-    const getVal = (e: EmprestimoListItem): string | number => {
+    const getVal = (e: (typeof base)[number]): string | number => {
       switch (sortKey) {
         case "id":
-          return String(e.id).toLowerCase();
+          return e.seqId;
         case "cliente":
           return (e.cliente_nome ?? "").toLowerCase();
         case "principal":
@@ -216,6 +219,14 @@ function ContratosPage() {
       return 0;
     });
   }, [lista, busca, sortKey, sortDir]);
+
+  // Paginação
+  const totalPaginas = Math.max(1, Math.ceil(filtrados.length / porPagina));
+  const paginaAtual = Math.min(pagina, totalPaginas);
+  const paginados = filtrados.slice(
+    (paginaAtual - 1) * porPagina,
+    paginaAtual * porPagina,
+  );
 
   const totais = useMemo(() => {
     return lista.reduce(
