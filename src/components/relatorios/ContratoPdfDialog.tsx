@@ -128,7 +128,7 @@ export function ContratoPdfDialog({
       <DialogContent className="max-w-4xl max-h-[92vh] overflow-y-auto p-0 gap-0">
         <div className="sticky top-0 z-10 flex items-center justify-between gap-2 border-b bg-background px-4 py-3">
           <div className="text-sm font-semibold">
-            📄 Contrato {contrato.contrato_codigo ?? `#${String(contrato.id).slice(0, 6)}`}
+            📄 Contrato {contratoCodigo}
           </div>
           <div className="flex items-center gap-2">
             <Button
@@ -193,7 +193,7 @@ export function ContratoPdfDialog({
             >
               <strong style={{ fontSize: "13pt", color: "#0f766e" }}>
                 CONTRATO DE EMPRÉSTIMO PESSOAL{" "}
-                {contrato.contrato_codigo ?? `#${String(contrato.id).slice(0, 6)}`}
+                {contratoCodigo}
               </strong>
               <br />
               <span style={{ fontSize: "10pt", color: "#64748b" }}>
