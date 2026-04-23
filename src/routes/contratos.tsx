@@ -455,8 +455,8 @@ function ContratosPage() {
                 </>
               )}
             </div>
-          </main>
-        </div>
+          </div>
+        </main>
       </div>
       <NovoEmprestimoDialog
         open={novoOpen}
@@ -511,26 +511,36 @@ function ContratosPage() {
 function KpiBox({
   label,
   value,
-  tone,
+  icon: Icon,
+  accent,
 }: {
   label: string;
   value: string;
-  tone?: "success" | "warning" | "info";
+  icon: React.ComponentType<{ className?: string }>;
+  accent: "info" | "warning" | "destructive" | "success";
 }) {
-  const toneClass =
-    tone === "success"
-      ? "text-success"
-      : tone === "warning"
-        ? "text-warning"
-        : tone === "info"
-          ? "text-info"
-          : "text-foreground";
+  const accentStyles: Record<typeof accent, string> = {
+    info: "border-t-info text-info",
+    warning: "border-t-warning text-warning",
+    destructive: "border-t-destructive text-destructive",
+    success: "border-t-success text-success",
+  };
   return (
-    <div className="rounded-lg border bg-card p-3 shadow-sm">
-      <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-        {label}
+    <div
+      className={cn(
+        "rounded-xl border border-border border-t-4 bg-card p-3 sm:p-4 shadow-sm",
+        accentStyles[accent],
+      )}
+    >
+      <div className="mb-2 flex items-start justify-between gap-2">
+        <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground leading-tight">
+          {label}
+        </p>
+        <Icon className="h-4 w-4" />
+      </div>
+      <p className="truncate text-lg sm:text-xl font-extrabold text-foreground">
+        {value}
       </p>
-      <p className={cn("truncate text-base font-bold", toneClass)}>{value}</p>
     </div>
   );
 }
