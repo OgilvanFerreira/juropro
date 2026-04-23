@@ -688,7 +688,6 @@ function ClientesPage() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
-      </div>
     </SidebarProvider>
   );
 }
