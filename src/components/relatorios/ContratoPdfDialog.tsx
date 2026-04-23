@@ -372,12 +372,14 @@ export function ContratoPdfDialog({
             >
               V — Tabela de Parcelas
             </p>
+            <div style={{ overflowX: "auto", WebkitOverflowScrolling: "touch" }}>
             <table
               style={{
                 width: "100%",
                 borderCollapse: "collapse",
                 fontSize: "10pt",
                 marginTop: 6,
+                minWidth: 420,
               }}
             >
               <thead>
