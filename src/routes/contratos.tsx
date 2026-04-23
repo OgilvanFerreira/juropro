@@ -30,6 +30,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  TablePagination,
+  type PageSize,
+} from "@/components/ui/table-pagination";
 import { NovoEmprestimoDialog } from "@/components/emprestimos/NovoEmprestimoDialog";
 import {
   deleteEmprestimo,
