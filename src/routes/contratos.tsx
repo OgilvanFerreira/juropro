@@ -589,11 +589,13 @@ function RowDesktop({
 
 function CardMobile({
   item,
+  seqId,
   onEdit,
   onDelete,
   isLoadingEdit,
 }: {
   item: EmprestimoListItem;
+  seqId: number;
   onEdit: () => void;
   onDelete: () => void;
   isLoadingEdit: boolean;
