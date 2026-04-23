@@ -449,32 +449,17 @@ function VencimentosPage() {
                 </div>
 
                 {/* Paginação */}
-                {totalPaginas > 1 && (
-                  <div className="flex flex-col items-center justify-between gap-3 sm:flex-row">
-                    <p className="text-xs text-muted-foreground">
-                      Página {paginaAtual} de {totalPaginas} • {filtradas.length} parcela
-                      {filtradas.length === 1 ? "" : "s"}
-                    </p>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        disabled={paginaAtual <= 1}
-                        onClick={() => setPagina((p) => Math.max(1, p - 1))}
-                      >
-                        Anterior
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        disabled={paginaAtual >= totalPaginas}
-                        onClick={() => setPagina((p) => Math.min(totalPaginas, p + 1))}
-                      >
-                        Próxima
-                      </Button>
-                    </div>
-                  </div>
-                )}
+                <TablePagination
+                  page={paginaAtual}
+                  pageSize={porPagina}
+                  totalItems={filtradas.length}
+                  onPageChange={(p) => setPagina(p)}
+                  onPageSizeChange={(s) => {
+                    setPorPagina(s);
+                    setPagina(1);
+                  }}
+                  itemLabel="parcelas"
+                />
               </>
             )}
 
