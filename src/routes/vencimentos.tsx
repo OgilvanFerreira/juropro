@@ -460,6 +460,7 @@ function VencimentosPage() {
                             key={String(p.id)}
                             item={p}
                             onBaixa={() => setModalParcela(p)}
+                            onEstorno={() => setEstornoParcelaState(p)}
                             buildWhatsAppLink={buildWhatsAppLink}
                           />
                         ))}
@@ -475,6 +476,7 @@ function VencimentosPage() {
                       key={String(p.id)}
                       item={p}
                       onBaixa={() => setModalParcela(p)}
+                      onEstorno={() => setEstornoParcelaState(p)}
                       buildWhatsAppLink={buildWhatsAppLink}
                     />
                   ))}
