@@ -10,6 +10,7 @@ interface ContratoPdfDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   contrato: EmprestimoListItem | null;
+  contratoCodigo: string;
   parcelas: ParcelaListItem[];
   cliente?: {
     cpf_cnpj?: string | null;
