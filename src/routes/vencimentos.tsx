@@ -720,7 +720,12 @@ function CardMobile({
         </div>
       </div>
       <div className="mt-3 flex items-center justify-end border-t border-border pt-3">
-        <RowActions item={item} onBaixa={onBaixa} buildWhatsAppLink={buildWhatsAppLink} />
+        <RowActions
+          item={item}
+          onBaixa={onBaixa}
+          buildWhatsAppLink={buildWhatsAppLink}
+          variant="mobile"
+        />
       </div>
     </div>
   );
