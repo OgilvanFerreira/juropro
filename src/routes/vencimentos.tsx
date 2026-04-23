@@ -153,6 +153,8 @@ function VencimentosPage() {
   const [pagina, setPagina] = useState(1);
   const [porPagina, setPorPagina] = useState<PageSize>(10);
   const [modalParcela, setModalParcela] = useState<ParcelaProcessada | null>(null);
+  const [estornoParcelaState, setEstornoParcelaState] =
+    useState<ParcelaProcessada | null>(null);
 
   const processadas: ParcelaProcessada[] = useMemo(() => {
     return (data?.data ?? []).map((p) => ({ ...p, statusCalc: computeStatus(p) }));
