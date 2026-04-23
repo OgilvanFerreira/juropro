@@ -195,7 +195,7 @@ function ClienteCombobox({ value, onChange, clientes, loading }: ClienteCombobox
         >
           {sel ? (
             <>
-              <span className="font-bold text-success">#{String(sel.id).slice(0, 8)}</span>
+              <span className="font-bold text-success">{codigoCliente(sel.id)}</span>
               {" — "}
               {sel.nome ?? "Sem nome"}
             </>
