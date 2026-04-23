@@ -612,7 +612,7 @@ function CardMobile({
             {item.cliente_nome ?? "—"}
           </p>
           <p className="font-mono text-[11px] text-muted-foreground">
-            #{String(item.id).slice(0, 8)}
+            #{String(seqId).padStart(3, "0")}
           </p>
         </div>
         <Badge
