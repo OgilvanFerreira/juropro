@@ -125,8 +125,7 @@ function RelatoriosPage() {
                 </TabsTrigger>
                 <TabsTrigger value="inadimplencia" className="text-xs sm:text-sm">
                   <AlertCircle className="h-4 w-4 mr-1 sm:mr-1.5" />
-                  <span className="hidden xs:inline">Inadimplência</span>
-                  <span className="xs:hidden">Inadimpl.</span>
+                  Inadimplência
                 </TabsTrigger>
               </TabsList>
 
@@ -1587,7 +1586,7 @@ function InadimplenciaTab() {
           sub="Parcela mais antiga"
         />
         <KpiBox
-          label="Parcelas Atras."
+          label="Parcelas Atrasadas"
           value={String(kpis.parcelasAtras)}
           icon={<ClipboardList className="h-4 w-4" />}
           tone="primary"
