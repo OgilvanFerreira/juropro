@@ -262,14 +262,14 @@ function VencimentosPage() {
   const buildWhatsAppLink = (p: ParcelaProcessada) => {
     const tel = (p.cliente_telefone ?? "").replace(/\D/g, "");
     if (!tel) return null;
-    const primeiroNome = (p.cliente_nome ?? "Cliente").split(" ")[0];
+    const nomeCli = p.cliente_nome ?? "Cliente";
     const venc = fmtDate(p.data_vencimento);
     const parcelaStr = `${p.numero_parcela}/${p.parcelas_total || p.numero_parcela}`;
     const msg =
-      `Olá ${primeiroNome}, tudo bem? 😊\n\n` +
-      `Passando para lembrar que sua parcela *${parcelaStr}* do contrato *${p.contrato_codigo}* ` +
-      `no valor de *${fmtBRL(p.valor_parcela)}* vence em *${venc}*.\n\n` +
-      `Qualquer dúvida, estamos à disposição! 🙏\n\n_JuroPro - Gestão de Empréstimos_`;
+      `Olá ${nomeCli}, lembramos que sua parcela ${parcelaStr} ` +
+      `do contrato ${p.contrato_codigo} no valor de ${fmtBRL(p.valor_parcela)} ` +
+      `vence em ${venc}. Qualquer dúvida, estamos à disposição.\n\n` +
+      `Atenciosamente, ${adminName} - JuroPro.`;
     return `https://wa.me/55${tel}?text=${encodeURIComponent(msg)}`;
   };
 
