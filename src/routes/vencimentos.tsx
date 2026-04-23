@@ -14,6 +14,7 @@ import {
   TrendingUp,
   AlertTriangle,
   CheckCircle2,
+  Undo2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
