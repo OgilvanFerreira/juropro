@@ -59,6 +59,7 @@ import {
   type ClienteFull,
 } from "@/integrations/external-supabase/clientes.functions";
 import { formatCpfCnpj, formatTelefone } from "@/lib/masks";
+import { cn } from "@/lib/utils";
 
 const clientesQuery = () =>
   queryOptions({
@@ -689,5 +690,42 @@ function ClientesPage() {
           </AlertDialogContent>
         </AlertDialog>
     </SidebarProvider>
+  );
+}
+
+function KpiBox({
+  label,
+  value,
+  icon: Icon,
+  accent,
+}: {
+  label: string;
+  value: string;
+  icon: React.ComponentType<{ className?: string }>;
+  accent: "info" | "warning" | "destructive" | "success";
+}) {
+  const accentStyles: Record<typeof accent, string> = {
+    info: "border-t-info text-info",
+    warning: "border-t-warning text-warning",
+    destructive: "border-t-destructive text-destructive",
+    success: "border-t-success text-success",
+  };
+  return (
+    <div
+      className={cn(
+        "rounded-xl border border-border border-t-4 bg-card p-3 sm:p-4 shadow-sm",
+        accentStyles[accent],
+      )}
+    >
+      <div className="mb-2 flex items-start justify-between gap-2">
+        <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground leading-tight">
+          {label}
+        </p>
+        <Icon className="h-4 w-4" />
+      </div>
+      <p className="truncate text-lg sm:text-xl font-extrabold text-foreground">
+        {value}
+      </p>
+    </div>
   );
 }
