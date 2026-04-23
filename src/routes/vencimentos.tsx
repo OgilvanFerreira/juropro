@@ -547,13 +547,60 @@ function RowActions({
   item,
   onBaixa,
   buildWhatsAppLink,
+  variant = "desktop",
 }: {
   item: ParcelaProcessada;
   onBaixa: () => void;
   buildWhatsAppLink: (p: ParcelaProcessada) => string | null;
+  variant?: "desktop" | "mobile";
 }) {
   const pago = item.statusCalc === "pago";
   const wppLink = buildWhatsAppLink(item);
+  const isMobile = variant === "mobile";
+
+  if (isMobile) {
+    return (
+      <div className="grid w-full grid-cols-2 gap-2">
+        {wppLink ? (
+          <a
+            href={wppLink}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Enviar WhatsApp"
+            className="inline-flex h-9 items-center justify-center gap-1.5 rounded-md border border-emerald-200 bg-emerald-50 text-xs font-medium text-emerald-700 transition-colors hover:bg-emerald-100 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-300"
+          >
+            <WhatsAppIcon className="h-4 w-4" />
+            WhatsApp
+          </a>
+        ) : (
+          <Button
+            variant="outline"
+            size="sm"
+            disabled
+            className="h-9 gap-1.5 opacity-40"
+          >
+            <WhatsAppIcon className="h-4 w-4" />
+            Sem telefone
+          </Button>
+        )}
+        <Button
+          size="sm"
+          disabled={pago}
+          onClick={onBaixa}
+          className={cn(
+            "h-9 gap-1.5",
+            pago
+              ? "bg-muted text-muted-foreground hover:bg-muted"
+              : "bg-emerald-600 text-white hover:bg-emerald-700",
+          )}
+        >
+          <Check className="h-4 w-4" />
+          {pago ? "Recebido" : "Receber"}
+        </Button>
+      </div>
+    );
+  }
+
   return (
     <div className="flex items-center justify-end gap-1.5">
       {wppLink ? (
