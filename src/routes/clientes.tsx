@@ -45,6 +45,10 @@ import {
 } from "@/components/ui/alert-dialog";
 import { NovoClienteDialog } from "@/components/clientes/NovoClienteDialog";
 import {
+  TablePagination,
+  type PageSize,
+} from "@/components/ui/table-pagination";
+import {
   deleteCliente,
   getCliente,
   listClientes,
@@ -121,6 +125,8 @@ function ClientesPage() {
   type SortDir = "asc" | "desc";
   const [sortKey, setSortKey] = useState<SortKey | null>(null);
   const [sortDir, setSortDir] = useState<SortDir>("asc");
+  const [pagina, setPagina] = useState(1);
+  const [porPagina, setPorPagina] = useState<PageSize>(10);
 
   const handleSort = (key: SortKey) => {
     if (sortKey !== key) {
@@ -243,6 +249,13 @@ function ClientesPage() {
     });
   }, [clientesComId, search, sortKey, sortDir]);
 
+  const totalPaginas = Math.max(1, Math.ceil(clientesFiltrados.length / porPagina));
+  const paginaAtual = Math.min(pagina, totalPaginas);
+  const clientesPaginados = clientesFiltrados.slice(
+    (paginaAtual - 1) * porPagina,
+    paginaAtual * porPagina,
+  );
+
   const SortIcon = ({ column }: { column: SortKey }) => {
     if (sortKey !== column)
       return <ArrowUpDown className="h-3.5 w-3.5 opacity-50" />;
@@ -327,7 +340,10 @@ function ClientesPage() {
                       <Input
                         type="search"
                         value={search}
-                        onChange={(e) => setSearch(e.target.value)}
+                        onChange={(e) => {
+                          setSearch(e.target.value);
+                          setPagina(1);
+                        }}
                         placeholder="Buscar por nome ou CPF/CNPJ..."
                         className="pl-9"
                       />
@@ -411,7 +427,7 @@ function ClientesPage() {
                             </TableRow>
                           </TableHeader>
                           <TableBody>
-                            {clientesFiltrados.map((c) => (
+                            {clientesPaginados.map((c) => (
                               <TableRow key={String(c.id)}>
                                 <TableCell className="font-mono text-xs text-muted-foreground">
                                   #{String(c.seqId).padStart(3, "0")}
@@ -471,7 +487,7 @@ function ClientesPage() {
 
                       {/* Mobile: Cards empilhados */}
                       <div className="block divide-y md:hidden">
-                        {clientesFiltrados.map((c) => (
+                        {clientesPaginados.map((c) => (
                           <div key={String(c.id)} className="space-y-3 p-4">
                             <div className="flex items-start justify-between gap-3">
                               <div className="min-w-0 flex-1">
@@ -548,6 +564,17 @@ function ClientesPage() {
                           </div>
                         ))}
                       </div>
+                      <TablePagination
+                        page={paginaAtual}
+                        pageSize={porPagina}
+                        totalItems={clientesFiltrados.length}
+                        onPageChange={(p) => setPagina(p)}
+                        onPageSizeChange={(s) => {
+                          setPorPagina(s);
+                          setPagina(1);
+                        }}
+                        itemLabel="clientes"
+                      />
                     </>
                   )}
                 </>

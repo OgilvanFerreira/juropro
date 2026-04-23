@@ -37,6 +37,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  TablePagination,
+  type PageSize,
+} from "@/components/ui/table-pagination";
+import { useAdminName } from "@/hooks/use-admin-name";
+import {
   baixaParcela,
   listParcelas,
   type ParcelaListItem,
@@ -127,12 +132,14 @@ function VencimentosPage() {
     queryFn: () => listFn(),
   });
 
+  const { name: adminName } = useAdminName();
+
   const [busca, setBusca] = useState("");
   const [filtroStatus, setFiltroStatus] = useState<StatusCalc | "todos">("todos");
   const [sortKey, setSortKey] = useState<SortKey>("data_vencimento");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [pagina, setPagina] = useState(1);
-  const porPagina = 10;
+  const [porPagina, setPorPagina] = useState<PageSize>(10);
   const [modalParcela, setModalParcela] = useState<ParcelaProcessada | null>(null);
 
   const processadas: ParcelaProcessada[] = useMemo(() => {
@@ -255,14 +262,14 @@ function VencimentosPage() {
   const buildWhatsAppLink = (p: ParcelaProcessada) => {
     const tel = (p.cliente_telefone ?? "").replace(/\D/g, "");
     if (!tel) return null;
-    const primeiroNome = (p.cliente_nome ?? "Cliente").split(" ")[0];
+    const nomeCli = p.cliente_nome ?? "Cliente";
     const venc = fmtDate(p.data_vencimento);
     const parcelaStr = `${p.numero_parcela}/${p.parcelas_total || p.numero_parcela}`;
     const msg =
-      `Olá ${primeiroNome}, tudo bem? 😊\n\n` +
-      `Passando para lembrar que sua parcela *${parcelaStr}* do contrato *${p.contrato_codigo}* ` +
-      `no valor de *${fmtBRL(p.valor_parcela)}* vence em *${venc}*.\n\n` +
-      `Qualquer dúvida, estamos à disposição! 🙏\n\n_JuroPro - Gestão de Empréstimos_`;
+      `Olá ${nomeCli}, lembramos que sua parcela ${parcelaStr} ` +
+      `do contrato ${p.contrato_codigo} no valor de ${fmtBRL(p.valor_parcela)} ` +
+      `vence em ${venc}. Qualquer dúvida, estamos à disposição.\n\n` +
+      `Atenciosamente, ${adminName} - JuroPro.`;
     return `https://wa.me/55${tel}?text=${encodeURIComponent(msg)}`;
   };
 
@@ -442,32 +449,17 @@ function VencimentosPage() {
                 </div>
 
                 {/* Paginação */}
-                {totalPaginas > 1 && (
-                  <div className="flex flex-col items-center justify-between gap-3 sm:flex-row">
-                    <p className="text-xs text-muted-foreground">
-                      Página {paginaAtual} de {totalPaginas} • {filtradas.length} parcela
-                      {filtradas.length === 1 ? "" : "s"}
-                    </p>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        disabled={paginaAtual <= 1}
-                        onClick={() => setPagina((p) => Math.max(1, p - 1))}
-                      >
-                        Anterior
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        disabled={paginaAtual >= totalPaginas}
-                        onClick={() => setPagina((p) => Math.min(totalPaginas, p + 1))}
-                      >
-                        Próxima
-                      </Button>
-                    </div>
-                  </div>
-                )}
+                <TablePagination
+                  page={paginaAtual}
+                  pageSize={porPagina}
+                  totalItems={filtradas.length}
+                  onPageChange={(p) => setPagina(p)}
+                  onPageSizeChange={(s) => {
+                    setPorPagina(s);
+                    setPagina(1);
+                  }}
+                  itemLabel="parcelas"
+                />
               </>
             )}
 
@@ -555,13 +547,60 @@ function RowActions({
   item,
   onBaixa,
   buildWhatsAppLink,
+  variant = "desktop",
 }: {
   item: ParcelaProcessada;
   onBaixa: () => void;
   buildWhatsAppLink: (p: ParcelaProcessada) => string | null;
+  variant?: "desktop" | "mobile";
 }) {
   const pago = item.statusCalc === "pago";
   const wppLink = buildWhatsAppLink(item);
+  const isMobile = variant === "mobile";
+
+  if (isMobile) {
+    return (
+      <div className="grid w-full grid-cols-2 gap-2">
+        {wppLink ? (
+          <a
+            href={wppLink}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Enviar WhatsApp"
+            className="inline-flex h-9 items-center justify-center gap-1.5 rounded-md border border-emerald-200 bg-emerald-50 text-xs font-medium text-emerald-700 transition-colors hover:bg-emerald-100 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-300"
+          >
+            <WhatsAppIcon className="h-4 w-4" />
+            WhatsApp
+          </a>
+        ) : (
+          <Button
+            variant="outline"
+            size="sm"
+            disabled
+            className="h-9 gap-1.5 opacity-40"
+          >
+            <WhatsAppIcon className="h-4 w-4" />
+            Sem telefone
+          </Button>
+        )}
+        <Button
+          size="sm"
+          disabled={pago}
+          onClick={onBaixa}
+          className={cn(
+            "h-9 gap-1.5",
+            pago
+              ? "bg-muted text-muted-foreground hover:bg-muted"
+              : "bg-emerald-600 text-white hover:bg-emerald-700",
+          )}
+        >
+          <Check className="h-4 w-4" />
+          {pago ? "Recebido" : "Receber"}
+        </Button>
+      </div>
+    );
+  }
+
   return (
     <div className="flex items-center justify-end gap-1.5">
       {wppLink ? (
@@ -681,7 +720,12 @@ function CardMobile({
         </div>
       </div>
       <div className="mt-3 flex items-center justify-end border-t border-border pt-3">
-        <RowActions item={item} onBaixa={onBaixa} buildWhatsAppLink={buildWhatsAppLink} />
+        <RowActions
+          item={item}
+          onBaixa={onBaixa}
+          buildWhatsAppLink={buildWhatsAppLink}
+          variant="mobile"
+        />
       </div>
     </div>
   );

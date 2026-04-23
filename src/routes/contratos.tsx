@@ -30,6 +30,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  TablePagination,
+  type PageSize,
+} from "@/components/ui/table-pagination";
 import { NovoEmprestimoDialog } from "@/components/emprestimos/NovoEmprestimoDialog";
 import {
   deleteEmprestimo,
@@ -86,6 +90,8 @@ function ContratosPage() {
   const [busca, setBusca] = useState("");
   const [sortKey, setSortKey] = useState<SortKey | null>(null);
   const [sortDir, setSortDir] = useState<SortDir>("asc");
+  const [pagina, setPagina] = useState(1);
+  const [porPagina, setPorPagina] = useState<PageSize>(10);
   const [emprestimoEditando, setEmprestimoEditando] =
     useState<EmprestimoFull | null>(null);
   const [loadingEditId, setLoadingEditId] = useState<string | number | null>(
@@ -104,7 +110,11 @@ function ContratosPage() {
     queryFn: () => listFn(),
   });
 
-  const lista = query.data?.data ?? [];
+  const listaRaw = query.data?.data ?? [];
+  const lista = useMemo(() => {
+    const total = listaRaw.length;
+    return listaRaw.map((e, idx) => ({ ...e, seqId: total - idx }));
+  }, [listaRaw]);
 
   const handleEditar = async (id: string | number) => {
     setLoadingEditId(id);
@@ -163,8 +173,11 @@ function ContratosPage() {
     const base = !q
       ? lista
       : lista.filter((e) => {
+          const seqStr = `#${String(e.seqId).padStart(3, "0")}`;
           return (
             (e.cliente_nome ?? "").toLowerCase().includes(q) ||
+            seqStr.toLowerCase().includes(q) ||
+            String(e.seqId).includes(q) ||
             String(e.id).toLowerCase().includes(q) ||
             (e.status ?? "").toLowerCase().includes(q)
           );
@@ -173,10 +186,10 @@ function ContratosPage() {
     if (!sortKey) return base;
 
     const dir = sortDir === "asc" ? 1 : -1;
-    const getVal = (e: EmprestimoListItem): string | number => {
+    const getVal = (e: (typeof base)[number]): string | number => {
       switch (sortKey) {
         case "id":
-          return String(e.id).toLowerCase();
+          return e.seqId;
         case "cliente":
           return (e.cliente_nome ?? "").toLowerCase();
         case "principal":
@@ -206,6 +219,14 @@ function ContratosPage() {
       return 0;
     });
   }, [lista, busca, sortKey, sortDir]);
+
+  // Paginação
+  const totalPaginas = Math.max(1, Math.ceil(filtrados.length / porPagina));
+  const paginaAtual = Math.min(pagina, totalPaginas);
+  const paginados = filtrados.slice(
+    (paginaAtual - 1) * porPagina,
+    paginaAtual * porPagina,
+  );
 
   const totais = useMemo(() => {
     return lista.reduce(
@@ -366,10 +387,11 @@ function ContratosPage() {
                         </tr>
                       </thead>
                       <tbody>
-                        {filtrados.map((e) => (
+                        {paginados.map((e) => (
                           <RowDesktop
                             key={String(e.id)}
                             item={e}
+                            seqId={e.seqId}
                             onEdit={() => handleEditar(e.id)}
                             onDelete={() => setEmprestimoParaExcluir(e)}
                             isLoadingEdit={loadingEditId === e.id}
@@ -381,16 +403,29 @@ function ContratosPage() {
 
                   {/* MOBILE CARDS */}
                   <div className="space-y-3 md:hidden">
-                    {filtrados.map((e) => (
+                    {paginados.map((e) => (
                       <CardMobile
                         key={String(e.id)}
                         item={e}
+                        seqId={e.seqId}
                         onEdit={() => handleEditar(e.id)}
                         onDelete={() => setEmprestimoParaExcluir(e)}
                         isLoadingEdit={loadingEditId === e.id}
                       />
                     ))}
                   </div>
+
+                  <TablePagination
+                    page={paginaAtual}
+                    pageSize={porPagina}
+                    totalItems={filtrados.length}
+                    onPageChange={(p) => setPagina(p)}
+                    onPageSizeChange={(s) => {
+                      setPorPagina(s);
+                      setPagina(1);
+                    }}
+                    itemLabel="contratos"
+                  />
                 </>
               )}
             </div>
@@ -476,11 +511,13 @@ function KpiBox({
 
 function RowDesktop({
   item,
+  seqId,
   onEdit,
   onDelete,
   isLoadingEdit,
 }: {
   item: EmprestimoListItem;
+  seqId: number;
   onEdit: () => void;
   onDelete: () => void;
   isLoadingEdit: boolean;
@@ -492,7 +529,7 @@ function RowDesktop({
   return (
     <tr className="border-t hover:bg-muted/30">
       <td className="px-3 py-3 font-mono text-xs text-muted-foreground">
-        #{String(item.id).slice(0, 8)}
+        #{String(seqId).padStart(3, "0")}
       </td>
       <td className="px-3 py-3 font-medium text-foreground">
         {item.cliente_nome ?? "—"}
@@ -552,11 +589,13 @@ function RowDesktop({
 
 function CardMobile({
   item,
+  seqId,
   onEdit,
   onDelete,
   isLoadingEdit,
 }: {
   item: EmprestimoListItem;
+  seqId: number;
   onEdit: () => void;
   onDelete: () => void;
   isLoadingEdit: boolean;
@@ -573,7 +612,7 @@ function CardMobile({
             {item.cliente_nome ?? "—"}
           </p>
           <p className="font-mono text-[11px] text-muted-foreground">
-            #{String(item.id).slice(0, 8)}
+            #{String(seqId).padStart(3, "0")}
           </p>
         </div>
         <Badge
