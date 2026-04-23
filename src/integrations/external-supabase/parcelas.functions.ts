@@ -32,6 +32,7 @@ export type ParcelaListItem = {
   cliente_nome: string | null;
   cliente_telefone: string | null;
   contrato_codigo: string;
+  emprestimo_seq: number;
 };
 
 export const listParcelas = createServerFn({ method: "GET" }).handler(
