@@ -60,10 +60,29 @@ import {
 } from "@/integrations/external-supabase/parcelas.functions";
 import { cn } from "@/lib/utils";
 
+type VencimentosSearch = {
+  status?: StatusCalc | "todos";
+};
+
+const ALLOWED_STATUS: ReadonlyArray<StatusCalc | "todos"> = [
+  "todos",
+  "pago",
+  "atrasado",
+  "hoje",
+  "avencer",
+];
+
 export const Route = createFileRoute("/vencimentos")({
   head: () => ({
     meta: [{ title: "Vencimentos — JuroPro" }],
   }),
+  validateSearch: (search: Record<string, unknown>): VencimentosSearch => {
+    const raw = search.status;
+    if (typeof raw === "string" && (ALLOWED_STATUS as readonly string[]).includes(raw)) {
+      return { status: raw as StatusCalc | "todos" };
+    }
+    return {};
+  },
   component: VencimentosPage,
 });
 
