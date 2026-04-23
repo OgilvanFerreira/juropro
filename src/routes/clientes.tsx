@@ -564,6 +564,17 @@ function ClientesPage() {
                           </div>
                         ))}
                       </div>
+                      <TablePagination
+                        page={paginaAtual}
+                        pageSize={porPagina}
+                        totalItems={clientesFiltrados.length}
+                        onPageChange={(p) => setPagina(p)}
+                        onPageSizeChange={(s) => {
+                          setPorPagina(s);
+                          setPagina(1);
+                        }}
+                        itemLabel="clientes"
+                      />
                     </>
                   )}
                 </>
