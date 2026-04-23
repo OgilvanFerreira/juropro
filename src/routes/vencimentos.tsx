@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -756,7 +756,7 @@ function BaixaDialog({
   const [valorPag, setValorPag] = useState("0");
 
   // Sincroniza valores ao abrir
-  useMemo(() => {
+  useEffect(() => {
     if (parcela) {
       setDataPag(todayISO());
       setValorPag(parcela.valor_parcela.toFixed(2));
