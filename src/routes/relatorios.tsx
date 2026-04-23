@@ -337,13 +337,13 @@ function FinanceiroTab() {
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
 
   const empQ = useQuery({
-    queryKey: ["relatorios", "emprestimos"],
+    queryKey: ["emprestimos"],
     queryFn: () => listEmprestimos(),
     staleTime: 60_000,
     placeholderData: (prev) => prev,
   });
   const parQ = useQuery({
-    queryKey: ["relatorios", "parcelas"],
+    queryKey: ["parcelas"],
     queryFn: () => listParcelas(),
     staleTime: 60_000,
     placeholderData: (prev) => prev,
@@ -881,19 +881,19 @@ function ContratosTab() {
   } | null>(null);
 
   const empQ = useQuery({
-    queryKey: ["relatorios", "emprestimos"],
+    queryKey: ["emprestimos"],
     queryFn: () => listEmprestimos(),
     staleTime: 60_000,
     placeholderData: (prev) => prev,
   });
   const parQ = useQuery({
-    queryKey: ["relatorios", "parcelas"],
+    queryKey: ["parcelas"],
     queryFn: () => listParcelas(),
     staleTime: 60_000,
     placeholderData: (prev) => prev,
   });
   const cliQ = useQuery({
-    queryKey: ["relatorios", "clientes"],
+    queryKey: ["clientes"],
     queryFn: () => listClientes(),
     staleTime: 60_000,
     placeholderData: (prev) => prev,
@@ -1409,13 +1409,13 @@ function InadimplenciaTab() {
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
   const parQ = useQuery({
-    queryKey: ["relatorios", "parcelas"],
+    queryKey: ["parcelas"],
     queryFn: () => listParcelas(),
     staleTime: 60_000,
     placeholderData: (prev) => prev,
   });
   const cliQ = useQuery({
-    queryKey: ["relatorios", "clientes"],
+    queryKey: ["clientes"],
     queryFn: () => listClientes(),
     staleTime: 60_000,
     placeholderData: (prev) => prev,
