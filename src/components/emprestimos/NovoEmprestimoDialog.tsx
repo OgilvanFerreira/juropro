@@ -282,10 +282,13 @@ function ClienteCombobox({ value, onChange, clientes, loading }: ClienteCombobox
                     </div>
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-medium text-foreground">
+                        <span className="mr-1.5 font-bold text-success">
+                          {codigoCliente(c.id)}
+                        </span>
                         {c.nome ?? "Sem nome"}
                       </p>
                       <p className="truncate text-xs text-muted-foreground">
-                        {c.cpf_cnpj ? formatCpfCnpj(c.cpf_cnpj) : `ID #${String(c.id).slice(0, 8)}`}
+                        {c.cpf_cnpj ? formatCpfCnpj(c.cpf_cnpj) : "Sem CPF/CNPJ"}
                       </p>
                     </div>
                     {ativo && <Check className="h-4 w-4 flex-shrink-0 text-success" />}
