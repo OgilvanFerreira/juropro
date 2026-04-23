@@ -187,3 +187,38 @@ export const baixaParcela = createServerFn({ method: "POST" })
     }
     return { ok: true, error: null };
   });
+
+const estornoSchema = z.object({
+  id: z.union([z.string().min(1), z.number()]),
+});
+
+export type EstornoParcelaInput = z.infer<typeof estornoSchema>;
+
+export const estornoParcela = createServerFn({ method: "POST" })
+  .inputValidator((input: EstornoParcelaInput) => estornoSchema.parse(input))
+  .handler(async ({ data }): Promise<{ ok: boolean; error: string | null }> => {
+    const supabase = getServerClient({ admin: true });
+
+    const { data: updated, error } = await supabase
+      .from("parcelas")
+      .update({
+        status: "pendente",
+        data_pagamento: null,
+        valor_pago: null,
+      })
+      .eq("id", data.id)
+      .select("id");
+
+    if (error) {
+      console.error("estornoParcela error:", error);
+      return { ok: false, error: error.message };
+    }
+    if (!updated || updated.length === 0) {
+      return {
+        ok: false,
+        error:
+          "Nenhuma parcela foi estornada. Verifique as permissões (RLS) da tabela parcelas.",
+      };
+    }
+    return { ok: true, error: null };
+  });
