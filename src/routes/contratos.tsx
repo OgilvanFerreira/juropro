@@ -511,11 +511,13 @@ function KpiBox({
 
 function RowDesktop({
   item,
+  seqId,
   onEdit,
   onDelete,
   isLoadingEdit,
 }: {
   item: EmprestimoListItem;
+  seqId: number;
   onEdit: () => void;
   onDelete: () => void;
   isLoadingEdit: boolean;
@@ -527,7 +529,7 @@ function RowDesktop({
   return (
     <tr className="border-t hover:bg-muted/30">
       <td className="px-3 py-3 font-mono text-xs text-muted-foreground">
-        #{String(item.id).slice(0, 8)}
+        #{String(seqId).padStart(3, "0")}
       </td>
       <td className="px-3 py-3 font-medium text-foreground">
         {item.cliente_nome ?? "—"}
