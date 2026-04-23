@@ -249,6 +249,13 @@ function ClientesPage() {
     });
   }, [clientesComId, search, sortKey, sortDir]);
 
+  const totalPaginas = Math.max(1, Math.ceil(clientesFiltrados.length / porPagina));
+  const paginaAtual = Math.min(pagina, totalPaginas);
+  const clientesPaginados = clientesFiltrados.slice(
+    (paginaAtual - 1) * porPagina,
+    paginaAtual * porPagina,
+  );
+
   const SortIcon = ({ column }: { column: SortKey }) => {
     if (sortKey !== column)
       return <ArrowUpDown className="h-3.5 w-3.5 opacity-50" />;
