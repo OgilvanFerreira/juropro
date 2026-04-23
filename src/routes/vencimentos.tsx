@@ -160,8 +160,10 @@ function VencimentosPage() {
   const searchParams = Route.useSearch();
 
   const { data, isLoading, isError, error, refetch } = useQuery({
-    queryKey: ["parcelas", "list"],
+    queryKey: ["parcelas"],
     queryFn: () => listFn(),
+    staleTime: 60_000,
+    placeholderData: (prev) => prev,
   });
 
   const { name: adminName } = useAdminName();
