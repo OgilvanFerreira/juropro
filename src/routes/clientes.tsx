@@ -340,7 +340,10 @@ function ClientesPage() {
                       <Input
                         type="search"
                         value={search}
-                        onChange={(e) => setSearch(e.target.value)}
+                        onChange={(e) => {
+                          setSearch(e.target.value);
+                          setPagina(1);
+                        }}
                         placeholder="Buscar por nome ou CPF/CNPJ..."
                         className="pl-9"
                       />
