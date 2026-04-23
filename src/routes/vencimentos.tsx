@@ -273,6 +273,24 @@ function VencimentosPage() {
     },
   });
 
+  const estornoMutation = useMutation({
+    mutationFn: (input: { id: string | number }) => estornoParcela({ data: input }),
+    onSuccess: (res) => {
+      if (!res.ok) {
+        toast.error(res.error ?? "Falha ao estornar pagamento.");
+        return;
+      }
+      toast.success("Pagamento estornado com sucesso!");
+      setEstornoParcelaState(null);
+      queryClient.invalidateQueries({ queryKey: ["parcelas"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      queryClient.invalidateQueries({ queryKey: ["emprestimos"] });
+    },
+    onError: (e) => {
+      toast.error(e instanceof Error ? e.message : "Erro inesperado.");
+    },
+  });
+
   const buildWhatsAppLink = (p: ParcelaProcessada) => {
     const tel = (p.cliente_telefone ?? "").replace(/\D/g, "");
     if (!tel) return null;
