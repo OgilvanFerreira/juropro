@@ -37,6 +37,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  TablePagination,
+  type PageSize,
+} from "@/components/ui/table-pagination";
+import { useAdminName } from "@/hooks/use-admin-name";
+import {
   baixaParcela,
   listParcelas,
   type ParcelaListItem,
