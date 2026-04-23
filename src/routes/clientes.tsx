@@ -45,6 +45,10 @@ import {
 } from "@/components/ui/alert-dialog";
 import { NovoClienteDialog } from "@/components/clientes/NovoClienteDialog";
 import {
+  TablePagination,
+  type PageSize,
+} from "@/components/ui/table-pagination";
+import {
   deleteCliente,
   getCliente,
   listClientes,
