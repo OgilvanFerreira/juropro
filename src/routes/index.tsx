@@ -79,7 +79,8 @@ function buildKpis(data: DashboardKpis) {
       icon: AlertTriangle,
       tone: "destructive" as const,
       empty: data.parcelasAtrasadas === 0,
-      to: "/relatorios" as const,
+      to: "/vencimentos" as const,
+      search: { status: "atrasado" },
     },
     {
       label: "Total de Clientes",
