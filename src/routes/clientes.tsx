@@ -16,6 +16,9 @@ import {
   Trash2,
   UserPlus,
   Users as UsersIcon,
+  TrendingUp,
+  MapPin,
+  CalendarClock,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
@@ -56,6 +59,7 @@ import {
   type ClienteFull,
 } from "@/integrations/external-supabase/clientes.functions";
 import { formatCpfCnpj, formatTelefone } from "@/lib/masks";
+import { cn } from "@/lib/utils";
 
 const clientesQuery = () =>
   queryOptions({
@@ -266,21 +270,45 @@ function ClientesPage() {
     );
   };
 
+  // KPIs do topo
+  const kpis = useMemo(() => {
+    const total = clientes.length;
+    const now = new Date();
+    const ano = now.getFullYear();
+    const mes = now.getMonth();
+    const novosMes = clientes.filter((c) => {
+      if (!c.created_at) return false;
+      const d = new Date(c.created_at);
+      return d.getFullYear() === ano && d.getMonth() === mes;
+    }).length;
+    const comCidade = clientes.filter((c) => (c.cidade ?? "").trim() !== "").length;
+    const ultimoCadastro = clientes[0]?.created_at ?? null;
+    return { total, novosMes, comCidade, ultimoCadastro };
+  }, [clientes]);
+
   return (
     <SidebarProvider>
-      <div className="flex min-h-screen w-full bg-secondary">
+      <div className="flex min-h-screen w-full bg-background">
         <AppSidebar />
-
-        <div className="flex flex-1 flex-col">
-          <header className="sticky top-0 z-30 flex h-16 items-center justify-between gap-3 border-b bg-background/90 px-4 backdrop-blur md:px-6">
-            <div className="flex items-center gap-3">
-              <SidebarTrigger className="text-foreground" />
-              <h2 className="text-sm font-medium text-muted-foreground">
-                Clientes
-              </h2>
+        <main className="flex-1 overflow-x-hidden">
+          <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-border bg-background/80 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+            <SidebarTrigger />
+            <div className="flex flex-1 items-center gap-2 min-w-0">
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/15 text-primary shrink-0">
+                <UsersIcon className="h-5 w-5" />
+              </div>
+              <div className="min-w-0">
+                <h1 className="text-base font-semibold text-foreground truncate">
+                  Clientes
+                </h1>
+                <p className="text-[11px] text-muted-foreground truncate">
+                  Gestão completa da carteira de clientes
+                </p>
+              </div>
             </div>
             <Button
               onClick={() => setOpen(true)}
+              size="sm"
               className="bg-success text-success-foreground shadow-sm hover:bg-success/90"
             >
               <UserPlus className="h-4 w-4" />
@@ -288,11 +316,36 @@ function ClientesPage() {
             </Button>
           </header>
 
-          <main className="flex-1 space-y-6 p-4 md:p-6 lg:p-8">
+          <div className="mx-auto w-full max-w-7xl space-y-6 p-4 md:p-6">
+            {/* KPIs */}
+            <section className="grid grid-cols-2 gap-3 md:grid-cols-4">
+              <KpiBox
+                label="Total de Clientes"
+                value={String(kpis.total)}
+                icon={UsersIcon}
+                accent="info"
+              />
+              <KpiBox
+                label="Novos no Mês"
+                value={String(kpis.novosMes)}
+                icon={TrendingUp}
+                accent="success"
+              />
+              <KpiBox
+                label="Com Endereço"
+                value={String(kpis.comCidade)}
+                icon={MapPin}
+                accent="warning"
+              />
+              <KpiBox
+                label="Último Cadastro"
+                value={kpis.ultimoCadastro ? formatDate(kpis.ultimoCadastro) : "—"}
+                icon={CalendarClock}
+                accent="info"
+              />
+            </section>
+
             <div className="flex flex-col gap-1">
-              <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-                Clientes
-              </h1>
               <p className="text-sm text-muted-foreground">
                 {clientes.length}{" "}
                 {clientes.length === 1 ? "cliente cadastrado" : "clientes cadastrados"}
@@ -580,8 +633,9 @@ function ClientesPage() {
                 </>
               )}
             </Card>
-          </main>
-        </div>
+          </div>
+        </main>
+      </div>
 
         <NovoClienteDialog
           open={open}
@@ -635,7 +689,43 @@ function ClientesPage() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
-      </div>
     </SidebarProvider>
+  );
+}
+
+function KpiBox({
+  label,
+  value,
+  icon: Icon,
+  accent,
+}: {
+  label: string;
+  value: string;
+  icon: React.ComponentType<{ className?: string }>;
+  accent: "info" | "warning" | "destructive" | "success";
+}) {
+  const accentStyles: Record<typeof accent, string> = {
+    info: "border-t-info text-info",
+    warning: "border-t-warning text-warning",
+    destructive: "border-t-destructive text-destructive",
+    success: "border-t-success text-success",
+  };
+  return (
+    <div
+      className={cn(
+        "rounded-xl border border-border border-t-4 bg-card p-3 sm:p-4 shadow-sm",
+        accentStyles[accent],
+      )}
+    >
+      <div className="mb-2 flex items-start justify-between gap-2">
+        <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground leading-tight">
+          {label}
+        </p>
+        <Icon className="h-4 w-4" />
+      </div>
+      <p className="truncate text-lg sm:text-xl font-extrabold text-foreground">
+        {value}
+      </p>
+    </div>
   );
 }
