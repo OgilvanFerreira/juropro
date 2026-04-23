@@ -580,11 +580,13 @@ function WhatsAppIcon({ className }: { className?: string }) {
 function RowActions({
   item,
   onBaixa,
+  onEstorno,
   buildWhatsAppLink,
   variant = "desktop",
 }: {
   item: ParcelaProcessada;
   onBaixa: () => void;
+  onEstorno: () => void;
   buildWhatsAppLink: (p: ParcelaProcessada) => string | null;
   variant?: "desktop" | "mobile";
 }) {
@@ -617,20 +619,27 @@ function RowActions({
             Sem telefone
           </Button>
         )}
-        <Button
-          size="sm"
-          disabled={pago}
-          onClick={onBaixa}
-          className={cn(
-            "h-9 gap-1.5",
-            pago
-              ? "bg-muted text-muted-foreground hover:bg-muted"
-              : "bg-emerald-600 text-white hover:bg-emerald-700",
-          )}
-        >
-          <Check className="h-4 w-4" />
-          {pago ? "Recebido" : "Receber"}
-        </Button>
+        {pago ? (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={onEstorno}
+            aria-label="Estornar pagamento"
+            className="h-9 gap-1.5 border-amber-300 text-amber-700 hover:bg-amber-50 dark:border-amber-900 dark:text-amber-300 dark:hover:bg-amber-950"
+          >
+            <Undo2 className="h-4 w-4" />
+            Estornar
+          </Button>
+        ) : (
+          <Button
+            size="sm"
+            onClick={onBaixa}
+            className="h-9 gap-1.5 bg-emerald-600 text-white hover:bg-emerald-700"
+          >
+            <Check className="h-4 w-4" />
+            Receber
+          </Button>
+        )}
       </div>
     );
   }
@@ -658,21 +667,28 @@ function RowActions({
           <WhatsAppIcon className="h-4 w-4" />
         </Button>
       )}
-      <Button
-        variant="ghost"
-        size="icon"
-        disabled={pago}
-        onClick={onBaixa}
-        aria-label="Confirmar pagamento"
-        className={cn(
-          "h-8 w-8",
-          pago
-            ? "opacity-40"
-            : "text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950",
-        )}
-      >
-        <Check className="h-4 w-4" />
-      </Button>
+      {pago ? (
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onEstorno}
+          aria-label="Estornar pagamento"
+          title="Estornar pagamento"
+          className="h-8 w-8 text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950"
+        >
+          <Undo2 className="h-4 w-4" />
+        </Button>
+      ) : (
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onBaixa}
+          aria-label="Confirmar pagamento"
+          className="h-8 w-8 text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950"
+        >
+          <Check className="h-4 w-4" />
+        </Button>
+      )}
     </div>
   );
 }
@@ -680,10 +696,12 @@ function RowActions({
 function RowDesktop({
   item,
   onBaixa,
+  onEstorno,
   buildWhatsAppLink,
 }: {
   item: ParcelaProcessada;
   onBaixa: () => void;
+  onEstorno: () => void;
   buildWhatsAppLink: (p: ParcelaProcessada) => string | null;
 }) {
   return (
@@ -704,7 +722,12 @@ function RowDesktop({
         {item.valor_pago != null ? fmtBRL(item.valor_pago) : "—"}
       </td>
       <td className="px-3 py-2.5">
-        <RowActions item={item} onBaixa={onBaixa} buildWhatsAppLink={buildWhatsAppLink} />
+        <RowActions
+          item={item}
+          onBaixa={onBaixa}
+          onEstorno={onEstorno}
+          buildWhatsAppLink={buildWhatsAppLink}
+        />
       </td>
     </tr>
   );
