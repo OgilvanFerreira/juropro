@@ -579,6 +579,9 @@ function VencimentosPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+    </SidebarProvider>
+  );
+}
 
 // ====== Subcomponents ======
 
