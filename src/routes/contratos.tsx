@@ -13,7 +13,6 @@ import {
   ArrowUpDown,
   Pencil,
   Trash2,
-  Wallet,
   CheckCircle2,
   TrendingUp,
   Clock,
