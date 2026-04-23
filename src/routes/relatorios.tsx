@@ -11,12 +11,18 @@ import {
   FileText,
   TrendingUp,
   AlertCircle,
-  DollarSign,
   Receipt,
   CalendarDays,
   Wallet,
   Check,
   ChevronsUpDown,
+  CheckCircle2,
+  Hourglass,
+  PieChart,
+  Coins,
+  BarChart3,
+  ClipboardList,
+  Eye,
 } from "lucide-react";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/dashboard/AppSidebar";
@@ -42,10 +48,14 @@ import {
   type PageSize,
 } from "@/components/ui/table-pagination";
 import { listEmprestimos } from "@/integrations/external-supabase/emprestimos.functions";
-import { listParcelas } from "@/integrations/external-supabase/parcelas.functions";
+import {
+  listParcelas,
+  type ParcelaListItem,
+} from "@/integrations/external-supabase/parcelas.functions";
 import { listClientes } from "@/integrations/external-supabase/clientes.functions";
 import { ContratoPdfDialog } from "@/components/relatorios/ContratoPdfDialog";
 import { exportToCsv } from "@/lib/csv";
+import { useAdminName } from "@/hooks/use-admin-name";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/relatorios")({
@@ -71,18 +81,8 @@ const fmtDate = (iso: string | null) => {
 const todayIso = () => new Date().toISOString().slice(0, 10);
 
 const MESES = [
-  "Jan",
-  "Fev",
-  "Mar",
-  "Abr",
-  "Mai",
-  "Jun",
-  "Jul",
-  "Ago",
-  "Set",
-  "Out",
-  "Nov",
-  "Dez",
+  "Jan", "Fev", "Mar", "Abr", "Mai", "Jun",
+  "Jul", "Ago", "Set", "Out", "Nov", "Dez",
 ];
 
 function RelatoriosPage() {
@@ -97,26 +97,36 @@ function RelatoriosPage() {
         <div className="flex-1 flex flex-col min-w-0">
           <header className="sticky top-0 z-10 flex h-14 items-center gap-3 border-b bg-background/80 px-4 backdrop-blur">
             <SidebarTrigger />
-            <div className="flex items-center gap-2">
-              <FileText className="h-5 w-5 text-primary" />
-              <h1 className="text-lg font-semibold">Relatórios e Documentos</h1>
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-success/15 text-success shrink-0">
+                <BarChart3 className="h-5 w-5" />
+              </div>
+              <div className="min-w-0">
+                <h1 className="text-base font-semibold truncate">
+                  Relatórios e Documentos
+                </h1>
+                <p className="text-[11px] text-muted-foreground truncate">
+                  Análises financeiras e geração de contratos
+                </p>
+              </div>
             </div>
           </header>
 
-          <main className="flex-1 p-4 sm:p-6 space-y-4">
+          <main className="flex-1 p-3 sm:p-6 space-y-4 min-w-0 overflow-x-hidden">
             <Tabs value={tab} onValueChange={(v) => setTab(v as typeof tab)}>
-              <TabsList className="grid w-full grid-cols-3 max-w-xl">
-                <TabsTrigger value="financeiro">
-                  <TrendingUp className="h-4 w-4 mr-1.5" />
+              <TabsList className="grid w-full grid-cols-3">
+                <TabsTrigger value="financeiro" className="text-xs sm:text-sm">
+                  <TrendingUp className="h-4 w-4 mr-1 sm:mr-1.5" />
                   Financeiro
                 </TabsTrigger>
-                <TabsTrigger value="contratos">
-                  <FileText className="h-4 w-4 mr-1.5" />
+                <TabsTrigger value="contratos" className="text-xs sm:text-sm">
+                  <FileText className="h-4 w-4 mr-1 sm:mr-1.5" />
                   Contratos
                 </TabsTrigger>
-                <TabsTrigger value="inadimplencia">
-                  <AlertCircle className="h-4 w-4 mr-1.5" />
-                  Inadimplência
+                <TabsTrigger value="inadimplencia" className="text-xs sm:text-sm">
+                  <AlertCircle className="h-4 w-4 mr-1 sm:mr-1.5" />
+                  <span className="hidden xs:inline">Inadimplência</span>
+                  <span className="xs:hidden">Inadimpl.</span>
                 </TabsTrigger>
               </TabsList>
 
@@ -160,21 +170,34 @@ function KpiBox({
     warning: "border-t-warning",
     destructive: "border-t-destructive",
   };
+  const iconToneMap: Record<string, string> = {
+    primary: "text-primary",
+    success: "text-success",
+    info: "text-info",
+    warning: "text-warning",
+    destructive: "text-destructive",
+  };
   return (
     <div
       className={cn(
-        "rounded-xl border border-t-4 bg-card p-4 shadow-sm",
+        "rounded-xl border border-t-4 bg-card p-3 sm:p-4 shadow-sm",
         toneMap[tone],
       )}
     >
-      <div className="flex items-start justify-between">
-        <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
+      <div className="flex items-start justify-between gap-2">
+        <p className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wide text-muted-foreground leading-tight">
           {label}
         </p>
-        <span className="text-muted-foreground">{icon}</span>
+        <span className={cn("shrink-0", iconToneMap[tone])}>{icon}</span>
       </div>
-      <p className="mt-1.5 text-xl font-bold text-foreground">{value}</p>
-      {sub ? <p className="text-[11px] text-muted-foreground">{sub}</p> : null}
+      <p className="mt-1.5 text-lg sm:text-xl font-bold text-foreground truncate">
+        {value}
+      </p>
+      {sub ? (
+        <p className="text-[10px] sm:text-[11px] text-muted-foreground truncate">
+          {sub}
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -243,7 +266,7 @@ function ClienteFilter({
         <Button
           variant="outline"
           role="combobox"
-          className="h-9 w-full sm:w-[240px] justify-between font-normal"
+          className="h-9 w-full sm:w-[220px] justify-between font-normal"
         >
           <span className="truncate">
             {value === "todos"
@@ -303,9 +326,16 @@ function ClienteFilter({
 // ============================================================
 // TAB FINANCEIRO
 // ============================================================
+type FinSortKey = "cliente" | "contrato" | "vencimento" | "valor" | "valorPago" | "status";
+
 function FinanceiroTab() {
   const [dataIni, setDataIni] = useState("");
   const [dataFim, setDataFim] = useState("");
+  const [busca, setBusca] = useState("");
+  const [pagina, setPagina] = useState(1);
+  const [porPagina, setPorPagina] = useState<PageSize>(5);
+  const [sortKey, setSortKey] = useState<FinSortKey | null>("vencimento");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
 
   const empQ = useQuery({
     queryKey: ["relatorios", "emprestimos"],
@@ -319,8 +349,7 @@ function FinanceiroTab() {
   const emprestimos = useMemo(() => empQ.data?.data ?? [], [empQ.data]);
   const parcelas = useMemo(() => parQ.data?.data ?? [], [parQ.data]);
 
-  // Filtro por período (data_vencimento das parcelas para realizado/recebido)
-  const parcelasFiltradas = useMemo(() => {
+  const parcelasPeriodo = useMemo(() => {
     return parcelas.filter((p) => {
       if (!p.data_vencimento) return false;
       if (dataIni && p.data_vencimento < dataIni) return false;
@@ -329,45 +358,24 @@ function FinanceiroTab() {
     });
   }, [parcelas, dataIni, dataFim]);
 
-  const empFiltrados = useMemo(() => {
-    return emprestimos.filter((e) => {
-      const d = e.data_inicio ?? e.created_at?.slice(0, 10);
-      if (!d) return true;
-      if (dataIni && d < dataIni) return false;
-      if (dataFim && d > dataFim) return false;
-      return true;
-    });
-  }, [emprestimos, dataIni, dataFim]);
-
   // KPIs
   const kpis = useMemo(() => {
-    const totalEmprestado = empFiltrados.reduce(
-      (s, e) => s + e.valor_principal,
+    const totalPrevisto = parcelasPeriodo.reduce(
+      (s, p) => s + p.valor_parcela,
       0,
     );
-    const totalRecebido = parcelasFiltradas
-      .filter((p) => p.status === "pago" || p.status === "paga")
+    const isPaga = (p: ParcelaListItem) =>
+      p.status === "pago" || p.status === "paga";
+    const totalRealizado = parcelasPeriodo
+      .filter(isPaga)
       .reduce((s, p) => s + (p.valor_pago ?? p.valor_parcela), 0);
-    const totalAReceber = parcelasFiltradas
-      .filter((p) => p.status !== "pago" && p.status !== "paga")
+    const emAberto = parcelasPeriodo
+      .filter((p) => !isPaga(p))
       .reduce((s, p) => s + p.valor_parcela, 0);
-    // Lucro bruto = juros recebidos = (recebido) - (proporção do principal pago)
-    // Aproximação: usa total recebido - parcelas pagas * (principal/numero_parcelas)
-    let principalPago = 0;
-    parcelasFiltradas
-      .filter((p) => p.status === "pago" || p.status === "paga")
-      .forEach((p) => {
-        const emp = empFiltrados.find(
-          (e) => String(e.id) === String(p.emprestimo_id),
-        );
-        if (emp && emp.numero_parcelas > 0) {
-          principalPago += emp.valor_principal / emp.numero_parcelas;
-        }
-      });
-    const lucroBruto = Math.max(0, totalRecebido - principalPago);
-
-    return { totalEmprestado, totalRecebido, totalAReceber, lucroBruto };
-  }, [empFiltrados, parcelasFiltradas]);
+    const taxaRealizacao =
+      totalPrevisto > 0 ? Math.round((totalRealizado / totalPrevisto) * 100) : 0;
+    return { totalPrevisto, totalRealizado, emAberto, taxaRealizacao };
+  }, [parcelasPeriodo]);
 
   // Gráfico mensal (últimos 6 meses): previsto vs realizado
   const dadosMensais = useMemo(() => {
@@ -383,7 +391,7 @@ function FinanceiroTab() {
         realizado: 0,
       });
     }
-    parcelasFiltradas.forEach((p) => {
+    parcelasPeriodo.forEach((p) => {
       if (!p.data_vencimento) return;
       const key = p.data_vencimento.slice(0, 7);
       const b = buckets.find((x) => x.key === key);
@@ -394,29 +402,98 @@ function FinanceiroTab() {
       }
     });
     return buckets;
-  }, [parcelasFiltradas]);
+  }, [parcelasPeriodo]);
+
+  // Tabela "Detalhamento de Parcelas"
+  const detalhadas = useMemo(() => {
+    const q = busca.trim().toLowerCase();
+    let arr = parcelasPeriodo.filter((p) => {
+      if (!q) return true;
+      const codigo = (p.contrato_codigo ?? "").toLowerCase();
+      const nome = (p.cliente_nome ?? "").toLowerCase();
+      return codigo.includes(q) || nome.includes(q);
+    });
+
+    if (sortKey) {
+      arr = [...arr].sort((a, b) => {
+        let av: string | number = "";
+        let bv: string | number = "";
+        switch (sortKey) {
+          case "cliente":
+            av = a.cliente_nome ?? "";
+            bv = b.cliente_nome ?? "";
+            break;
+          case "contrato":
+            av = a.contrato_codigo ?? "";
+            bv = b.contrato_codigo ?? "";
+            break;
+          case "vencimento":
+            av = a.data_vencimento ?? "";
+            bv = b.data_vencimento ?? "";
+            break;
+          case "valor":
+            av = a.valor_parcela;
+            bv = b.valor_parcela;
+            break;
+          case "valorPago":
+            av = a.valor_pago ?? 0;
+            bv = b.valor_pago ?? 0;
+            break;
+          case "status":
+            av = a.status ?? "";
+            bv = b.status ?? "";
+            break;
+        }
+        if (av < bv) return sortDir === "asc" ? -1 : 1;
+        if (av > bv) return sortDir === "asc" ? 1 : -1;
+        return 0;
+      });
+    }
+    return arr;
+  }, [parcelasPeriodo, busca, sortKey, sortDir]);
+
+  const total = detalhadas.length;
+  const inicio = (pagina - 1) * porPagina;
+  const paginadas = detalhadas.slice(inicio, inicio + porPagina);
+
+  const handleSort = (k: FinSortKey) => {
+    if (sortKey === k) setSortDir(sortDir === "asc" ? "desc" : "asc");
+    else {
+      setSortKey(k);
+      setSortDir("asc");
+    }
+  };
 
   const isLoading = empQ.isLoading || parQ.isLoading;
 
   const handleExport = () => {
     exportToCsv(
       `financeiro-${todayIso()}.csv`,
-      dadosMensais.map((d) => ({
-        Mes: d.label,
-        Previsto: d.previsto.toFixed(2).replace(".", ","),
-        Realizado: d.realizado.toFixed(2).replace(".", ","),
+      detalhadas.map((p) => ({
+        cliente: p.cliente_nome ?? "—",
+        contrato: p.contrato_codigo ?? "",
+        vencimento: fmtDate(p.data_vencimento),
+        valor: p.valor_parcela.toFixed(2).replace(".", ","),
+        valor_pago: (p.valor_pago ?? 0).toFixed(2).replace(".", ","),
+        status: p.status ?? "",
       })),
       [
-        { key: "Mes", label: "Mês" },
-        { key: "Previsto", label: "Previsto (R$)" },
-        { key: "Realizado", label: "Realizado (R$)" },
+        { key: "cliente", label: "Cliente" },
+        { key: "contrato", label: "Contrato" },
+        { key: "vencimento", label: "Vencimento" },
+        { key: "valor", label: "Valor (R$)" },
+        { key: "valor_pago", label: "Valor Pago (R$)" },
+        { key: "status", label: "Status" },
       ],
     );
   };
 
+  // Apenas referência (não muda lógica) — manter unused emprestimos sem erro
+  void emprestimos;
+
   return (
     <div className="space-y-4">
-      {/* Filtros */}
+      {/* Filtros de período */}
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:flex-wrap rounded-lg border bg-card p-3">
         <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
           <CalendarDays className="h-4 w-4" />
@@ -452,49 +529,53 @@ function FinanceiroTab() {
           variant="outline"
           size="sm"
           onClick={handleExport}
-          disabled={isLoading}
+          disabled={isLoading || detalhadas.length === 0}
           className="sm:ml-auto"
         >
           <Download className="h-4 w-4" />
-          Exportar CSV
+          <span className="hidden sm:inline">Exportar CSV</span>
+          <span className="sm:hidden">CSV</span>
         </Button>
       </div>
 
-      {/* KPIs */}
+      {/* KPIs alinhados às imagens */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <KpiBox
-          label="Total Emprestado"
-          value={fmtBRL(kpis.totalEmprestado)}
-          icon={<Wallet className="h-4 w-4" />}
-          tone="primary"
-          sub={`${empFiltrados.length} contratos`}
-        />
-        <KpiBox
-          label="Total Recebido"
-          value={fmtBRL(kpis.totalRecebido)}
-          icon={<DollarSign className="h-4 w-4" />}
-          tone="success"
-        />
-        <KpiBox
-          label="A Receber"
-          value={fmtBRL(kpis.totalAReceber)}
-          icon={<Receipt className="h-4 w-4" />}
+          label="Total Previsto"
+          value={fmtBRL(kpis.totalPrevisto)}
+          icon={<ClipboardList className="h-4 w-4" />}
           tone="info"
+          sub="Soma de todas parcelas"
         />
         <KpiBox
-          label="Lucro Bruto (Juros)"
-          value={fmtBRL(kpis.lucroBruto)}
-          icon={<TrendingUp className="h-4 w-4" />}
+          label="Total Realizado"
+          value={fmtBRL(kpis.totalRealizado)}
+          icon={<CheckCircle2 className="h-4 w-4" />}
+          tone="success"
+          sub="Parcelas pagas"
+        />
+        <KpiBox
+          label="Em Aberto"
+          value={fmtBRL(kpis.emAberto)}
+          icon={<Hourglass className="h-4 w-4" />}
           tone="warning"
-          sub="Recebido − Principal"
+          sub="Parcelas pendentes"
+        />
+        <KpiBox
+          label="Taxa Realização"
+          value={`${kpis.taxaRealizacao}%`}
+          icon={<PieChart className="h-4 w-4" />}
+          tone="primary"
+          sub="Previsto vs realizado"
         />
       </div>
 
       {/* Gráfico de barras */}
-      <div className="rounded-lg border bg-card p-4 sm:p-5">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-sm font-semibold">
-            Fluxo de Caixa — Últimos 6 meses
+      <div className="rounded-lg border bg-card p-3 sm:p-5">
+        <div className="flex items-center justify-between gap-2 mb-4 flex-wrap">
+          <h3 className="text-sm font-semibold flex items-center gap-1.5">
+            <BarChart3 className="h-4 w-4 text-info" />
+            Previsto vs Realizado — Últimos 6 Meses
           </h3>
           <div className="flex items-center gap-3 text-xs text-muted-foreground">
             <div className="flex items-center gap-1.5">
@@ -515,6 +596,220 @@ function FinanceiroTab() {
           <BarChart dados={dadosMensais} />
         )}
       </div>
+
+      {/* Tabela Detalhamento de Parcelas */}
+      <div className="rounded-lg border bg-card overflow-hidden">
+        <div className="border-b p-3 flex flex-col sm:flex-row gap-2 sm:items-center">
+          <h3 className="text-sm font-semibold flex items-center gap-1.5">
+            <Receipt className="h-4 w-4 text-primary" />
+            Detalhamento de Parcelas
+          </h3>
+          <div className="relative sm:ml-auto sm:w-[280px]">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              value={busca}
+              onChange={(e) => {
+                setBusca(e.target.value);
+                setPagina(1);
+              }}
+              placeholder="Buscar cliente ou contrato..."
+              className="h-9 pl-9"
+            />
+          </div>
+        </div>
+
+        {isLoading ? (
+          <div className="flex h-40 items-center justify-center">
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          </div>
+        ) : detalhadas.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-12 text-center px-4">
+            <Receipt className="h-10 w-10 text-muted-foreground mb-2" />
+            <p className="text-sm font-medium">Nenhuma parcela encontrada</p>
+            <p className="text-xs text-muted-foreground">
+              Ajuste o período ou a busca.
+            </p>
+          </div>
+        ) : (
+          <>
+            {/* Desktop */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-muted/40 border-b">
+                  <tr>
+                    <SortHeader<FinSortKey>
+                      label="Cliente"
+                      col="cliente"
+                      current={sortKey}
+                      dir={sortDir}
+                      onClick={handleSort}
+                    />
+                    <SortHeader<FinSortKey>
+                      label="Contrato"
+                      col="contrato"
+                      current={sortKey}
+                      dir={sortDir}
+                      onClick={handleSort}
+                    />
+                    <SortHeader<FinSortKey>
+                      label="Vencimento"
+                      col="vencimento"
+                      current={sortKey}
+                      dir={sortDir}
+                      onClick={handleSort}
+                    />
+                    <SortHeader<FinSortKey>
+                      label="Valor"
+                      col="valor"
+                      current={sortKey}
+                      dir={sortDir}
+                      onClick={handleSort}
+                    />
+                    <SortHeader<FinSortKey>
+                      label="Valor Pago"
+                      col="valorPago"
+                      current={sortKey}
+                      dir={sortDir}
+                      onClick={handleSort}
+                    />
+                    <SortHeader<FinSortKey>
+                      label="Status"
+                      col="status"
+                      current={sortKey}
+                      dir={sortDir}
+                      onClick={handleSort}
+                    />
+                  </tr>
+                </thead>
+                <tbody>
+                  {paginadas.map((p) => {
+                    const paga = p.status === "pago" || p.status === "paga";
+                    const atrasada =
+                      !paga &&
+                      p.data_vencimento &&
+                      p.data_vencimento < todayIso();
+                    return (
+                      <tr
+                        key={String(p.id)}
+                        className="border-b last:border-0 hover:bg-muted/30 transition-colors"
+                      >
+                        <td className="px-3 py-2.5">{p.cliente_nome ?? "—"}</td>
+                        <td className="px-3 py-2.5 font-mono text-xs font-semibold text-primary">
+                          {p.contrato_codigo}
+                        </td>
+                        <td
+                          className={cn(
+                            "px-3 py-2.5 whitespace-nowrap",
+                            atrasada
+                              ? "text-destructive font-medium"
+                              : "text-muted-foreground",
+                          )}
+                        >
+                          {fmtDate(p.data_vencimento)}
+                        </td>
+                        <td className="px-3 py-2.5 font-medium">
+                          {fmtBRL(p.valor_parcela)}
+                        </td>
+                        <td
+                          className={cn(
+                            "px-3 py-2.5",
+                            paga ? "text-success font-medium" : "text-muted-foreground",
+                          )}
+                        >
+                          {paga ? fmtBRL(p.valor_pago ?? p.valor_parcela) : "—"}
+                        </td>
+                        <td className="px-3 py-2.5">
+                          <Badge
+                            variant="outline"
+                            className={cn(
+                              "border",
+                              paga
+                                ? "bg-success/15 text-success border-success/30"
+                                : atrasada
+                                  ? "bg-destructive/15 text-destructive border-destructive/30"
+                                  : "bg-warning/15 text-warning border-warning/30",
+                            )}
+                          >
+                            {paga ? "Pago" : atrasada ? "Atrasado" : "Pendente"}
+                          </Badge>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile cards */}
+            <div className="md:hidden divide-y">
+              {paginadas.map((p) => {
+                const paga = p.status === "pago" || p.status === "paga";
+                const atrasada =
+                  !paga &&
+                  p.data_vencimento &&
+                  p.data_vencimento < todayIso();
+                return (
+                  <div key={String(p.id)} className="p-3 space-y-1.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="font-medium text-sm truncate">
+                        {p.cliente_nome ?? "—"}
+                      </p>
+                      <Badge
+                        variant="outline"
+                        className={cn(
+                          "border shrink-0",
+                          paga
+                            ? "bg-success/15 text-success border-success/30"
+                            : atrasada
+                              ? "bg-destructive/15 text-destructive border-destructive/30"
+                              : "bg-warning/15 text-warning border-warning/30",
+                        )}
+                      >
+                        {paga ? "Pago" : atrasada ? "Atrasado" : "Pendente"}
+                      </Badge>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs">
+                      <span className="font-mono font-semibold text-primary">
+                        {p.contrato_codigo}
+                      </span>
+                      <span className="text-muted-foreground">•</span>
+                      <span
+                        className={cn(
+                          atrasada ? "text-destructive font-medium" : "text-muted-foreground",
+                        )}
+                      >
+                        {fmtDate(p.data_vencimento)}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="font-semibold">
+                        {fmtBRL(p.valor_parcela)}
+                      </span>
+                      {paga ? (
+                        <span className="text-success font-medium text-xs">
+                          Pago: {fmtBRL(p.valor_pago ?? p.valor_parcela)}
+                        </span>
+                      ) : null}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <TablePagination
+              page={pagina}
+              pageSize={porPagina}
+              totalItems={total}
+              onPageChange={setPagina}
+              onPageSizeChange={(s) => {
+                setPorPagina(s);
+                setPagina(1);
+              }}
+              itemLabel="parcelas"
+            />
+          </>
+        )}
+      </div>
     </div>
   );
 }
@@ -526,7 +821,7 @@ function BarChart({
 }) {
   const max = Math.max(...dados.flatMap((d) => [d.previsto, d.realizado]), 1);
   return (
-    <div className="flex items-end gap-2 sm:gap-3 h-44 px-2">
+    <div className="flex items-end gap-2 sm:gap-3 h-44 px-1 sm:px-2">
       {dados.map((d, i) => {
         const hp = (d.previsto / max) * 140;
         const hr = (d.realizado / max) * 140;
@@ -566,16 +861,16 @@ type ContratoSortKey =
   | "valor"
   | "taxa"
   | "parcelas"
-  | "data";
+  | "tipo"
+  | "data"
+  | "status";
 
 function ContratosTab() {
   const [busca, setBusca] = useState("");
-  const [dataIni, setDataIni] = useState("");
-  const [dataFim, setDataFim] = useState("");
   const [clienteFiltro, setClienteFiltro] = useState("todos");
   const [pagina, setPagina] = useState(1);
-  const [porPagina, setPorPagina] = useState<PageSize>(10);
-  const [sortKey, setSortKey] = useState<ContratoSortKey | null>(null);
+  const [porPagina, setPorPagina] = useState<PageSize>(5);
+  const [sortKey, setSortKey] = useState<ContratoSortKey | null>("id");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [contratoPdf, setContratoPdf] = useState<{
     id: string | number;
@@ -599,7 +894,6 @@ function ContratosTab() {
   const parcelas = useMemo(() => parQ.data?.data ?? [], [parQ.data]);
   const clientes = useMemo(() => cliQ.data?.data ?? [], [cliQ.data]);
 
-  // Sequenciais por created_at ASC (igual ao padrão das outras telas)
   const seqMap = useMemo(() => {
     const m = new Map<string, number>();
     [...emprestimos]
@@ -611,16 +905,23 @@ function ContratosTab() {
   const codigoOf = (id: string | number) =>
     `#${String(seqMap.get(String(id)) ?? 0).padStart(3, "0")}`;
 
+  // KPIs alinhados à imagem 2
+  const kpis = useMemo(() => {
+    const totalContratos = emprestimos.filter((e) => e.status === "ativo").length;
+    const volumeTotal = emprestimos.reduce((s, e) => s + e.valor_principal, 0);
+    const ticketMedio =
+      emprestimos.length > 0 ? volumeTotal / emprestimos.length : 0;
+    const parcelasAtivas = parcelas.filter(
+      (p) => p.status !== "pago" && p.status !== "paga",
+    ).length;
+    return { totalContratos, volumeTotal, ticketMedio, parcelasAtivas };
+  }, [emprestimos, parcelas]);
+
   const filtrados = useMemo(() => {
     const q = busca.trim().toLowerCase();
     let arr = emprestimos.filter((e) => {
       if (clienteFiltro !== "todos" && String(e.cliente_id) !== clienteFiltro)
         return false;
-      const d = e.data_inicio ?? e.created_at?.slice(0, 10) ?? null;
-      if (d) {
-        if (dataIni && d < dataIni) return false;
-        if (dataFim && d > dataFim) return false;
-      }
       if (q) {
         const codigo = codigoOf(e.id).toLowerCase();
         const nome = (e.cliente_nome ?? "").toLowerCase();
@@ -654,9 +955,17 @@ function ContratosTab() {
             av = a.numero_parcelas;
             bv = b.numero_parcelas;
             break;
+          case "tipo":
+            av = a.tipo_juros ?? "";
+            bv = b.tipo_juros ?? "";
+            break;
           case "data":
             av = a.data_inicio ?? a.created_at ?? "";
             bv = b.data_inicio ?? b.created_at ?? "";
+            break;
+          case "status":
+            av = a.status ?? "";
+            bv = b.status ?? "";
             break;
         }
         if (av < bv) return sortDir === "asc" ? -1 : 1;
@@ -665,16 +974,28 @@ function ContratosTab() {
       });
     }
     return arr;
-  }, [emprestimos, busca, clienteFiltro, dataIni, dataFim, sortKey, sortDir, seqMap]);
+  }, [emprestimos, busca, clienteFiltro, sortKey, sortDir, seqMap]);
 
   const total = filtrados.length;
   const inicio = (pagina - 1) * porPagina;
   const paginados = filtrados.slice(inicio, inicio + porPagina);
 
+  // Estatística de parcelas pagas/total por contrato
+  const parcelasStats = useMemo(() => {
+    const m = new Map<string, { pagas: number; total: number }>();
+    parcelas.forEach((p) => {
+      const k = String(p.emprestimo_id);
+      const cur = m.get(k) ?? { pagas: 0, total: 0 };
+      cur.total += 1;
+      if (p.status === "pago" || p.status === "paga") cur.pagas += 1;
+      m.set(k, cur);
+    });
+    return m;
+  }, [parcelas]);
+
   const handleSort = (k: ContratoSortKey) => {
-    if (sortKey === k) {
-      setSortDir(sortDir === "asc" ? "desc" : "asc");
-    } else {
+    if (sortKey === k) setSortDir(sortDir === "asc" ? "desc" : "asc");
+    else {
       setSortKey(k);
       setSortDir("asc");
     }
@@ -717,86 +1038,85 @@ function ContratosTab() {
 
   return (
     <div className="space-y-4">
-      {/* Filtros */}
-      <div className="rounded-lg border bg-card p-3 space-y-2">
-        <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              value={busca}
-              onChange={(e) => {
-                setBusca(e.target.value);
-                setPagina(1);
-              }}
-              placeholder="Buscar por contrato ou cliente..."
-              className="h-9 pl-9"
-            />
-          </div>
-          <ClienteFilter
-            clientes={clientes}
-            value={clienteFiltro}
-            onChange={(v) => {
-              setClienteFiltro(v);
-              setPagina(1);
-            }}
-          />
-        </div>
-        <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
-          <span className="text-xs text-muted-foreground sm:w-16">Período:</span>
-          <Input
-            type="date"
-            value={dataIni}
-            onChange={(e) => {
-              setDataIni(e.target.value);
-              setPagina(1);
-            }}
-            className="h-9 sm:w-[160px]"
-          />
-          <Input
-            type="date"
-            value={dataFim}
-            onChange={(e) => {
-              setDataFim(e.target.value);
-              setPagina(1);
-            }}
-            className="h-9 sm:w-[160px]"
-          />
-          {(dataIni || dataFim || busca || clienteFiltro !== "todos") && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                setDataIni("");
-                setDataFim("");
-                setBusca("");
-                setClienteFiltro("todos");
-                setPagina(1);
-              }}
-            >
-              Limpar filtros
-            </Button>
-          )}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleExport}
-            disabled={isLoading || filtrados.length === 0}
-            className="sm:ml-auto"
-          >
-            <Download className="h-4 w-4" />
-            Exportar CSV
-          </Button>
-        </div>
+      {/* KPIs */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <KpiBox
+          label="Total Contratos"
+          value={String(kpis.totalContratos)}
+          icon={<ClipboardList className="h-4 w-4" />}
+          tone="info"
+          sub="Contratos ativos"
+        />
+        <KpiBox
+          label="Volume Total"
+          value={fmtBRL(kpis.volumeTotal)}
+          icon={<Coins className="h-4 w-4" />}
+          tone="success"
+          sub="Soma dos empréstimos"
+        />
+        <KpiBox
+          label="Ticket Médio"
+          value={fmtBRL(kpis.ticketMedio)}
+          icon={<BarChart3 className="h-4 w-4" />}
+          tone="primary"
+          sub="Por contrato"
+        />
+        <KpiBox
+          label="Parcelas Ativas"
+          value={String(kpis.parcelasAtivas)}
+          icon={<Hourglass className="h-4 w-4" />}
+          tone="warning"
+          sub="Aguardando pagamento"
+        />
       </div>
 
       {/* Tabela */}
       <div className="rounded-lg border bg-card overflow-hidden">
+        <div className="border-b p-3 flex flex-col sm:flex-row gap-2 sm:items-center">
+          <h3 className="text-sm font-semibold flex items-center gap-1.5">
+            <FileText className="h-4 w-4 text-primary" />
+            Lista de Contratos
+          </h3>
+          <div className="flex flex-col sm:flex-row gap-2 sm:ml-auto sm:items-center w-full sm:w-auto">
+            <div className="relative flex-1 sm:w-[260px]">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                value={busca}
+                onChange={(e) => {
+                  setBusca(e.target.value);
+                  setPagina(1);
+                }}
+                placeholder="Buscar cliente ou contrato..."
+                className="h-9 pl-9"
+              />
+            </div>
+            <ClienteFilter
+              clientes={clientes}
+              value={clienteFiltro}
+              onChange={(v) => {
+                setClienteFiltro(v);
+                setPagina(1);
+              }}
+            />
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExport}
+              disabled={isLoading || filtrados.length === 0}
+            >
+              <Download className="h-4 w-4" />
+              <span className="hidden sm:inline">Exportar CSV</span>
+              <span className="sm:hidden">CSV</span>
+            </Button>
+          </div>
+        </div>
+
         {isLoading ? (
           <div className="flex h-40 items-center justify-center">
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
           </div>
         ) : filtrados.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-12 text-center">
+          <div className="flex flex-col items-center justify-center py-12 text-center px-4">
             <FileText className="h-10 w-10 text-muted-foreground mb-2" />
             <p className="text-sm font-medium">Nenhum contrato encontrado</p>
             <p className="text-xs text-muted-foreground">
@@ -805,7 +1125,8 @@ function ContratosTab() {
           </div>
         ) : (
           <>
-            <div className="overflow-x-auto">
+            {/* Desktop */}
+            <div className="hidden md:block overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="bg-muted/40 border-b">
                   <tr>
@@ -845,62 +1166,188 @@ function ContratosTab() {
                       onClick={handleSort}
                     />
                     <SortHeader<ContratoSortKey>
-                      label="Data"
+                      label="Tipo"
+                      col="tipo"
+                      current={sortKey}
+                      dir={sortDir}
+                      onClick={handleSort}
+                    />
+                    <SortHeader<ContratoSortKey>
+                      label="Início"
                       col="data"
                       current={sortKey}
                       dir={sortDir}
                       onClick={handleSort}
                     />
+                    <th className="px-3 py-2.5 text-left text-xs font-semibold text-muted-foreground">
+                      Status
+                    </th>
                     <th className="px-3 py-2.5 text-right text-xs font-semibold text-muted-foreground">
                       Ações
                     </th>
                   </tr>
                 </thead>
                 <tbody>
-                  {paginados.map((e) => (
-                    <tr
-                      key={String(e.id)}
-                      className="border-b last:border-0 hover:bg-muted/30 transition-colors"
-                    >
-                      <td className="px-3 py-2.5 font-mono text-xs font-semibold text-primary">
-                        {codigoOf(e.id)}
-                      </td>
-                      <td className="px-3 py-2.5">
-                        {e.cliente_nome ?? "—"}
-                      </td>
-                      <td className="px-3 py-2.5 font-medium">
-                        {fmtBRL(e.valor_principal)}
-                      </td>
-                      <td className="px-3 py-2.5 text-muted-foreground">
-                        {e.taxa_juros}%
-                      </td>
-                      <td className="px-3 py-2.5 text-muted-foreground">
-                        {e.numero_parcelas}x
-                      </td>
-                      <td className="px-3 py-2.5 text-muted-foreground whitespace-nowrap">
-                        {fmtDate(e.data_inicio ?? e.created_at?.slice(0, 10) ?? null)}
-                      </td>
-                      <td className="px-3 py-2.5 text-right">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() =>
-                            setContratoPdf({
-                              id: e.id,
-                              codigo: codigoOf(e.id),
-                            })
-                          }
-                          className="h-8"
-                        >
-                          <FileText className="h-3.5 w-3.5" />
-                          <span className="hidden sm:inline">PDF</span>
-                        </Button>
-                      </td>
-                    </tr>
-                  ))}
+                  {paginados.map((e) => {
+                    const stats = parcelasStats.get(String(e.id)) ?? {
+                      pagas: 0,
+                      total: e.numero_parcelas,
+                    };
+                    return (
+                      <tr
+                        key={String(e.id)}
+                        className="border-b last:border-0 hover:bg-muted/30 transition-colors"
+                      >
+                        <td className="px-3 py-2.5 font-mono text-xs font-semibold text-primary">
+                          {codigoOf(e.id)}
+                        </td>
+                        <td className="px-3 py-2.5">{e.cliente_nome ?? "—"}</td>
+                        <td className="px-3 py-2.5 font-medium">
+                          {fmtBRL(e.valor_principal)}
+                        </td>
+                        <td className="px-3 py-2.5 text-muted-foreground">
+                          {e.taxa_juros}% a.m.
+                        </td>
+                        <td className="px-3 py-2.5 text-muted-foreground">
+                          {e.numero_parcelas}x
+                        </td>
+                        <td className="px-3 py-2.5">
+                          <Badge
+                            variant="outline"
+                            className="bg-info/10 text-info border-info/30 capitalize"
+                          >
+                            {e.tipo_juros ?? "—"}
+                          </Badge>
+                        </td>
+                        <td className="px-3 py-2.5 text-muted-foreground whitespace-nowrap">
+                          {fmtDate(e.data_inicio ?? e.created_at?.slice(0, 10) ?? null)}
+                        </td>
+                        <td className="px-3 py-2.5">
+                          <Badge
+                            variant="outline"
+                            className="bg-success/15 text-success border-success/30"
+                          >
+                            ● {stats.pagas}/{stats.total} pagas
+                          </Badge>
+                        </td>
+                        <td className="px-3 py-2.5 text-right">
+                          <div className="flex items-center justify-end gap-1.5">
+                            <Button
+                              size="icon"
+                              variant="outline"
+                              className="h-8 w-8 bg-info/10 hover:bg-info/20 border-info/30 text-info"
+                              onClick={() =>
+                                setContratoPdf({
+                                  id: e.id,
+                                  codigo: codigoOf(e.id),
+                                })
+                              }
+                              title="Visualizar"
+                            >
+                              <Eye className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button
+                              size="icon"
+                              variant="outline"
+                              className="h-8 w-8 bg-success/10 hover:bg-success/20 border-success/30 text-success"
+                              onClick={() =>
+                                setContratoPdf({
+                                  id: e.id,
+                                  codigo: codigoOf(e.id),
+                                })
+                              }
+                              title="Gerar PDF"
+                            >
+                              <FileText className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
+
+            {/* Mobile cards */}
+            <div className="md:hidden divide-y">
+              {paginados.map((e) => {
+                const stats = parcelasStats.get(String(e.id)) ?? {
+                  pagas: 0,
+                  total: e.numero_parcelas,
+                };
+                return (
+                  <div key={String(e.id)} className="p-3 space-y-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="font-mono text-xs font-semibold text-primary shrink-0">
+                          {codigoOf(e.id)}
+                        </span>
+                        <span className="font-medium text-sm truncate">
+                          {e.cliente_nome ?? "—"}
+                        </span>
+                      </div>
+                      <Badge
+                        variant="outline"
+                        className="bg-success/15 text-success border-success/30 shrink-0 text-[10px]"
+                      >
+                        {stats.pagas}/{stats.total}
+                      </Badge>
+                    </div>
+                    <div className="grid grid-cols-2 gap-1 text-xs">
+                      <div>
+                        <p className="text-muted-foreground">Valor</p>
+                        <p className="font-semibold">{fmtBRL(e.valor_principal)}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Taxa</p>
+                        <p className="font-semibold">{e.taxa_juros}% a.m.</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Parcelas</p>
+                        <p className="font-semibold">
+                          {e.numero_parcelas}x{" "}
+                          <span className="text-muted-foreground capitalize">
+                            ({e.tipo_juros ?? "—"})
+                          </span>
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Início</p>
+                        <p className="font-semibold">
+                          {fmtDate(e.data_inicio ?? e.created_at?.slice(0, 10) ?? null)}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex gap-2 pt-1">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="flex-1 bg-info/10 hover:bg-info/20 border-info/30 text-info h-8"
+                        onClick={() =>
+                          setContratoPdf({ id: e.id, codigo: codigoOf(e.id) })
+                        }
+                      >
+                        <Eye className="h-3.5 w-3.5" />
+                        Visualizar
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="flex-1 bg-success/10 hover:bg-success/20 border-success/30 text-success h-8"
+                        onClick={() =>
+                          setContratoPdf({ id: e.id, codigo: codigoOf(e.id) })
+                        }
+                      >
+                        <FileText className="h-3.5 w-3.5" />
+                        PDF
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
             <TablePagination
               page={pagina}
               pageSize={porPagina}
@@ -929,16 +1376,27 @@ function ContratosTab() {
 }
 
 // ============================================================
-// TAB INADIMPLÊNCIA
+// TAB INADIMPLÊNCIA — agrupada por cliente
 // ============================================================
-type InadimplenciaSortKey = "contrato" | "cliente" | "valor" | "vencimento" | "atraso";
+type InadSortKey = "cliente" | "qtd" | "total" | "atraso";
+
+type ClienteInad = {
+  cliente_id: string;
+  cliente_nome: string;
+  contrato_codigos: string[];
+  qtdParcelas: number;
+  totalDivida: number;
+  diasAtrasoMax: number;
+  telefone?: string | null;
+  parcelas: ParcelaListItem[];
+};
 
 function InadimplenciaTab() {
+  const { name: adminName } = useAdminName();
   const [busca, setBusca] = useState("");
-  const [clienteFiltro, setClienteFiltro] = useState("todos");
   const [pagina, setPagina] = useState(1);
-  const [porPagina, setPorPagina] = useState<PageSize>(10);
-  const [sortKey, setSortKey] = useState<InadimplenciaSortKey | null>("atraso");
+  const [porPagina, setPorPagina] = useState<PageSize>(5);
+  const [sortKey, setSortKey] = useState<InadSortKey>("atraso");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
   const parQ = useQuery({
@@ -963,98 +1421,6 @@ function InadimplenciaTab() {
     });
   }, [parcelas, hoje]);
 
-  const filtrados = useMemo(() => {
-    const q = busca.trim().toLowerCase();
-    let arr = atrasadas.filter((p) => {
-      if (clienteFiltro !== "todos" && String(p.cliente_id) !== clienteFiltro)
-        return false;
-      if (q) {
-        const codigo = (p.contrato_codigo ?? "").toLowerCase();
-        const nome = (p.cliente_nome ?? "").toLowerCase();
-        if (!codigo.includes(q) && !nome.includes(q)) return false;
-      }
-      return true;
-    });
-
-    arr = [...arr].sort((a, b) => {
-      let av: string | number = "";
-      let bv: string | number = "";
-      switch (sortKey) {
-        case "contrato":
-          av = a.contrato_codigo;
-          bv = b.contrato_codigo;
-          break;
-        case "cliente":
-          av = a.cliente_nome ?? "";
-          bv = b.cliente_nome ?? "";
-          break;
-        case "valor":
-          av = a.valor_parcela;
-          bv = b.valor_parcela;
-          break;
-        case "vencimento":
-        case "atraso":
-        default:
-          av = a.data_vencimento ?? "";
-          bv = b.data_vencimento ?? "";
-          break;
-      }
-      if (av < bv) return sortDir === "asc" ? -1 : 1;
-      if (av > bv) return sortDir === "asc" ? 1 : -1;
-      return 0;
-    });
-    return arr;
-  }, [atrasadas, busca, clienteFiltro, sortKey, sortDir]);
-
-  const total = filtrados.length;
-  const inicio = (pagina - 1) * porPagina;
-  const paginados = filtrados.slice(inicio, inicio + porPagina);
-
-  const totalAtrasado = useMemo(
-    () => filtrados.reduce((s, p) => s + p.valor_parcela, 0),
-    [filtrados],
-  );
-  const clientesAtingidos = useMemo(
-    () => new Set(filtrados.map((p) => String(p.cliente_id))).size,
-    [filtrados],
-  );
-
-  const handleSort = (k: InadimplenciaSortKey) => {
-    if (sortKey === k) {
-      setSortDir(sortDir === "asc" ? "desc" : "asc");
-    } else {
-      setSortKey(k);
-      setSortDir("asc");
-    }
-  };
-
-  const handleExport = () => {
-    exportToCsv(
-      `inadimplencia-${todayIso()}.csv`,
-      filtrados.map((p) => ({
-        contrato: p.contrato_codigo,
-        cliente: p.cliente_nome ?? "—",
-        parcela: `${p.numero_parcela}/${p.parcelas_total}`,
-        vencimento: fmtDate(p.data_vencimento),
-        valor: p.valor_parcela.toFixed(2).replace(".", ","),
-        atraso: p.data_vencimento
-          ? Math.floor(
-              (Date.now() - new Date(p.data_vencimento + "T00:00:00").getTime()) /
-                86400000,
-            )
-          : 0,
-      })),
-      [
-        { key: "contrato", label: "Contrato" },
-        { key: "cliente", label: "Cliente" },
-        { key: "parcela", label: "Parcela" },
-        { key: "vencimento", label: "Vencimento" },
-        { key: "valor", label: "Valor (R$)" },
-        { key: "atraso", label: "Dias em atraso" },
-      ],
-    );
-  };
-
   const diasAtraso = (iso: string | null) => {
     if (!iso) return 0;
     const d = new Date(iso + "T00:00:00").getTime();
@@ -1062,93 +1428,226 @@ function InadimplenciaTab() {
     return Math.floor((today - d) / 86400000);
   };
 
+  // Agrupa por cliente
+  const agrupados: ClienteInad[] = useMemo(() => {
+    const map = new Map<string, ClienteInad>();
+    atrasadas.forEach((p) => {
+      const k = String(p.cliente_id ?? "—");
+      const cur =
+        map.get(k) ??
+        ({
+          cliente_id: k,
+          cliente_nome: p.cliente_nome ?? "—",
+          contrato_codigos: [],
+          qtdParcelas: 0,
+          totalDivida: 0,
+          diasAtrasoMax: 0,
+          parcelas: [],
+        } as ClienteInad);
+      cur.qtdParcelas += 1;
+      cur.totalDivida += p.valor_parcela;
+      const dias = diasAtraso(p.data_vencimento);
+      if (dias > cur.diasAtrasoMax) cur.diasAtrasoMax = dias;
+      if (p.contrato_codigo && !cur.contrato_codigos.includes(p.contrato_codigo)) {
+        cur.contrato_codigos.push(p.contrato_codigo);
+      }
+      cur.parcelas.push(p);
+      map.set(k, cur);
+    });
+    // anexa telefone
+    map.forEach((v) => {
+      const cli = clientes.find((c) => String(c.id) === v.cliente_id);
+      v.telefone = cli?.telefone ?? null;
+    });
+    return Array.from(map.values());
+  }, [atrasadas, clientes]);
+
+  const filtrados = useMemo(() => {
+    const q = busca.trim().toLowerCase();
+    let arr = agrupados.filter((c) => {
+      if (!q) return true;
+      const nome = c.cliente_nome.toLowerCase();
+      const codigos = c.contrato_codigos.join(" ").toLowerCase();
+      return nome.includes(q) || codigos.includes(q);
+    });
+    arr = [...arr].sort((a, b) => {
+      let av: string | number = 0;
+      let bv: string | number = 0;
+      switch (sortKey) {
+        case "cliente":
+          av = a.cliente_nome;
+          bv = b.cliente_nome;
+          break;
+        case "qtd":
+          av = a.qtdParcelas;
+          bv = b.qtdParcelas;
+          break;
+        case "total":
+          av = a.totalDivida;
+          bv = b.totalDivida;
+          break;
+        case "atraso":
+          av = a.diasAtrasoMax;
+          bv = b.diasAtrasoMax;
+          break;
+      }
+      if (av < bv) return sortDir === "asc" ? -1 : 1;
+      if (av > bv) return sortDir === "asc" ? 1 : -1;
+      return 0;
+    });
+    return arr;
+  }, [agrupados, busca, sortKey, sortDir]);
+
+  const total = filtrados.length;
+  const inicio = (pagina - 1) * porPagina;
+  const paginados = filtrados.slice(inicio, inicio + porPagina);
+
+  // KPIs alinhados à imagem 3
+  const kpis = useMemo(() => {
+    const inadimplentes = agrupados.length;
+    const totalEmAtraso = agrupados.reduce((s, c) => s + c.totalDivida, 0);
+    const maiorAtraso = agrupados.reduce(
+      (m, c) => Math.max(m, c.diasAtrasoMax),
+      0,
+    );
+    const parcelasAtras = atrasadas.length;
+    return { inadimplentes, totalEmAtraso, maiorAtraso, parcelasAtras };
+  }, [agrupados, atrasadas]);
+
+  const handleSort = (k: InadSortKey) => {
+    if (sortKey === k) setSortDir(sortDir === "asc" ? "desc" : "asc");
+    else {
+      setSortKey(k);
+      setSortDir("desc");
+    }
+  };
+
+  const handleExport = () => {
+    exportToCsv(
+      `inadimplencia-${todayIso()}.csv`,
+      filtrados.map((c) => ({
+        cliente: c.cliente_nome,
+        contratos: c.contrato_codigos.join(", "),
+        qtd: c.qtdParcelas,
+        total: c.totalDivida.toFixed(2).replace(".", ","),
+        atraso: c.diasAtrasoMax,
+      })),
+      [
+        { key: "cliente", label: "Cliente" },
+        { key: "contratos", label: "Contratos" },
+        { key: "qtd", label: "Qtd Parcelas" },
+        { key: "total", label: "Total Dívida (R$)" },
+        { key: "atraso", label: "Dias em Atraso" },
+      ],
+    );
+  };
+
+  const buildWhatsApp = (c: ClienteInad) => {
+    const tel = (c.telefone ?? "").replace(/\D/g, "");
+    if (!tel) return null;
+    const numero = tel.length === 11 || tel.length === 10 ? `55${tel}` : tel;
+    const contratos = c.contrato_codigos.join(", ");
+    const msg = `Olá ${c.cliente_nome}, identificamos ${c.qtdParcelas} parcela(s) em atraso do(s) contrato(s) ${contratos}, totalizando ${fmtBRL(c.totalDivida)}. Por favor, entre em contato para regularizarmos a situação. Atenciosamente, ${adminName} - JuroPro.`;
+    return `https://wa.me/${numero}?text=${encodeURIComponent(msg)}`;
+  };
+
+  const riscoBadge = (dias: number) => {
+    if (dias > 60)
+      return { label: "Alto Risco", cls: "bg-destructive/15 text-destructive border-destructive/30" };
+    if (dias > 30)
+      return { label: "Médio Risco", cls: "bg-warning/15 text-warning border-warning/30" };
+    return { label: "Baixo Risco", cls: "bg-info/15 text-info border-info/30" };
+  };
+
   const isLoading = parQ.isLoading || cliQ.isLoading;
 
   return (
     <div className="space-y-4">
       {/* KPIs */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <KpiBox
-          label="Parcelas em Atraso"
-          value={String(filtrados.length)}
+          label="Inadimplentes"
+          value={String(kpis.inadimplentes)}
           icon={<AlertCircle className="h-4 w-4" />}
           tone="destructive"
+          sub="Clientes em atraso"
         />
         <KpiBox
-          label="Valor Total Atrasado"
-          value={fmtBRL(totalAtrasado)}
-          icon={<DollarSign className="h-4 w-4" />}
+          label="Total em Atraso"
+          value={fmtBRL(kpis.totalEmAtraso)}
+          icon={<Coins className="h-4 w-4" />}
+          tone="success"
+          sub="Valor total inadimplente"
+        />
+        <KpiBox
+          label="Maior Atraso"
+          value={`${kpis.maiorAtraso} dias`}
+          icon={<CalendarDays className="h-4 w-4" />}
           tone="warning"
+          sub="Parcela mais antiga"
         />
         <KpiBox
-          label="Clientes Inadimplentes"
-          value={String(clientesAtingidos)}
-          icon={<Receipt className="h-4 w-4" />}
-          tone="info"
+          label="Parcelas Atras."
+          value={String(kpis.parcelasAtras)}
+          icon={<ClipboardList className="h-4 w-4" />}
+          tone="primary"
+          sub="Total de parcelas"
         />
-      </div>
-
-      {/* Filtros */}
-      <div className="rounded-lg border bg-card p-3 flex flex-col sm:flex-row gap-2 sm:items-center">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            value={busca}
-            onChange={(e) => {
-              setBusca(e.target.value);
-              setPagina(1);
-            }}
-            placeholder="Buscar por contrato ou cliente..."
-            className="h-9 pl-9"
-          />
-        </div>
-        <ClienteFilter
-          clientes={clientes}
-          value={clienteFiltro}
-          onChange={(v) => {
-            setClienteFiltro(v);
-            setPagina(1);
-          }}
-        />
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleExport}
-          disabled={isLoading || filtrados.length === 0}
-        >
-          <Download className="h-4 w-4" />
-          Exportar CSV
-        </Button>
       </div>
 
       {/* Tabela */}
       <div className="rounded-lg border bg-card overflow-hidden">
+        <div className="border-b p-3 flex flex-col sm:flex-row gap-2 sm:items-center">
+          <h3 className="text-sm font-semibold flex items-center gap-1.5">
+            <AlertCircle className="h-4 w-4 text-warning" />
+            Clientes Inadimplentes
+          </h3>
+          <div className="flex flex-col sm:flex-row gap-2 sm:ml-auto sm:items-center w-full sm:w-auto">
+            <div className="relative flex-1 sm:w-[280px]">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                value={busca}
+                onChange={(e) => {
+                  setBusca(e.target.value);
+                  setPagina(1);
+                }}
+                placeholder="Buscar cliente ou contrato..."
+                className="h-9 pl-9"
+              />
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExport}
+              disabled={isLoading || filtrados.length === 0}
+            >
+              <Download className="h-4 w-4" />
+              <span className="hidden sm:inline">Exportar CSV</span>
+              <span className="sm:hidden">CSV</span>
+            </Button>
+          </div>
+        </div>
+
         {isLoading ? (
           <div className="flex h-40 items-center justify-center">
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
           </div>
         ) : filtrados.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-12 text-center">
+          <div className="flex flex-col items-center justify-center py-12 text-center px-4">
             <Check className="h-10 w-10 text-success mb-2" />
-            <p className="text-sm font-medium">Nenhuma parcela em atraso 🎉</p>
+            <p className="text-sm font-medium">Nenhum cliente inadimplente 🎉</p>
             <p className="text-xs text-muted-foreground">
               Tudo em dia neste filtro.
             </p>
           </div>
         ) : (
           <>
-            <div className="overflow-x-auto">
+            {/* Desktop */}
+            <div className="hidden md:block overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="bg-muted/40 border-b">
                   <tr>
-                    <SortHeader<InadimplenciaSortKey>
-                      label="Contrato"
-                      col="contrato"
-                      current={sortKey}
-                      dir={sortDir}
-                      onClick={handleSort}
-                    />
-                    <SortHeader<InadimplenciaSortKey>
+                    <SortHeader<InadSortKey>
                       label="Cliente"
                       col="cliente"
                       current={sortKey}
@@ -1156,66 +1655,94 @@ function InadimplenciaTab() {
                       onClick={handleSort}
                     />
                     <th className="px-3 py-2.5 text-left text-xs font-semibold text-muted-foreground">
-                      Parcela
+                      Contrato
                     </th>
-                    <SortHeader<InadimplenciaSortKey>
-                      label="Vencimento"
-                      col="vencimento"
+                    <SortHeader<InadSortKey>
+                      label="Qtd Parcelas"
+                      col="qtd"
                       current={sortKey}
                       dir={sortDir}
                       onClick={handleSort}
                     />
-                    <SortHeader<InadimplenciaSortKey>
-                      label="Valor"
-                      col="valor"
+                    <SortHeader<InadSortKey>
+                      label="Total Dívida"
+                      col="total"
                       current={sortKey}
                       dir={sortDir}
                       onClick={handleSort}
                     />
-                    <SortHeader<InadimplenciaSortKey>
-                      label="Atraso"
+                    <SortHeader<InadSortKey>
+                      label="Dias em Atraso"
                       col="atraso"
                       current={sortKey}
                       dir={sortDir}
                       onClick={handleSort}
                     />
+                    <th className="px-3 py-2.5 text-left text-xs font-semibold text-muted-foreground">
+                      Risco
+                    </th>
+                    <th className="px-3 py-2.5 text-right text-xs font-semibold text-muted-foreground">
+                      Ações
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
-                  {paginados.map((p) => {
-                    const dias = diasAtraso(p.data_vencimento);
+                  {paginados.map((c) => {
+                    const wpp = buildWhatsApp(c);
+                    const risco = riscoBadge(c.diasAtrasoMax);
                     return (
                       <tr
-                        key={String(p.id)}
+                        key={c.cliente_id}
                         className="border-b last:border-0 hover:bg-muted/30 transition-colors"
                       >
+                        <td className="px-3 py-2.5">{c.cliente_nome}</td>
                         <td className="px-3 py-2.5 font-mono text-xs font-semibold text-primary">
-                          {p.contrato_codigo}
+                          {c.contrato_codigos.join(", ")}
                         </td>
-                        <td className="px-3 py-2.5">{p.cliente_nome ?? "—"}</td>
-                        <td className="px-3 py-2.5 text-muted-foreground">
-                          {p.numero_parcela}/{p.parcelas_total}
+                        <td className="px-3 py-2.5">{c.qtdParcelas}</td>
+                        <td className="px-3 py-2.5 font-medium text-destructive">
+                          {fmtBRL(c.totalDivida)}
                         </td>
-                        <td className="px-3 py-2.5 text-muted-foreground whitespace-nowrap">
-                          {fmtDate(p.data_vencimento)}
-                        </td>
-                        <td className="px-3 py-2.5 font-medium">
-                          {fmtBRL(p.valor_parcela)}
+                        <td className="px-3 py-2.5 font-medium text-warning">
+                          {c.diasAtrasoMax} dias
                         </td>
                         <td className="px-3 py-2.5">
-                          <Badge
-                            className={cn(
-                              "border",
-                              dias > 30
-                                ? "bg-destructive/15 text-destructive border-destructive/30"
-                                : dias > 7
-                                  ? "bg-warning/15 text-warning border-warning/30"
-                                  : "bg-info/15 text-info border-info/30",
-                            )}
-                            variant="outline"
-                          >
-                            {dias} {dias === 1 ? "dia" : "dias"}
+                          <Badge variant="outline" className={cn("border", risco.cls)}>
+                            ● {risco.label}
                           </Badge>
+                        </td>
+                        <td className="px-3 py-2.5 text-right">
+                          <div className="flex items-center justify-end gap-1.5">
+                            {wpp ? (
+                              <a
+                                href={wpp}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-success/30 bg-success/10 text-success hover:bg-success/20"
+                                title="Cobrar via WhatsApp"
+                              >
+                                <WhatsAppIcon className="h-3.5 w-3.5" />
+                              </a>
+                            ) : (
+                              <span
+                                className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-muted bg-muted/30 text-muted-foreground opacity-50"
+                                title="Telefone não cadastrado"
+                              >
+                                <WhatsAppIcon className="h-3.5 w-3.5" />
+                              </span>
+                            )}
+                            <Button
+                              size="icon"
+                              variant="outline"
+                              className="h-8 w-8 bg-info/10 hover:bg-info/20 border-info/30 text-info"
+                              title="Ver detalhes em Vencimentos"
+                              asChild
+                            >
+                              <a href={`/vencimentos?status=atrasado`}>
+                                <Eye className="h-3.5 w-3.5" />
+                              </a>
+                            </Button>
+                          </div>
                         </td>
                       </tr>
                     );
@@ -1223,6 +1750,77 @@ function InadimplenciaTab() {
                 </tbody>
               </table>
             </div>
+
+            {/* Mobile cards */}
+            <div className="md:hidden divide-y">
+              {paginados.map((c) => {
+                const wpp = buildWhatsApp(c);
+                const risco = riscoBadge(c.diasAtrasoMax);
+                return (
+                  <div key={c.cliente_id} className="p-3 space-y-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="font-medium text-sm truncate">{c.cliente_nome}</p>
+                      <Badge variant="outline" className={cn("border shrink-0 text-[10px]", risco.cls)}>
+                        {risco.label}
+                      </Badge>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs">
+                      <span className="font-mono font-semibold text-primary">
+                        {c.contrato_codigos.join(", ")}
+                      </span>
+                      <span className="text-muted-foreground">•</span>
+                      <span className="text-muted-foreground">
+                        {c.qtdParcelas} parcela{c.qtdParcelas > 1 ? "s" : ""}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-[10px] text-muted-foreground uppercase">
+                          Total dívida
+                        </p>
+                        <p className="font-bold text-destructive">
+                          {fmtBRL(c.totalDivida)}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-[10px] text-muted-foreground uppercase">
+                          Dias atraso
+                        </p>
+                        <p className="font-bold text-warning">
+                          {c.diasAtrasoMax} dias
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex gap-2 pt-1">
+                      {wpp ? (
+                        <a
+                          href={wpp}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="flex-1 inline-flex items-center justify-center gap-1.5 h-8 rounded-md border border-success/30 bg-success/10 text-success text-xs font-medium hover:bg-success/20"
+                        >
+                          <WhatsAppIcon className="h-3.5 w-3.5" />
+                          WhatsApp
+                        </a>
+                      ) : (
+                        <span className="flex-1 inline-flex items-center justify-center gap-1.5 h-8 rounded-md border bg-muted/30 text-muted-foreground text-xs opacity-50">
+                          <WhatsAppIcon className="h-3.5 w-3.5" />
+                          Sem telefone
+                        </span>
+                      )}
+                      <a
+                        href="/vencimentos?status=atrasado"
+                        className="flex-1 inline-flex items-center justify-center gap-1.5 h-8 rounded-md border border-info/30 bg-info/10 text-info text-xs font-medium hover:bg-info/20"
+                      >
+                        <Eye className="h-3.5 w-3.5" />
+                        Detalhes
+                      </a>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
             <TablePagination
               page={pagina}
               pageSize={porPagina}
@@ -1232,11 +1830,24 @@ function InadimplenciaTab() {
                 setPorPagina(s);
                 setPagina(1);
               }}
-              itemLabel="parcelas"
+              itemLabel="clientes"
             />
           </>
         )}
       </div>
     </div>
+  );
+}
+
+function WhatsAppIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      className={className}
+      aria-hidden
+    >
+      <path d="M.057 24l1.687-6.163a11.867 11.867 0 0 1-1.587-5.946C.16 5.335 5.495 0 12.05 0a11.817 11.817 0 0 1 8.413 3.488 11.824 11.824 0 0 1 3.48 8.414c-.003 6.557-5.338 11.892-11.893 11.892a11.9 11.9 0 0 1-5.688-1.448L.057 24zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413z" />
+    </svg>
   );
 }

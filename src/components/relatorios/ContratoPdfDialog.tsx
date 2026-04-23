@@ -126,34 +126,36 @@ export function ContratoPdfDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[92vh] overflow-y-auto p-0 gap-0">
-        <div className="sticky top-0 z-10 flex items-center justify-between gap-2 border-b bg-background px-4 py-3">
-          <div className="text-sm font-semibold">
+      <DialogContent className="max-w-4xl w-[calc(100vw-1rem)] sm:w-full max-h-[95vh] sm:max-h-[92vh] overflow-hidden p-0 gap-0 flex flex-col">
+        <div className="sticky top-0 z-10 flex items-center justify-between gap-2 border-b bg-background px-3 sm:px-4 py-2.5 sm:py-3 shrink-0">
+          <div className="text-xs sm:text-sm font-semibold truncate">
             📄 Contrato {contratoCodigo}
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             <Button
               size="sm"
               onClick={handlePrint}
-              className="bg-success hover:bg-success/90 text-success-foreground"
+              className="bg-success hover:bg-success/90 text-success-foreground h-8 sm:h-9 px-2 sm:px-3"
             >
               <Printer className="h-4 w-4" />
               <span className="hidden sm:inline">Gerar PDF / Imprimir</span>
+              <span className="sm:hidden text-xs">PDF</span>
             </Button>
             <Button
-              size="sm"
+              size="icon"
               variant="ghost"
               onClick={() => onOpenChange(false)}
+              className="h-8 w-8"
             >
               <X className="h-4 w-4" />
             </Button>
           </div>
         </div>
 
-        <div className="bg-muted/30 p-4 sm:p-6">
+        <div className="bg-muted/30 p-2 sm:p-6 overflow-y-auto overflow-x-hidden flex-1">
           <div
             id="contrato-print-area"
-            className="mx-auto max-w-3xl bg-white p-8 sm:p-12 shadow-lg text-[#1e293b]"
+            className="mx-auto max-w-3xl bg-white p-4 sm:p-8 md:p-12 shadow-lg text-[#1e293b] text-[11px] sm:text-base"
             style={{ fontFamily: "Georgia, 'Times New Roman', serif", lineHeight: 1.6 }}
           >
             <h1
@@ -370,12 +372,14 @@ export function ContratoPdfDialog({
             >
               V — Tabela de Parcelas
             </p>
+            <div style={{ overflowX: "auto", WebkitOverflowScrolling: "touch" }}>
             <table
               style={{
                 width: "100%",
                 borderCollapse: "collapse",
                 fontSize: "10pt",
                 marginTop: 6,
+                minWidth: 420,
               }}
             >
               <thead>
@@ -500,6 +504,7 @@ export function ContratoPdfDialog({
                 </tr>
               </tbody>
             </table>
+            </div>
 
             <div
               className="assinaturas"
