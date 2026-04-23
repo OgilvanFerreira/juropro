@@ -632,8 +632,9 @@ function ClientesPage() {
                 </>
               )}
             </Card>
-          </main>
-        </div>
+          </div>
+        </main>
+      </div>
 
         <NovoClienteDialog
           open={open}
