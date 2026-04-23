@@ -339,10 +339,14 @@ function FinanceiroTab() {
   const empQ = useQuery({
     queryKey: ["relatorios", "emprestimos"],
     queryFn: () => listEmprestimos(),
+    staleTime: 60_000,
+    placeholderData: (prev) => prev,
   });
   const parQ = useQuery({
     queryKey: ["relatorios", "parcelas"],
     queryFn: () => listParcelas(),
+    staleTime: 60_000,
+    placeholderData: (prev) => prev,
   });
 
   const emprestimos = useMemo(() => empQ.data?.data ?? [], [empQ.data]);
@@ -879,14 +883,20 @@ function ContratosTab() {
   const empQ = useQuery({
     queryKey: ["relatorios", "emprestimos"],
     queryFn: () => listEmprestimos(),
+    staleTime: 60_000,
+    placeholderData: (prev) => prev,
   });
   const parQ = useQuery({
     queryKey: ["relatorios", "parcelas"],
     queryFn: () => listParcelas(),
+    staleTime: 60_000,
+    placeholderData: (prev) => prev,
   });
   const cliQ = useQuery({
     queryKey: ["relatorios", "clientes"],
     queryFn: () => listClientes(),
+    staleTime: 60_000,
+    placeholderData: (prev) => prev,
   });
 
   const emprestimos = useMemo(() => empQ.data?.data ?? [], [empQ.data]);
@@ -1401,10 +1411,14 @@ function InadimplenciaTab() {
   const parQ = useQuery({
     queryKey: ["relatorios", "parcelas"],
     queryFn: () => listParcelas(),
+    staleTime: 60_000,
+    placeholderData: (prev) => prev,
   });
   const cliQ = useQuery({
     queryKey: ["relatorios", "clientes"],
     queryFn: () => listClientes(),
+    staleTime: 60_000,
+    placeholderData: (prev) => prev,
   });
 
   const parcelas = useMemo(() => parQ.data?.data ?? [], [parQ.data]);
