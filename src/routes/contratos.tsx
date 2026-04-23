@@ -110,7 +110,11 @@ function ContratosPage() {
     queryFn: () => listFn(),
   });
 
-  const lista = query.data?.data ?? [];
+  const listaRaw = query.data?.data ?? [];
+  const lista = useMemo(() => {
+    const total = listaRaw.length;
+    return listaRaw.map((e, idx) => ({ ...e, seqId: total - idx }));
+  }, [listaRaw]);
 
   const handleEditar = async (id: string | number) => {
     setLoadingEditId(id);
