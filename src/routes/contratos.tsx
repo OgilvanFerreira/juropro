@@ -387,10 +387,11 @@ function ContratosPage() {
                         </tr>
                       </thead>
                       <tbody>
-                        {filtrados.map((e) => (
+                        {paginados.map((e) => (
                           <RowDesktop
                             key={String(e.id)}
                             item={e}
+                            seqId={e.seqId}
                             onEdit={() => handleEditar(e.id)}
                             onDelete={() => setEmprestimoParaExcluir(e)}
                             isLoadingEdit={loadingEditId === e.id}
@@ -402,16 +403,29 @@ function ContratosPage() {
 
                   {/* MOBILE CARDS */}
                   <div className="space-y-3 md:hidden">
-                    {filtrados.map((e) => (
+                    {paginados.map((e) => (
                       <CardMobile
                         key={String(e.id)}
                         item={e}
+                        seqId={e.seqId}
                         onEdit={() => handleEditar(e.id)}
                         onDelete={() => setEmprestimoParaExcluir(e)}
                         isLoadingEdit={loadingEditId === e.id}
                       />
                     ))}
                   </div>
+
+                  <TablePagination
+                    page={paginaAtual}
+                    pageSize={porPagina}
+                    totalItems={filtrados.length}
+                    onPageChange={(p) => setPagina(p)}
+                    onPageSizeChange={(s) => {
+                      setPorPagina(s);
+                      setPagina(1);
+                    }}
+                    itemLabel="contratos"
+                  />
                 </>
               )}
             </div>
