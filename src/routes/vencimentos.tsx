@@ -157,6 +157,7 @@ type ParcelaProcessada = ParcelaListItem & { statusCalc: StatusCalc };
 function VencimentosPage() {
   const queryClient = useQueryClient();
   const listFn = useServerFn(listParcelas);
+  const searchParams = Route.useSearch();
 
   const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ["parcelas", "list"],
@@ -166,7 +167,9 @@ function VencimentosPage() {
   const { name: adminName } = useAdminName();
 
   const [busca, setBusca] = useState("");
-  const [filtroStatus, setFiltroStatus] = useState<StatusCalc | "todos">("todos");
+  const [filtroStatus, setFiltroStatus] = useState<StatusCalc | "todos">(
+    searchParams.status ?? "todos",
+  );
   const [sortKey, setSortKey] = useState<SortKey>("data_vencimento");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [pagina, setPagina] = useState(1);
@@ -174,6 +177,14 @@ function VencimentosPage() {
   const [modalParcela, setModalParcela] = useState<ParcelaProcessada | null>(null);
   const [estornoParcelaState, setEstornoParcelaState] =
     useState<ParcelaProcessada | null>(null);
+
+  // Sincroniza filtro quando o search param muda (ex: vindo do KPI Dashboard)
+  useEffect(() => {
+    if (searchParams.status) {
+      setFiltroStatus(searchParams.status);
+      setPagina(1);
+    }
+  }, [searchParams.status]);
 
   const processadas: ParcelaProcessada[] = useMemo(() => {
     return (data?.data ?? []).map((p) => ({ ...p, statusCalc: computeStatus(p) }));
