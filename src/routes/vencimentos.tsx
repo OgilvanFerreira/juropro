@@ -132,12 +132,14 @@ function VencimentosPage() {
     queryFn: () => listFn(),
   });
 
+  const { name: adminName } = useAdminName();
+
   const [busca, setBusca] = useState("");
   const [filtroStatus, setFiltroStatus] = useState<StatusCalc | "todos">("todos");
   const [sortKey, setSortKey] = useState<SortKey>("data_vencimento");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [pagina, setPagina] = useState(1);
-  const porPagina = 10;
+  const [porPagina, setPorPagina] = useState<PageSize>(10);
   const [modalParcela, setModalParcela] = useState<ParcelaProcessada | null>(null);
 
   const processadas: ParcelaProcessada[] = useMemo(() => {
