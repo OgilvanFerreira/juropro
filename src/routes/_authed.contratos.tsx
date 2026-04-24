@@ -48,7 +48,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
 
-export const Route = createFileRoute("/contratos")({
+export const Route = createFileRoute("/_authed/contratos")({
   head: () => ({
     meta: [{ title: "Contratos — JuroPro" }],
   }),

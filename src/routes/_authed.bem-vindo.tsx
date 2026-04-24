@@ -6,7 +6,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useBusinessName, useBusinessLogo } from "@/hooks/use-business-info";
 import { useProfile } from "@/hooks/use-profile";
 
-export const Route = createFileRoute("/bem-vindo")({
+export const Route = createFileRoute("/_authed/bem-vindo")({
   head: () => ({ meta: [{ title: "Bem-vindo — JuroPro" }] }),
   component: BemVindoPage,
 });

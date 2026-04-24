@@ -59,7 +59,7 @@ import { useDarkMode } from "@/hooks/use-dark-mode";
 import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
 
-export const Route = createFileRoute("/configuracoes")({
+export const Route = createFileRoute("/_authed/configuracoes")({
   head: () => ({
     meta: [{ title: "Configurações — JuroPro" }],
   }),

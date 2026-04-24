@@ -73,7 +73,7 @@ const ALLOWED_STATUS: ReadonlyArray<StatusCalc | "todos"> = [
   "avencer",
 ];
 
-export const Route = createFileRoute("/vencimentos")({
+export const Route = createFileRoute("/_authed/vencimentos")({
   head: () => ({
     meta: [{ title: "Vencimentos — JuroPro" }],
   }),

@@ -61,7 +61,7 @@ import { formatCpfCnpj, formatTelefone } from "@/lib/masks";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
 
-export const Route = createFileRoute("/clientes")({
+export const Route = createFileRoute("/_authed/clientes")({
   validateSearch: (search: Record<string, unknown>) => ({
     novo: search.novo === true || search.novo === "true" ? true : undefined,
   }),

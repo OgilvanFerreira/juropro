@@ -2,6 +2,80 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 
+const PROJECT_REF = (import.meta.env.VITE_SUPABASE_PROJECT_ID as string | undefined) ?? '';
+export const SUPABASE_AUTH_COOKIE = PROJECT_REF
+  ? `sb-${PROJECT_REF}-auth-token`
+  : 'sb-auth-token';
+
+/**
+ * Storage adapter que escreve em localStorage E em um cookie HTTP.
+ *
+ * O cookie permite ao servidor (TanStack Start `beforeLoad`) ler a sessão
+ * Supabase ANTES de qualquer renderização — base da proteção server-side
+ * de rotas privadas (Cortina de Ferro).
+ *
+ * - SameSite=Lax: enviado em navegações top-level (necessário para SSR
+ *   funcionar em links externos / refresh).
+ * - Secure: apenas em produção (HTTPS). Em dev (localhost) precisa ficar
+ *   off senão o browser ignora o cookie.
+ * - Path=/: disponível em todas as rotas.
+ * - Max-Age 30 dias: alinhado com o refresh-token padrão do Supabase.
+ */
+function createCookieAndLocalStorage(): Storage {
+  const KEY = SUPABASE_AUTH_COOKIE;
+  const isHttps =
+    typeof window !== 'undefined' && window.location.protocol === 'https:';
+  const cookieAttrs = `Path=/; SameSite=Lax; Max-Age=2592000${isHttps ? '; Secure' : ''}`;
+
+  const writeCookie = (name: string, value: string) => {
+    if (typeof document === 'undefined') return;
+    // Encoda para evitar caracteres inválidos em cookies (a sessão é JSON).
+    document.cookie = `${name}=${encodeURIComponent(value)}; ${cookieAttrs}`;
+  };
+  const deleteCookie = (name: string) => {
+    if (typeof document === 'undefined') return;
+    document.cookie = `${name}=; Path=/; Max-Age=0; SameSite=Lax${isHttps ? '; Secure' : ''}`;
+  };
+
+  return {
+    getItem: (key: string) => {
+      try {
+        return window.localStorage.getItem(key);
+      } catch {
+        return null;
+      }
+    },
+    setItem: (key: string, value: string) => {
+      try {
+        window.localStorage.setItem(key, value);
+      } catch {
+        /* ignore */
+      }
+      // Mirror APENAS a chave de auth no cookie. Outras chaves ficam só em LS.
+      if (key === KEY) writeCookie(key, value);
+    },
+    removeItem: (key: string) => {
+      try {
+        window.localStorage.removeItem(key);
+      } catch {
+        /* ignore */
+      }
+      if (key === KEY) deleteCookie(key);
+    },
+    // Stubs obrigatórios da interface Storage:
+    key: () => null,
+    clear: () => {
+      try {
+        window.localStorage.clear();
+      } catch {
+        /* ignore */
+      }
+      deleteCookie(KEY);
+    },
+    length: 0,
+  };
+}
+
 function createSupabaseClient() {
   // Use import.meta.env for client-side (Vite build-time replacement)
   // Fall back to process.env for SSR (server-side rendering)
@@ -16,7 +90,7 @@ function createSupabaseClient() {
 
   return createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
     auth: {
-      storage: typeof window !== 'undefined' ? localStorage : undefined,
+      storage: typeof window !== 'undefined' ? createCookieAndLocalStorage() : undefined,
       persistSession: true,
       autoRefreshToken: true,
     }
@@ -33,4 +107,3 @@ export const supabase = new Proxy({} as ReturnType<typeof createSupabaseClient>,
     return Reflect.get(_supabase, prop, receiver);
   },
 });
-

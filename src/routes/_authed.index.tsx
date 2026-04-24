@@ -29,7 +29,7 @@ type DashboardKpis = {
   vencimentosHoje: number;
 };
 
-export const Route = createFileRoute("/")({
+export const Route = createFileRoute("/_authed/")({
   head: () => ({
     meta: [
       { title: "JuroPro — Dashboard de Gestão de Empréstimos" },

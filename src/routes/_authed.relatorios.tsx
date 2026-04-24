@@ -59,7 +59,7 @@ import { useAdminName } from "@/hooks/use-admin-name";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
 
-export const Route = createFileRoute("/relatorios")({
+export const Route = createFileRoute("/_authed/relatorios")({
   head: () => ({
     meta: [{ title: "Relatórios — JuroPro" }],
   }),
