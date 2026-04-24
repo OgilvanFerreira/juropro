@@ -41,6 +41,7 @@ const supportItems = [
 export function AppSidebar() {
   const { pathname } = useLocation();
   const { name, defaultName } = useAdminName();
+  const { avatar } = useAdminAvatar();
   const isActive = (url: string) => pathname === url;
 
   const displayName =
