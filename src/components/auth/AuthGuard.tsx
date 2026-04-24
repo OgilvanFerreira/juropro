@@ -35,13 +35,9 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // Bloqueia render de conteúdo protegido enquanto não há usuário
+  // Sem sessão em rota protegida: não renderiza nada (o useEffect já dispara o redirect para /login imediatamente)
   if (!user && !publica) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
+    return null;
   }
 
   return <>{children}</>;
