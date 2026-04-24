@@ -47,8 +47,11 @@ import {
   maskCpfCnpj,
   maskTelefone,
   maskCep,
+  maskTaxa,
 } from "@/lib/masks";
 import { lookupCep, BRAZIL_UFS } from "@/lib/cep";
+import { useBusinessName, useBusinessLogo } from "@/hooks/use-business-info";
+import { useDarkMode } from "@/hooks/use-dark-mode";
 
 export const Route = createFileRoute("/configuracoes")({
   head: () => ({
@@ -489,8 +492,11 @@ function TabPerfil() {
 // ---------------------------------------------------------------------------
 
 function TabNegocio() {
+  const { name: businessName, setName: setBusinessName } = useBusinessName();
+  const { logo, setLogo } = useBusinessLogo();
+
   const [form, setForm] = useState({
-    nome: "JuroPro",
+    nome: businessName,
     cnpj: "",
     telefone: "(73) 99141-1427",
     email: "contato@juropro.com.br",
@@ -501,17 +507,21 @@ function TabNegocio() {
     bairro: "Jardim Primavera",
     cidade: "Itabuna",
     uf: "BA",
-    taxaPadrao: "5",
+    taxaPadrao: "5,00",
     tipoJurosPadrao: "simples",
-    multaAtraso: "2",
+    multaAtraso: "2,00",
   });
-  const [logo, setLogo] = useState<string | null>(null);
   const [drag, setDrag] = useState(false);
   const [saving, setSaving] = useState(false);
   const [cepLoading, setCepLoading] = useState(false);
   const [cepOk, setCepOk] = useState(false);
   const [cepErro, setCepErro] = useState("");
   const fileRef = useRef<HTMLInputElement | null>(null);
+
+  // Hidrata "nome" sempre que o hook trouxer um valor diferente
+  useEffect(() => {
+    setForm((p) => (p.nome === businessName ? p : { ...p, nome: businessName }));
+  }, [businessName]);
 
   const set =
     (field: keyof typeof form) => (e: ChangeEvent<HTMLInputElement>) =>
@@ -557,6 +567,7 @@ function TabNegocio() {
   const salvar = async () => {
     setSaving(true);
     await new Promise((r) => setTimeout(r, 700));
+    setBusinessName(form.nome.trim());
     setSaving(false);
     toast.success("Dados do negócio salvos com sucesso!");
   };
@@ -826,10 +837,12 @@ function TabNegocio() {
             <Label htmlFor="neg-taxa">Taxa de Juros Padrão (%)</Label>
             <Input
               id="neg-taxa"
-              type="number"
-              step="0.01"
+              inputMode="decimal"
               value={form.taxaPadrao}
-              onChange={set("taxaPadrao")}
+              onChange={(e) =>
+                setForm((p) => ({ ...p, taxaPadrao: maskTaxa(e.target.value) }))
+              }
+              placeholder="0,00"
             />
           </div>
           <div className="space-y-2">
@@ -854,10 +867,12 @@ function TabNegocio() {
             <Label htmlFor="neg-multa">Multa por Atraso (%)</Label>
             <Input
               id="neg-multa"
-              type="number"
-              step="0.01"
+              inputMode="decimal"
               value={form.multaAtraso}
-              onChange={set("multaAtraso")}
+              onChange={(e) =>
+                setForm((p) => ({ ...p, multaAtraso: maskTaxa(e.target.value) }))
+              }
+              placeholder="0,00"
             />
             <p className="text-xs text-muted-foreground">
               Aplicada sobre o valor da parcela em atraso
@@ -889,13 +904,14 @@ type Prefs = {
   notifAtraso: boolean;
   notifPagamento: boolean;
   whatsappAuto: boolean;
-  darkMode: boolean;
   compactView: boolean;
   itensPorPagina: string;
   moeda: string;
 };
 
 function TabPreferencias() {
+  const { name: businessName } = useBusinessName();
+  const { dark, setDark } = useDarkMode();
   const [msg, setMsg] = useState(MSG_PADRAO);
   const [preview, setPreview] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -904,7 +920,6 @@ function TabPreferencias() {
     notifAtraso: true,
     notifPagamento: false,
     whatsappAuto: false,
-    darkMode: false,
     compactView: false,
     itensPorPagina: "10",
     moeda: "BRL",
@@ -921,7 +936,7 @@ function TabPreferencias() {
     .replace(/\{\{contrato\}\}/g, "#004")
     .replace(/\{\{valor\}\}/g, "R$ 620,00")
     .replace(/\{\{vencimento\}\}/g, "23/04/2026")
-    .replace(/\{\{negocio\}\}/g, "JuroPro");
+    .replace(/\{\{negocio\}\}/g, businessName);
 
   const salvar = async () => {
     setSaving(true);
@@ -953,16 +968,26 @@ function TabPreferencias() {
     },
   ];
 
-  const interfaceItems = [
+  const interfaceItems: Array<{
+    key: string;
+    label: string;
+    sub: string;
+    checked: boolean;
+    onChange: (v: boolean) => void;
+  }> = [
     {
-      key: "darkMode" as const,
+      key: "darkMode",
       label: "Modo Escuro",
       sub: "Ativar tema escuro no sistema",
+      checked: dark,
+      onChange: setDark,
     },
     {
-      key: "compactView" as const,
+      key: "compactView",
       label: "Visualização compacta",
       sub: "Reduz o espaçamento das tabelas",
+      checked: prefs.compactView,
+      onChange: (v) => setP("compactView")(v),
     },
   ];
 
@@ -1090,10 +1115,7 @@ function TabPreferencias() {
                 </p>
                 <p className="text-xs text-muted-foreground">{t.sub}</p>
               </div>
-              <Switch
-                checked={prefs[t.key]}
-                onCheckedChange={setP(t.key)}
-              />
+              <Switch checked={t.checked} onCheckedChange={t.onChange} />
             </div>
           ))}
         </div>

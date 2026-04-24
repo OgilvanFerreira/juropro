@@ -15,7 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
-import { formatCpfCnpj } from "@/lib/masks";
+import { formatCpfCnpj, maskTaxa, parseTaxa } from "@/lib/masks";
 import { listClientes, type Cliente } from "@/integrations/external-supabase/clientes.functions";
 import {
   createEmprestimo,
@@ -59,7 +59,7 @@ function calcular(form: {
   dataInicio: string;
 }): Resultado | null {
   const valor = parseFloat(form.valorPrincipal);
-  const taxa = parseFloat(form.taxaJuros) / 100;
+  const taxa = parseTaxa(form.taxaJuros) / 100;
   const n = parseInt(form.numParcelas);
   const per = PERIODICIDADES.find((p) => p.value === form.periodicidade);
   if (!valor || taxa < 0 || !n || !form.dataInicio || !per) return null;
@@ -400,7 +400,7 @@ export function NovoEmprestimoDialog({
       setForm({
         clienteId: emprestimo.cliente_id ?? "",
         valorPrincipal: String(emprestimo.valor_principal ?? ""),
-        taxaJuros: String(emprestimo.taxa_juros ?? ""),
+        taxaJuros: emprestimo.taxa_juros != null ? String(emprestimo.taxa_juros).replace(".", ",") : "",
         numParcelas: String(emprestimo.numero_parcelas ?? ""),
         tipoJuros: (["simples", "composto", "so_juros"] as const).includes(
           tj as never,
@@ -446,7 +446,7 @@ export function NovoEmprestimoDialog({
             id: emprestimo.id,
             cliente_id: form.clienteId,
             valor_principal: parseFloat(form.valorPrincipal),
-            taxa_juros: parseFloat(form.taxaJuros),
+            taxa_juros: parseTaxa(form.taxaJuros),
             numero_parcelas: parseInt(form.numParcelas),
             tipo_juros: form.tipoJuros,
             periodicidade: form.periodicidade,
@@ -462,7 +462,7 @@ export function NovoEmprestimoDialog({
         data: {
           cliente_id: form.clienteId,
           valor_principal: parseFloat(form.valorPrincipal),
-          taxa_juros: parseFloat(form.taxaJuros),
+          taxa_juros: parseTaxa(form.taxaJuros),
           numero_parcelas: parseInt(form.numParcelas),
           tipo_juros: form.tipoJuros,
           periodicidade: form.periodicidade,
@@ -553,12 +553,11 @@ export function NovoEmprestimoDialog({
                 <div className="space-y-2">
                   <Label>Taxa de Juros (%) *</Label>
                   <Input
-                    type="number"
-                    step="0.01"
-                    placeholder="0.00"
+                    inputMode="decimal"
+                    placeholder="0,00"
                     value={form.taxaJuros}
                     onChange={(e) =>
-                      setForm((p) => ({ ...p, taxaJuros: e.target.value }))
+                      setForm((p) => ({ ...p, taxaJuros: maskTaxa(e.target.value) }))
                     }
                     className="h-11"
                   />

@@ -24,6 +24,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAdminName } from "@/hooks/use-admin-name";
 import { useAdminAvatar } from "@/hooks/use-admin-avatar";
+import { useBusinessName, useBusinessLogo } from "@/hooks/use-business-info";
 
 const navItems = [
   { title: "Início", url: "/", icon: LayoutDashboard },
@@ -42,6 +43,8 @@ export function AppSidebar() {
   const { pathname } = useLocation();
   const { name, defaultName } = useAdminName();
   const { avatar } = useAdminAvatar();
+  const { name: businessName } = useBusinessName();
+  const { logo: businessLogo } = useBusinessLogo();
   const isActive = (url: string) => pathname === url;
 
   const displayName =
@@ -57,12 +60,20 @@ export function AppSidebar() {
     <Sidebar collapsible="icon" className="border-r border-sidebar-border">
       <SidebarHeader className="border-b border-sidebar-border">
         <div className="flex items-center gap-2 px-2 py-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground shadow-sm">
-            <Wallet className="h-5 w-5" />
+          <div className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-lg bg-sidebar-primary text-sidebar-primary-foreground shadow-sm">
+            {businessLogo ? (
+              <img
+                src={businessLogo}
+                alt={businessName}
+                className="h-full w-full object-cover"
+              />
+            ) : (
+              <Wallet className="h-5 w-5" />
+            )}
           </div>
           <div className="group-data-[collapsible=icon]:hidden">
             <p className="text-sm font-semibold leading-tight text-sidebar-foreground">
-              JuroPro
+              {businessName}
             </p>
             <p className="text-[10px] uppercase tracking-wider text-sidebar-foreground/60">
               Gestão de Empréstimos
