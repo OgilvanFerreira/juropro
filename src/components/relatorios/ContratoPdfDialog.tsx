@@ -584,7 +584,9 @@ export function ContratoPdfDialog({
             >
               <div style={{ textAlign: "center" }}>
                 <p style={{ margin: "0 0 32px", fontSize: "10pt" }}>
-                  Itabuna, {fmtDate(new Date().toISOString().slice(0, 10))}
+                  {(businessDetails.cidade || "—")}
+                  {businessDetails.cidade ? ", " : " "}
+                  {fmtDate(new Date().toISOString().slice(0, 10))}
                 </p>
                 <div
                   style={{
@@ -595,7 +597,13 @@ export function ContratoPdfDialog({
                 >
                   <b>{adminName}</b>
                   <br />
-                  CPF: 021.985.555-22 (Credor)
+                  {businessName} (Credor)
+                  {businessDetails.cnpj ? (
+                    <>
+                      <br />
+                      CNPJ/CPF: {businessDetails.cnpj}
+                    </>
+                  ) : null}
                 </div>
               </div>
               <div style={{ textAlign: "center" }}>
