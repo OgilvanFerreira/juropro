@@ -100,7 +100,7 @@ function LoginPage() {
           <div className="mb-7 text-center">
             <div className="mx-auto mb-3 flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl">
               <img
-                src={businessLogo || juroproLogo}
+                src={juroproLogo}
                 alt={businessName}
                 width={64}
                 height={64}
