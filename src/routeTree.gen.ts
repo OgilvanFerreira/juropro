@@ -19,7 +19,8 @@ import { Route as ContratosRouteImport } from './routes/contratos'
 import { Route as ConfiguracoesRouteImport } from './routes/configuracoes'
 import { Route as ClientesRouteImport } from './routes/clientes'
 import { Route as BemVindoRouteImport } from './routes/bem-vindo'
-import { Route as IndexRouteImport } from './routes/index'
+import { Route as AuthedRouteImport } from './routes/_authed'
+import { Route as AuthedIndexRouteImport } from './routes/_authed.index'
 
 const VencimentosRoute = VencimentosRouteImport.update({
   id: '/vencimentos',
@@ -71,14 +72,18 @@ const BemVindoRoute = BemVindoRouteImport.update({
   path: '/bem-vindo',
   getParentRoute: () => rootRouteImport,
 } as any)
-const IndexRoute = IndexRouteImport.update({
+const AuthedRoute = AuthedRouteImport.update({
+  id: '/_authed',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthedIndexRoute = AuthedIndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => AuthedRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
-  '/': typeof IndexRoute
+  '/': typeof AuthedIndexRoute
   '/bem-vindo': typeof BemVindoRoute
   '/clientes': typeof ClientesRoute
   '/configuracoes': typeof ConfiguracoesRoute
@@ -91,7 +96,6 @@ export interface FileRoutesByFullPath {
   '/vencimentos': typeof VencimentosRoute
 }
 export interface FileRoutesByTo {
-  '/': typeof IndexRoute
   '/bem-vindo': typeof BemVindoRoute
   '/clientes': typeof ClientesRoute
   '/configuracoes': typeof ConfiguracoesRoute
@@ -102,10 +106,11 @@ export interface FileRoutesByTo {
   '/reset-password': typeof ResetPasswordRoute
   '/suporte': typeof SuporteRoute
   '/vencimentos': typeof VencimentosRoute
+  '/': typeof AuthedIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
-  '/': typeof IndexRoute
+  '/_authed': typeof AuthedRouteWithChildren
   '/bem-vindo': typeof BemVindoRoute
   '/clientes': typeof ClientesRoute
   '/configuracoes': typeof ConfiguracoesRoute
@@ -116,6 +121,7 @@ export interface FileRoutesById {
   '/reset-password': typeof ResetPasswordRoute
   '/suporte': typeof SuporteRoute
   '/vencimentos': typeof VencimentosRoute
+  '/_authed/': typeof AuthedIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -133,7 +139,6 @@ export interface FileRouteTypes {
     | '/vencimentos'
   fileRoutesByTo: FileRoutesByTo
   to:
-    | '/'
     | '/bem-vindo'
     | '/clientes'
     | '/configuracoes'
@@ -144,9 +149,10 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/suporte'
     | '/vencimentos'
+    | '/'
   id:
     | '__root__'
-    | '/'
+    | '/_authed'
     | '/bem-vindo'
     | '/clientes'
     | '/configuracoes'
@@ -157,10 +163,11 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/suporte'
     | '/vencimentos'
+    | '/_authed/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute
+  AuthedRoute: typeof AuthedRouteWithChildren
   BemVindoRoute: typeof BemVindoRoute
   ClientesRoute: typeof ClientesRoute
   ConfiguracoesRoute: typeof ConfiguracoesRoute
@@ -245,18 +252,36 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof BemVindoRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/': {
-      id: '/'
+    '/_authed': {
+      id: '/_authed'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AuthedRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authed/': {
+      id: '/_authed/'
       path: '/'
       fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof AuthedIndexRouteImport
+      parentRoute: typeof AuthedRoute
     }
   }
 }
 
+interface AuthedRouteChildren {
+  AuthedIndexRoute: typeof AuthedIndexRoute
+}
+
+const AuthedRouteChildren: AuthedRouteChildren = {
+  AuthedIndexRoute: AuthedIndexRoute,
+}
+
+const AuthedRouteWithChildren =
+  AuthedRoute._addFileChildren(AuthedRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
-  IndexRoute: IndexRoute,
+  AuthedRoute: AuthedRouteWithChildren,
   BemVindoRoute: BemVindoRoute,
   ClientesRoute: ClientesRoute,
   ConfiguracoesRoute: ConfiguracoesRoute,
