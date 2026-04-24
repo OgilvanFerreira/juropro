@@ -867,10 +867,12 @@ function TabNegocio() {
             <Label htmlFor="neg-multa">Multa por Atraso (%)</Label>
             <Input
               id="neg-multa"
-              type="number"
-              step="0.01"
+              inputMode="decimal"
               value={form.multaAtraso}
-              onChange={set("multaAtraso")}
+              onChange={(e) =>
+                setForm((p) => ({ ...p, multaAtraso: maskTaxa(e.target.value) }))
+              }
+              placeholder="0,00"
             />
             <p className="text-xs text-muted-foreground">
               Aplicada sobre o valor da parcela em atraso
