@@ -1,12 +1,13 @@
 import { useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { CircleDollarSign, Mail, Lock, Eye, EyeOff, LogIn, Loader2, AlertCircle } from "lucide-react";
+import { Mail, Lock, Eye, EyeOff, LogIn, Loader2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/hooks/use-auth";
 import { useBusinessName, useBusinessLogo } from "@/hooks/use-business-info";
 import { toast } from "sonner";
+import juroproLogo from "@/assets/juropro-logo.png";
 
 interface LoginSearch {
   redirect?: string;
@@ -98,12 +99,14 @@ function LoginPage() {
         <div className="rounded-2xl bg-card p-7 shadow-2xl ring-1 ring-border sm:p-9">
           {/* Logo */}
           <div className="mb-7 text-center">
-            <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-br from-primary to-success shadow-lg">
-              {businessLogo ? (
-                <img src={businessLogo} alt={businessName} className="h-full w-full object-cover" />
-              ) : (
-                <CircleDollarSign className="h-7 w-7 text-primary-foreground" />
-              )}
+            <div className="mx-auto mb-3 flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl">
+              <img
+                src={businessLogo || juroproLogo}
+                alt={businessName}
+                width={64}
+                height={64}
+                className="h-full w-full object-contain"
+              />
             </div>
             <h1 className="text-2xl font-extrabold tracking-tight text-foreground">
               {businessName}
