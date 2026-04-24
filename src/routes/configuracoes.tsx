@@ -968,16 +968,26 @@ function TabPreferencias() {
     },
   ];
 
-  const interfaceItems = [
+  const interfaceItems: Array<{
+    key: string;
+    label: string;
+    sub: string;
+    checked: boolean;
+    onChange: (v: boolean) => void;
+  }> = [
     {
-      key: "darkMode" as const,
+      key: "darkMode",
       label: "Modo Escuro",
       sub: "Ativar tema escuro no sistema",
+      checked: dark,
+      onChange: setDark,
     },
     {
-      key: "compactView" as const,
+      key: "compactView",
       label: "Visualização compacta",
       sub: "Reduz o espaçamento das tabelas",
+      checked: prefs.compactView,
+      onChange: (v) => setP("compactView")(v),
     },
   ];
 
