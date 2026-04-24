@@ -29,8 +29,7 @@ export const Route = createFileRoute("/_authed")({
     }
     return { userId: result.userId };
   },
-  // Cache de 5 minutos: não revalida em navegações entre rotas _authed.
-  beforeLoadGcTime: 5 * 60 * 1000,
+  // Cache: não revalida em navegações entre rotas _authed.
   staleTime: 5 * 60 * 1000,
   shouldReload: false,
   component: AuthedLayout,
