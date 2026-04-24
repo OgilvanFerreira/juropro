@@ -70,6 +70,26 @@ export function ContratoPdfDialog({
   cliente,
 }: ContratoPdfDialogProps) {
   const { name: adminName } = useAdminName();
+  const { name: businessName } = useBusinessName();
+  const { logo: businessLogo } = useBusinessLogo();
+  const { details: businessDetails } = useBusinessDetails();
+
+  const enderecoNegocio = useMemo(() => {
+    const partes = [
+      businessDetails.endereco,
+      businessDetails.numero,
+      businessDetails.complemento,
+      businessDetails.bairro,
+    ].filter((s) => s && s.trim().length > 0);
+    return partes.join(", ");
+  }, [businessDetails]);
+
+  const cidadeUfNegocio = useMemo(() => {
+    if (!businessDetails.cidade) return "";
+    return businessDetails.uf
+      ? `${businessDetails.cidade} / ${businessDetails.uf}`
+      : businessDetails.cidade;
+  }, [businessDetails]);
 
   const parcelasContrato = useMemo(
     () =>
