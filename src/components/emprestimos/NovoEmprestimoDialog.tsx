@@ -400,7 +400,7 @@ export function NovoEmprestimoDialog({
       setForm({
         clienteId: emprestimo.cliente_id ?? "",
         valorPrincipal: String(emprestimo.valor_principal ?? ""),
-        taxaJuros: String(emprestimo.taxa_juros ?? ""),
+        taxaJuros: emprestimo.taxa_juros != null ? String(emprestimo.taxa_juros).replace(".", ",") : "",
         numParcelas: String(emprestimo.numero_parcelas ?? ""),
         tipoJuros: (["simples", "composto", "so_juros"] as const).includes(
           tj as never,
