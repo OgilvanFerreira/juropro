@@ -142,7 +142,7 @@ export function AppSidebar() {
       <SidebarFooter className="border-t border-sidebar-border">
         <div className="flex items-center gap-3 px-2 py-2">
           <Avatar className="h-9 w-9 border border-sidebar-border">
-            {avatar && <AvatarImage src={avatar} alt={displayName} />}
+            {displayAvatar && <AvatarImage src={displayAvatar} alt={displayName} />}
             <AvatarFallback className="bg-sidebar-primary text-sidebar-primary-foreground text-xs font-semibold">
               {iniciais}
             </AvatarFallback>
@@ -151,8 +151,20 @@ export function AppSidebar() {
             <p className="truncate text-sm font-medium text-sidebar-foreground">
               {displayName}
             </p>
-            <p className="truncate text-xs text-sidebar-foreground/60">Administrador</p>
+            <p className="truncate text-xs text-sidebar-foreground/60">
+              {profile?.cargo || "Administrador"}
+            </p>
           </div>
+          <Button
+            size="icon"
+            variant="ghost"
+            onClick={handleSair}
+            className="h-8 w-8 shrink-0 text-sidebar-foreground/70 hover:text-sidebar-foreground group-data-[collapsible=icon]:hidden"
+            title="Sair"
+            aria-label="Sair"
+          >
+            <LogOut className="h-4 w-4" />
+          </Button>
         </div>
       </SidebarFooter>
     </Sidebar>
