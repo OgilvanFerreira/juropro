@@ -39,7 +39,17 @@ const supportItems = [
 
 export function AppSidebar() {
   const { pathname } = useLocation();
+  const { name, defaultName } = useAdminName();
   const isActive = (url: string) => pathname === url;
+
+  const displayName =
+    name && name !== defaultName ? name : "Gilvan Ferreira Santos";
+  const iniciais = displayName
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((n) => n[0]?.toUpperCase() ?? "")
+    .join("") || "GF";
 
   return (
     <Sidebar collapsible="icon" className="border-r border-sidebar-border">
