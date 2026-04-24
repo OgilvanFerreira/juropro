@@ -21,12 +21,22 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
       navigate({
         to: "/login",
         search: { redirect: pathname } as never,
+        replace: true,
       });
     } else if (user && pathname === "/login") {
-      navigate({ to: "/" });
+      navigate({ to: "/", replace: true });
     }
   }, [user, loading, publica, pathname, navigate]);
 
+  // Rotas públicas: renderizam sempre (login, recuperar-senha…)
+  if (publica) {
+    return <>{children}</>;
+  }
+
+  // Aguardando hidratação da sessão: spinner curto.
+  // CRUCIAL: enquanto loading, NÃO renderizamos children — isso impede
+  // que loaders de rota disparem queries autenticadas antes do token
+  // estar disponível (causa raiz do "Something went wrong").
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
@@ -35,8 +45,9 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // Sem sessão em rota protegida: não renderiza nada (o useEffect já dispara o redirect para /login imediatamente)
-  if (!user && !publica) {
+  // Sessão verificada e ausente: não renderiza nada; o useEffect já
+  // disparou o redirect para /login.
+  if (!user) {
     return null;
   }
 
