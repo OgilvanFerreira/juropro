@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { Wallet, Mail, Lock, Eye, EyeOff, LogIn, Loader2, AlertCircle } from "lucide-react";
+import { CircleDollarSign, Mail, Lock, Eye, EyeOff, LogIn, Loader2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -102,7 +102,7 @@ function LoginPage() {
               {businessLogo ? (
                 <img src={businessLogo} alt={businessName} className="h-full w-full object-cover" />
               ) : (
-                <Wallet className="h-7 w-7 text-primary-foreground" />
+                <CircleDollarSign className="h-7 w-7 text-primary-foreground" />
               )}
             </div>
             <h1 className="text-2xl font-extrabold tracking-tight text-foreground">
