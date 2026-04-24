@@ -56,6 +56,8 @@ import {
   useBusinessDetails,
 } from "@/hooks/use-business-info";
 import { useDarkMode } from "@/hooks/use-dark-mode";
+import { useAuth } from "@/hooks/use-auth";
+import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/configuracoes")({
   head: () => ({
@@ -192,6 +194,7 @@ function PasswordField({
 function TabPerfil() {
   const { name, setName, defaultName } = useAdminName();
   const { avatar, setAvatar } = useAdminAvatar();
+  const { user, updatePassword } = useAuth();
 
   const [form, setForm] = useState({
     nome: "",
@@ -244,10 +247,58 @@ function TabPerfil() {
 
   const salvar = async () => {
     setSaving(true);
-    await new Promise((r) => setTimeout(r, 700));
+
+    // Trocar senha (se preenchida)
+    const querTrocarSenha = senhaAtual || novaSenha || confSenha;
+    if (querTrocarSenha) {
+      if (!senhaAtual) {
+        toast.error("Informe a senha atual");
+        setSaving(false);
+        return;
+      }
+      if (!novaSenha || novaSenha.length < 8) {
+        toast.error("A nova senha deve ter no mínimo 8 caracteres");
+        setSaving(false);
+        return;
+      }
+      if (novaSenha !== confSenha) {
+        toast.error("A nova senha e a confirmação não coincidem");
+        setSaving(false);
+        return;
+      }
+      if (!user?.email) {
+        toast.error("Sessão inválida. Faça login novamente.");
+        setSaving(false);
+        return;
+      }
+
+      // Valida senha atual reautenticando
+      const { error: signErr } = await supabase.auth.signInWithPassword({
+        email: user.email,
+        password: senhaAtual,
+      });
+      if (signErr) {
+        toast.error("Senha atual incorreta");
+        setSaving(false);
+        return;
+      }
+
+      const { error: updErr } = await updatePassword(novaSenha);
+      if (updErr) {
+        toast.error(`Não foi possível alterar a senha: ${updErr}`);
+        setSaving(false);
+        return;
+      }
+
+      setSenhaAtual("");
+      setNovaSenha("");
+      setConfSenha("");
+      toast.success("Senha alterada com sucesso! Use a nova senha no próximo login.");
+    }
+
     setName(form.nome.trim());
     setSaving(false);
-    toast.success("Perfil atualizado com sucesso!");
+    if (!querTrocarSenha) toast.success("Perfil atualizado com sucesso!");
   };
 
   return (
