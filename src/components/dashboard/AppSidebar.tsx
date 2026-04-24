@@ -7,8 +7,9 @@ import {
   Settings,
   LifeBuoy,
   Wallet,
+  LogOut,
 } from "lucide-react";
-import { Link, useLocation } from "@tanstack/react-router";
+import { Link, useLocation, useNavigate } from "@tanstack/react-router";
 import {
   Sidebar,
   SidebarContent,
@@ -22,9 +23,13 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
 import { useAdminName } from "@/hooks/use-admin-name";
 import { useAdminAvatar } from "@/hooks/use-admin-avatar";
 import { useBusinessName, useBusinessLogo } from "@/hooks/use-business-info";
+import { useAuth } from "@/hooks/use-auth";
+import { useProfile } from "@/hooks/use-profile";
+import { toast } from "sonner";
 
 const navItems = [
   { title: "Início", url: "/", icon: LayoutDashboard },
@@ -41,20 +46,34 @@ const supportItems = [
 
 export function AppSidebar() {
   const { pathname } = useLocation();
+  const navigate = useNavigate();
   const { name, defaultName } = useAdminName();
   const { avatar } = useAdminAvatar();
   const { name: businessName } = useBusinessName();
   const { logo: businessLogo } = useBusinessLogo();
+  const { signOut, user } = useAuth();
+  const { profile } = useProfile();
   const isActive = (url: string) => pathname === url;
 
   const displayName =
-    name && name !== defaultName ? name : "Gilvan Ferreira Santos";
-  const iniciais = displayName
-    .split(" ")
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((n) => n[0]?.toUpperCase() ?? "")
-    .join("") || "GF";
+    profile?.nome ||
+    (name && name !== defaultName ? name : null) ||
+    user?.email?.split("@")[0] ||
+    "Usuário";
+  const displayAvatar = profile?.avatar_url || avatar;
+  const iniciais =
+    displayName
+      .split(" ")
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((n) => n[0]?.toUpperCase() ?? "")
+      .join("") || "U";
+
+  const handleSair = async () => {
+    await signOut();
+    toast.success("Você saiu da conta");
+    navigate({ to: "/login" });
+  };
 
   return (
     <Sidebar collapsible="icon" className="border-r border-sidebar-border">
@@ -123,7 +142,7 @@ export function AppSidebar() {
       <SidebarFooter className="border-t border-sidebar-border">
         <div className="flex items-center gap-3 px-2 py-2">
           <Avatar className="h-9 w-9 border border-sidebar-border">
-            {avatar && <AvatarImage src={avatar} alt={displayName} />}
+            {displayAvatar && <AvatarImage src={displayAvatar} alt={displayName} />}
             <AvatarFallback className="bg-sidebar-primary text-sidebar-primary-foreground text-xs font-semibold">
               {iniciais}
             </AvatarFallback>
@@ -132,8 +151,20 @@ export function AppSidebar() {
             <p className="truncate text-sm font-medium text-sidebar-foreground">
               {displayName}
             </p>
-            <p className="truncate text-xs text-sidebar-foreground/60">Administrador</p>
+            <p className="truncate text-xs text-sidebar-foreground/60">
+              {profile?.cargo || "Administrador"}
+            </p>
           </div>
+          <Button
+            size="icon"
+            variant="ghost"
+            onClick={handleSair}
+            className="h-8 w-8 shrink-0 text-sidebar-foreground/70 hover:text-sidebar-foreground group-data-[collapsible=icon]:hidden"
+            title="Sair"
+            aria-label="Sair"
+          >
+            <LogOut className="h-4 w-4" />
+          </Button>
         </div>
       </SidebarFooter>
     </Sidebar>

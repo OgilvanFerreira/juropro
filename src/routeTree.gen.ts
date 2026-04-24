@@ -11,10 +11,14 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as VencimentosRouteImport } from './routes/vencimentos'
 import { Route as SuporteRouteImport } from './routes/suporte'
+import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as RelatoriosRouteImport } from './routes/relatorios'
+import { Route as RecuperarSenhaRouteImport } from './routes/recuperar-senha'
+import { Route as LoginRouteImport } from './routes/login'
 import { Route as ContratosRouteImport } from './routes/contratos'
 import { Route as ConfiguracoesRouteImport } from './routes/configuracoes'
 import { Route as ClientesRouteImport } from './routes/clientes'
+import { Route as BemVindoRouteImport } from './routes/bem-vindo'
 import { Route as IndexRouteImport } from './routes/index'
 
 const VencimentosRoute = VencimentosRouteImport.update({
@@ -27,9 +31,24 @@ const SuporteRoute = SuporteRouteImport.update({
   path: '/suporte',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ResetPasswordRoute = ResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const RelatoriosRoute = RelatoriosRouteImport.update({
   id: '/relatorios',
   path: '/relatorios',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RecuperarSenhaRoute = RecuperarSenhaRouteImport.update({
+  id: '/recuperar-senha',
+  path: '/recuperar-senha',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ContratosRoute = ContratosRouteImport.update({
@@ -47,6 +66,11 @@ const ClientesRoute = ClientesRouteImport.update({
   path: '/clientes',
   getParentRoute: () => rootRouteImport,
 } as any)
+const BemVindoRoute = BemVindoRouteImport.update({
+  id: '/bem-vindo',
+  path: '/bem-vindo',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -55,29 +79,41 @@ const IndexRoute = IndexRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/bem-vindo': typeof BemVindoRoute
   '/clientes': typeof ClientesRoute
   '/configuracoes': typeof ConfiguracoesRoute
   '/contratos': typeof ContratosRoute
+  '/login': typeof LoginRoute
+  '/recuperar-senha': typeof RecuperarSenhaRoute
   '/relatorios': typeof RelatoriosRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/suporte': typeof SuporteRoute
   '/vencimentos': typeof VencimentosRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/bem-vindo': typeof BemVindoRoute
   '/clientes': typeof ClientesRoute
   '/configuracoes': typeof ConfiguracoesRoute
   '/contratos': typeof ContratosRoute
+  '/login': typeof LoginRoute
+  '/recuperar-senha': typeof RecuperarSenhaRoute
   '/relatorios': typeof RelatoriosRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/suporte': typeof SuporteRoute
   '/vencimentos': typeof VencimentosRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/bem-vindo': typeof BemVindoRoute
   '/clientes': typeof ClientesRoute
   '/configuracoes': typeof ConfiguracoesRoute
   '/contratos': typeof ContratosRoute
+  '/login': typeof LoginRoute
+  '/recuperar-senha': typeof RecuperarSenhaRoute
   '/relatorios': typeof RelatoriosRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/suporte': typeof SuporteRoute
   '/vencimentos': typeof VencimentosRoute
 }
@@ -85,38 +121,54 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/bem-vindo'
     | '/clientes'
     | '/configuracoes'
     | '/contratos'
+    | '/login'
+    | '/recuperar-senha'
     | '/relatorios'
+    | '/reset-password'
     | '/suporte'
     | '/vencimentos'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/bem-vindo'
     | '/clientes'
     | '/configuracoes'
     | '/contratos'
+    | '/login'
+    | '/recuperar-senha'
     | '/relatorios'
+    | '/reset-password'
     | '/suporte'
     | '/vencimentos'
   id:
     | '__root__'
     | '/'
+    | '/bem-vindo'
     | '/clientes'
     | '/configuracoes'
     | '/contratos'
+    | '/login'
+    | '/recuperar-senha'
     | '/relatorios'
+    | '/reset-password'
     | '/suporte'
     | '/vencimentos'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  BemVindoRoute: typeof BemVindoRoute
   ClientesRoute: typeof ClientesRoute
   ConfiguracoesRoute: typeof ConfiguracoesRoute
   ContratosRoute: typeof ContratosRoute
+  LoginRoute: typeof LoginRoute
+  RecuperarSenhaRoute: typeof RecuperarSenhaRoute
   RelatoriosRoute: typeof RelatoriosRoute
+  ResetPasswordRoute: typeof ResetPasswordRoute
   SuporteRoute: typeof SuporteRoute
   VencimentosRoute: typeof VencimentosRoute
 }
@@ -137,11 +189,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SuporteRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/reset-password': {
+      id: '/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof ResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/relatorios': {
       id: '/relatorios'
       path: '/relatorios'
       fullPath: '/relatorios'
       preLoaderRoute: typeof RelatoriosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/recuperar-senha': {
+      id: '/recuperar-senha'
+      path: '/recuperar-senha'
+      fullPath: '/recuperar-senha'
+      preLoaderRoute: typeof RecuperarSenhaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/contratos': {
@@ -165,6 +238,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ClientesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/bem-vindo': {
+      id: '/bem-vindo'
+      path: '/bem-vindo'
+      fullPath: '/bem-vindo'
+      preLoaderRoute: typeof BemVindoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -177,10 +257,14 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  BemVindoRoute: BemVindoRoute,
   ClientesRoute: ClientesRoute,
   ConfiguracoesRoute: ConfiguracoesRoute,
   ContratosRoute: ContratosRoute,
+  LoginRoute: LoginRoute,
+  RecuperarSenhaRoute: RecuperarSenhaRoute,
   RelatoriosRoute: RelatoriosRoute,
+  ResetPasswordRoute: ResetPasswordRoute,
   SuporteRoute: SuporteRoute,
   VencimentosRoute: VencimentosRoute,
 }
