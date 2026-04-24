@@ -46,6 +46,7 @@ import {
   type EmprestimoListItem,
 } from "@/integrations/external-supabase/emprestimos.functions";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/hooks/use-auth";
 
 export const Route = createFileRoute("/contratos")({
   head: () => ({
