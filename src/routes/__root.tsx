@@ -77,6 +77,17 @@ function RootShell({ children }: { children: React.ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  // Aplica o tema escuro o quanto antes (antes da primeira pintura) sem flash
+  if (typeof document !== "undefined") {
+    try {
+      const saved = window.localStorage.getItem("juropro:dark_mode") === "1";
+      const has = document.documentElement.classList.contains("dark");
+      if (saved && !has) document.documentElement.classList.add("dark");
+      if (!saved && has) document.documentElement.classList.remove("dark");
+    } catch {
+      /* ignore */
+    }
+  }
   return (
     <QueryClientProvider client={queryClient}>
       <Outlet />
