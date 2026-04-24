@@ -7,8 +7,9 @@ import {
   Settings,
   LifeBuoy,
   Wallet,
+  LogOut,
 } from "lucide-react";
-import { Link, useLocation } from "@tanstack/react-router";
+import { Link, useLocation, useNavigate } from "@tanstack/react-router";
 import {
   Sidebar,
   SidebarContent,
@@ -22,9 +23,13 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
 import { useAdminName } from "@/hooks/use-admin-name";
 import { useAdminAvatar } from "@/hooks/use-admin-avatar";
 import { useBusinessName, useBusinessLogo } from "@/hooks/use-business-info";
+import { useAuth } from "@/hooks/use-auth";
+import { useProfile } from "@/hooks/use-profile";
+import { toast } from "sonner";
 
 const navItems = [
   { title: "Início", url: "/", icon: LayoutDashboard },

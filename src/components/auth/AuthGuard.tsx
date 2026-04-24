@@ -20,7 +20,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     if (!user && !publica) {
       navigate({
         to: "/login",
-        search: { redirect: pathname },
+        search: { redirect: pathname } as never,
       });
     } else if (user && pathname === "/login") {
       navigate({ to: "/" });
