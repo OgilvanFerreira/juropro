@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { Mail, Lock, Eye, EyeOff, LogIn, Loader2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -48,10 +48,12 @@ function LoginPage() {
   const [errSenha, setErrSenha] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // Se já logado, redireciona
-  if (!authLoading && user) {
-    navigate({ to: (redirect as never) ?? "/" });
-  }
+  // Se já logado, redireciona (em useEffect para evitar setState no render)
+  useEffect(() => {
+    if (!authLoading && user) {
+      navigate({ to: (redirect as never) ?? "/", replace: true });
+    }
+  }, [authLoading, user, redirect, navigate]);
 
   const validar = () => {
     let ok = true;
