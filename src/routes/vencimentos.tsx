@@ -155,6 +155,8 @@ type SortDir = "asc" | "desc";
 type ParcelaProcessada = ParcelaListItem & { statusCalc: StatusCalc };
 
 function VencimentosPage() {
+  const { user, loading: authLoading } = useAuth();
+  const authReady = !authLoading && !!user;
   const queryClient = useQueryClient();
   const listFn = useServerFn(listParcelas);
   const searchParams = Route.useSearch();
@@ -164,6 +166,7 @@ function VencimentosPage() {
     queryFn: () => listFn(),
     staleTime: 60_000,
     placeholderData: (prev) => prev,
+    enabled: authReady,
   });
 
   const { name: adminName } = useAdminName();
