@@ -47,8 +47,11 @@ import {
   maskCpfCnpj,
   maskTelefone,
   maskCep,
+  maskTaxa,
 } from "@/lib/masks";
 import { lookupCep, BRAZIL_UFS } from "@/lib/cep";
+import { useBusinessName, useBusinessLogo } from "@/hooks/use-business-info";
+import { useDarkMode } from "@/hooks/use-dark-mode";
 
 export const Route = createFileRoute("/configuracoes")({
   head: () => ({
