@@ -1115,10 +1115,7 @@ function TabPreferencias() {
                 </p>
                 <p className="text-xs text-muted-foreground">{t.sub}</p>
               </div>
-              <Switch
-                checked={prefs[t.key]}
-                onCheckedChange={setP(t.key)}
-              />
+              <Switch checked={t.checked} onCheckedChange={t.onChange} />
             </div>
           ))}
         </div>
