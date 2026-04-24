@@ -43,13 +43,17 @@ export const Route = createRootRouteWithContext<RouterContext>()({
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "JuroPro — Gestão de Empréstimos" },
-      { name: "description", content: "JuroPro: plataforma profissional para gestão de empréstimos." },
+      { title: "JuroPro - Gestão Inteligente de Empréstimos" },
+      { name: "description", content: "A plataforma completa e segura para gerenciar seus empréstimos, automatizar cobranças e escalar seu negócio financeiro." },
       { name: "author", content: "JuroPro" },
-      { property: "og:title", content: "JuroPro" },
-      { property: "og:description", content: "Gestão profissional de empréstimos." },
+      { property: "og:title", content: "JuroPro - Gestão Inteligente de Empréstimos" },
+      { property: "og:description", content: "A plataforma completa e segura para gerenciar seus empréstimos, automatizar cobranças e escalar seu negócio financeiro." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
+      { name: "twitter:title", content: "JuroPro - Gestão Inteligente de Empréstimos" },
+      { name: "twitter:description", content: "A plataforma completa e segura para gerenciar seus empréstimos, automatizar cobranças e escalar seu negócio financeiro." },
+      { property: "og:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/attachments/og-images/3125b263-c20b-4f98-b606-b3d0c2449863" },
+      { name: "twitter:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/attachments/og-images/3125b263-c20b-4f98-b606-b3d0c2449863" },
     ],
     links: [
       {
