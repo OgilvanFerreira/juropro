@@ -59,6 +59,7 @@ import {
   type ParcelaListItem,
 } from "@/integrations/external-supabase/parcelas.functions";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/hooks/use-auth";
 
 type VencimentosSearch = {
   status?: StatusCalc | "todos";
