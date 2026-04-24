@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/hooks/use-auth";
-import { useBusinessName, useBusinessLogo } from "@/hooks/use-business-info";
+import { useBusinessName } from "@/hooks/use-business-info";
 import { toast } from "sonner";
 import juroproLogo from "@/assets/juropro-logo.png";
 
@@ -28,7 +28,6 @@ function LoginPage() {
   const navigate = useNavigate();
   const { redirect } = Route.useSearch();
   const { name: businessName } = useBusinessName();
-  const { logo: businessLogo } = useBusinessLogo();
 
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
@@ -101,7 +100,7 @@ function LoginPage() {
           <div className="mb-7 text-center">
             <div className="mx-auto mb-3 flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl">
               <img
-                src={businessLogo || juroproLogo}
+                src={juroproLogo}
                 alt={businessName}
                 width={64}
                 height={64}
