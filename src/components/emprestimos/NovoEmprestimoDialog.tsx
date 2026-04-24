@@ -59,7 +59,7 @@ function calcular(form: {
   dataInicio: string;
 }): Resultado | null {
   const valor = parseFloat(form.valorPrincipal);
-  const taxa = parseFloat(form.taxaJuros) / 100;
+  const taxa = parseTaxa(form.taxaJuros) / 100;
   const n = parseInt(form.numParcelas);
   const per = PERIODICIDADES.find((p) => p.value === form.periodicidade);
   if (!valor || taxa < 0 || !n || !form.dataInicio || !per) return null;
