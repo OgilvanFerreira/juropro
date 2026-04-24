@@ -5,6 +5,11 @@ import { Printer, X } from "lucide-react";
 import type { EmprestimoListItem } from "@/integrations/external-supabase/emprestimos.functions";
 import type { ParcelaListItem } from "@/integrations/external-supabase/parcelas.functions";
 import { useAdminName } from "@/hooks/use-admin-name";
+import {
+  useBusinessName,
+  useBusinessLogo,
+  useBusinessDetails,
+} from "@/hooks/use-business-info";
 
 interface ContratoPdfDialogProps {
   open: boolean;
