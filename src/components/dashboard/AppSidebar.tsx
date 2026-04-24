@@ -21,8 +21,9 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAdminName } from "@/hooks/use-admin-name";
+import { useAdminAvatar } from "@/hooks/use-admin-avatar";
 
 const navItems = [
   { title: "Início", url: "/", icon: LayoutDashboard },
