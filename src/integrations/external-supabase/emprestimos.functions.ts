@@ -66,7 +66,7 @@ export type EmprestimoListItem = {
 export const listEmprestimos = createServerFn({ method: "GET" })
   .middleware([requireAuthForExternal])
   .handler(
-  async (): Promise<{ data: EmprestimoListItem[]; error: string | null }> => {
+  async ({ context }): Promise<{ data: EmprestimoListItem[]; error: string | null }> => {
     const supabase = getServerClient();
 
     const { data: emps, error: empErr } = await supabase
@@ -74,6 +74,7 @@ export const listEmprestimos = createServerFn({ method: "GET" })
       .select(
         "id, cliente_id, valor_principal, taxa_juros, numero_parcelas, tipo_juros, data_inicio, status, observacoes, created_at",
       )
+      .eq("user_id", context.userId)
       .order("created_at", { ascending: false })
       .limit(500);
 
@@ -92,11 +93,16 @@ export const listEmprestimos = createServerFn({ method: "GET" })
 
     const [{ data: clientesRows }, { data: parcRows }] = await Promise.all([
       clienteIds.length
-        ? supabase.from("clientes").select("id, nome").in("id", clienteIds as (string | number)[])
+        ? supabase
+            .from("clientes")
+            .select("id, nome")
+            .eq("user_id", context.userId)
+            .in("id", clienteIds as (string | number)[])
         : Promise.resolve({ data: [] as { id: string | number; nome: string | null }[] }),
       supabase
         .from("parcelas")
         .select("emprestimo_id, valor_parcela, status")
+        .eq("user_id", context.userId)
         .in("emprestimo_id", empIds as (string | number)[]),
     ]);
 
@@ -159,8 +165,20 @@ export const createEmprestimo = createServerFn({ method: "POST" })
   .handler(
     async ({
       data,
+      context,
     }): Promise<{ ok: boolean; error: string | null; id?: string | number }> => {
       const supabase = getServerClient({ admin: true });
+
+      // Garante que o cliente referenciado pertence ao usuário (defesa contra IDOR)
+      const { data: cliOwner, error: cliOwnerErr } = await supabase
+        .from("clientes")
+        .select("id")
+        .eq("id", data.cliente_id)
+        .eq("user_id", context.userId)
+        .maybeSingle();
+      if (cliOwnerErr || !cliOwner) {
+        return { ok: false, error: "Cliente inválido ou não pertence ao usuário." };
+      }
 
       // Prefixa periodicidade nas observações já que a coluna não existe
       const periodicidadeLabel =
@@ -170,6 +188,7 @@ export const createEmprestimo = createServerFn({ method: "POST" })
       }`;
 
       const empPayload = {
+        user_id: context.userId,
         cliente_id: data.cliente_id,
         valor_principal: data.valor_principal,
         taxa_juros: data.taxa_juros,
@@ -197,6 +216,7 @@ export const createEmprestimo = createServerFn({ method: "POST" })
       }
 
       const parcelasPayload = data.parcelas.map((p) => ({
+        user_id: context.userId,
         emprestimo_id: created.id,
         numero_parcela: p.numero,
         data_vencimento: p.data_vencimento,
@@ -248,6 +268,7 @@ export const getEmprestimo = createServerFn({ method: "GET" })
   .handler(
     async ({
       data,
+      context,
     }): Promise<{ data: EmprestimoFull | null; error: string | null }> => {
       const supabase = getServerClient();
       const { data: row, error } = await supabase
@@ -256,6 +277,7 @@ export const getEmprestimo = createServerFn({ method: "GET" })
           "id, cliente_id, valor_principal, taxa_juros, numero_parcelas, tipo_juros, data_inicio, status, observacoes",
         )
         .eq("id", data.id)
+        .eq("user_id", context.userId)
         .maybeSingle();
       if (error) {
         console.error("getEmprestimo error:", error);
@@ -300,8 +322,19 @@ export const updateEmprestimo = createServerFn({ method: "POST" })
   .inputValidator((input: UpdateEmprestimoInput) =>
     updateEmprestimoSchema.parse(input),
   )
-  .handler(async ({ data }): Promise<{ ok: boolean; error: string | null }> => {
+  .handler(async ({ data, context }): Promise<{ ok: boolean; error: string | null }> => {
     const supabase = getServerClient({ admin: true });
+
+    // Garante que o cliente referenciado pertence ao usuário
+    const { data: cliOwner, error: cliOwnerErr } = await supabase
+      .from("clientes")
+      .select("id")
+      .eq("id", data.cliente_id)
+      .eq("user_id", context.userId)
+      .maybeSingle();
+    if (cliOwnerErr || !cliOwner) {
+      return { ok: false, error: "Cliente inválido ou não pertence ao usuário." };
+    }
 
     const periodicidadeLabel =
       data.periodicidade.charAt(0).toUpperCase() + data.periodicidade.slice(1);
@@ -321,18 +354,20 @@ export const updateEmprestimo = createServerFn({ method: "POST" })
         observacoes: observacoesFinal,
         ...(data.status ? { status: data.status } : {}),
       })
-      .eq("id", data.id);
+      .eq("id", data.id)
+      .eq("user_id", context.userId);
 
     if (updErr) {
       console.error("updateEmprestimo error:", updErr);
       return { ok: false, error: updErr.message };
     }
 
-    // Apaga parcelas antigas pendentes e regenera todas as parcelas
+    // Apaga parcelas antigas pendentes e regenera todas as parcelas (do mesmo usuário)
     const { error: delErr } = await supabase
       .from("parcelas")
       .delete()
-      .eq("emprestimo_id", data.id);
+      .eq("emprestimo_id", data.id)
+      .eq("user_id", context.userId);
     if (delErr) {
       console.error("updateEmprestimo delete parcelas error:", delErr);
       return {
@@ -342,6 +377,7 @@ export const updateEmprestimo = createServerFn({ method: "POST" })
     }
 
     const parcelasPayload = data.parcelas.map((p) => ({
+      user_id: context.userId,
       emprestimo_id: data.id,
       numero_parcela: p.numero,
       data_vencimento: p.data_vencimento,
@@ -367,14 +403,15 @@ export const updateEmprestimo = createServerFn({ method: "POST" })
 export const deleteEmprestimo = createServerFn({ method: "POST" })
   .middleware([requireAuthForExternal])
   .inputValidator((input: { id: string | number }) => idSchema.parse(input))
-  .handler(async ({ data }): Promise<{ ok: boolean; error: string | null }> => {
+  .handler(async ({ data, context }): Promise<{ ok: boolean; error: string | null }> => {
     const supabase = getServerClient({ admin: true });
 
-    // Apaga as parcelas primeiro (FK)
+    // Apaga as parcelas primeiro (FK), restritas ao usuário
     const { error: parErr } = await supabase
       .from("parcelas")
       .delete()
-      .eq("emprestimo_id", data.id);
+      .eq("emprestimo_id", data.id)
+      .eq("user_id", context.userId);
     if (parErr) {
       console.error("deleteEmprestimo parcelas error:", parErr);
       return { ok: false, error: parErr.message };
@@ -383,7 +420,8 @@ export const deleteEmprestimo = createServerFn({ method: "POST" })
     const { error: empErr } = await supabase
       .from("emprestimos")
       .delete()
-      .eq("id", data.id);
+      .eq("id", data.id)
+      .eq("user_id", context.userId);
     if (empErr) {
       console.error("deleteEmprestimo error:", empErr);
       return { ok: false, error: empErr.message };

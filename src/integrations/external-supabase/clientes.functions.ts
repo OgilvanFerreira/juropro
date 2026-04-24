@@ -34,13 +34,14 @@ export type Cliente = {
 export const listClientes = createServerFn({ method: "GET" })
   .middleware([requireAuthForExternal])
   .handler(
-  async (): Promise<{ data: Cliente[]; error: string | null }> => {
+  async ({ context }): Promise<{ data: Cliente[]; error: string | null }> => {
     const supabase = getServerClient();
     const { data, error } = await supabase
       .from("clientes")
       .select(
         "id, nome, email, telefone, cpf_cnpj, cidade, uf, created_at",
       )
+      .eq("user_id", context.userId)
       .order("created_at", { ascending: false })
       .limit(500);
 
@@ -98,12 +99,14 @@ export const getCliente = createServerFn({ method: "GET" })
   .handler(
     async ({
       data,
+      context,
     }): Promise<{ data: ClienteFull | null; error: string | null }> => {
       const supabase = getServerClient();
       const { data: row, error } = await supabase
         .from("clientes")
         .select("*")
         .eq("id", data.id)
+        .eq("user_id", context.userId)
         .maybeSingle();
       if (error) {
         console.error("getCliente error:", error);
@@ -125,6 +128,7 @@ export const updateCliente = createServerFn({ method: "POST" })
   .handler(
     async ({
       data,
+      context,
     }): Promise<{ ok: boolean; error: string | null; code?: string }> => {
       const supabase = getServerClient({ admin: true });
       const { id, ...rest } = data;
@@ -139,13 +143,14 @@ export const updateCliente = createServerFn({ method: "POST" })
         payload[k] = v;
       }
 
-      // Verifica duplicidade de CPF/CNPJ contra outros registros
+      // Verifica duplicidade de CPF/CNPJ contra outros registros DO MESMO USUÁRIO
       const cpfCnpjRaw = typeof payload.cpf_cnpj === "string" ? payload.cpf_cnpj : "";
       const cpfCnpjDigits = cpfCnpjRaw.replace(/\D/g, "");
       if (cpfCnpjDigits.length > 0) {
         const { data: existing, error: checkError } = await supabase
           .from("clientes")
           .select("id, cpf_cnpj")
+          .eq("user_id", context.userId)
           .not("cpf_cnpj", "is", null)
           .limit(1000);
         if (checkError) {
@@ -170,6 +175,7 @@ export const updateCliente = createServerFn({ method: "POST" })
         .from("clientes")
         .update(payload)
         .eq("id", id)
+        .eq("user_id", context.userId)
         .select("id");
 
       if (error) {
@@ -193,6 +199,7 @@ export const createCliente = createServerFn({ method: "POST" })
   .handler(
     async ({
       data,
+      context,
     }): Promise<{ ok: boolean; error: string | null; code?: string }> => {
       const supabase = getServerClient({ admin: true });
 
@@ -203,14 +210,17 @@ export const createCliente = createServerFn({ method: "POST" })
         if (typeof v === "string" && v.trim() === "") continue;
         payload[k] = v;
       }
+      // Vincula o registro ao usuário logado (multi-tenancy)
+      payload.user_id = context.userId;
 
-      // Verificação de duplicidade de CPF/CNPJ (apenas dígitos para evitar diferenças de máscara)
+      // Verificação de duplicidade de CPF/CNPJ DENTRO DO USUÁRIO (apenas dígitos)
       const cpfCnpjRaw = typeof payload.cpf_cnpj === "string" ? payload.cpf_cnpj : "";
       const cpfCnpjDigits = cpfCnpjRaw.replace(/\D/g, "");
       if (cpfCnpjDigits.length > 0) {
         const { data: existing, error: checkError } = await supabase
           .from("clientes")
           .select("id, cpf_cnpj")
+          .eq("user_id", context.userId)
           .not("cpf_cnpj", "is", null)
           .limit(1000);
 
@@ -253,7 +263,7 @@ export const deleteCliente = createServerFn({ method: "POST" })
   .middleware([requireAuthForExternal])
   .inputValidator((input: DeleteClienteInput) => deleteClienteSchema.parse(input))
   .handler(
-    async ({ data }): Promise<{ ok: boolean; error: string | null }> => {
+    async ({ data, context }): Promise<{ ok: boolean; error: string | null }> => {
       const supabase = getServerClient({ admin: true });
       // .select() força o retorno das linhas afetadas para sabermos se
       // o DELETE realmente removeu algo (RLS pode silenciosamente bloquear).
@@ -261,6 +271,7 @@ export const deleteCliente = createServerFn({ method: "POST" })
         .from("clientes")
         .delete()
         .eq("id", data.id)
+        .eq("user_id", context.userId)
         .select("id");
 
       if (error) {
