@@ -149,3 +149,76 @@ DROP TRIGGER IF EXISTS trg_configuracoes_set_user_id ON public.configuracoes;
 CREATE TRIGGER trg_configuracoes_set_user_id
   BEFORE INSERT ON public.configuracoes
   FOR EACH ROW EXECUTE FUNCTION public.set_user_id_on_insert();
+
+-- =====================================================
+-- (Opcional) RPCs do dashboard de gráficos com filtro por usuário
+-- =====================================================
+-- Se você usa as RPCs get_clientes_por_mes, get_contratos_por_mes,
+-- get_volume_por_mes e get_recebimentos_por_mes, recrie-as aceitando
+-- o parâmetro p_user_id para isolar dados.
+-- Exemplo de uma delas (adapte o restante seguindo o mesmo padrão):
+
+CREATE OR REPLACE FUNCTION public.get_clientes_por_mes(p_user_id UUID)
+RETURNS TABLE (mes TEXT, total BIGINT)
+LANGUAGE sql
+STABLE
+SECURITY INVOKER
+SET search_path = public
+AS $$
+  SELECT to_char(date_trunc('month', created_at), 'YYYY-MM') AS mes,
+         count(*)::bigint AS total
+  FROM public.clientes
+  WHERE user_id = p_user_id
+    AND created_at >= (now() - interval '12 months')
+  GROUP BY 1
+  ORDER BY 1;
+$$;
+
+CREATE OR REPLACE FUNCTION public.get_contratos_por_mes(p_user_id UUID)
+RETURNS TABLE (mes TEXT, total BIGINT)
+LANGUAGE sql
+STABLE
+SECURITY INVOKER
+SET search_path = public
+AS $$
+  SELECT to_char(date_trunc('month', created_at), 'YYYY-MM') AS mes,
+         count(*)::bigint AS total
+  FROM public.emprestimos
+  WHERE user_id = p_user_id
+    AND created_at >= (now() - interval '12 months')
+  GROUP BY 1
+  ORDER BY 1;
+$$;
+
+CREATE OR REPLACE FUNCTION public.get_volume_por_mes(p_user_id UUID)
+RETURNS TABLE (mes TEXT, total NUMERIC)
+LANGUAGE sql
+STABLE
+SECURITY INVOKER
+SET search_path = public
+AS $$
+  SELECT to_char(date_trunc('month', created_at), 'YYYY-MM') AS mes,
+         coalesce(sum(valor_principal), 0)::numeric AS total
+  FROM public.emprestimos
+  WHERE user_id = p_user_id
+    AND created_at >= (now() - interval '12 months')
+  GROUP BY 1
+  ORDER BY 1;
+$$;
+
+CREATE OR REPLACE FUNCTION public.get_recebimentos_por_mes(p_user_id UUID)
+RETURNS TABLE (mes TEXT, total NUMERIC)
+LANGUAGE sql
+STABLE
+SECURITY INVOKER
+SET search_path = public
+AS $$
+  SELECT to_char(date_trunc('month', data_pagamento), 'YYYY-MM') AS mes,
+         coalesce(sum(valor_pago), 0)::numeric AS total
+  FROM public.parcelas
+  WHERE user_id = p_user_id
+    AND data_pagamento IS NOT NULL
+    AND data_pagamento >= (now() - interval '12 months')::date
+  GROUP BY 1
+  ORDER BY 1;
+$$;
