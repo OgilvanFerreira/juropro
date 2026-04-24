@@ -1,11 +1,17 @@
 import { useEffect, useState } from "react";
+import { useAuth } from "@/hooks/use-auth";
 
-const STORAGE_KEY = "juropro:admin_avatar";
+const BASE_KEY = "juropro:admin_avatar";
+const EVENT = "juropro:admin_avatar_changed";
 
-function readAvatar(): string | null {
+function keyFor(userId: string | null | undefined): string {
+  return userId ? `${BASE_KEY}:${userId}` : BASE_KEY;
+}
+
+function readAvatar(userId: string | null | undefined): string | null {
   if (typeof window === "undefined") return null;
   try {
-    const v = window.localStorage.getItem(STORAGE_KEY);
+    const v = window.localStorage.getItem(keyFor(userId));
     return v && v.length > 0 ? v : null;
   } catch {
     return null;
@@ -13,34 +19,37 @@ function readAvatar(): string | null {
 }
 
 /**
- * Hook simples para foto do administrador, persistida em localStorage (data URL).
- * Sincroniza entre abas via storage event e dentro da mesma aba via custom event.
+ * Hook simples para foto do administrador, persistida em localStorage (data URL)
+ * COM ESCOPO POR USUÁRIO (cada user.id tem sua própria chave).
  */
 export function useAdminAvatar() {
+  const { user } = useAuth();
+  const userId = user?.id ?? null;
   const [avatar, setAvatarState] = useState<string | null>(null);
 
   useEffect(() => {
-    setAvatarState(readAvatar());
+    setAvatarState(readAvatar(userId));
     const onStorage = (e: StorageEvent) => {
-      if (e.key === STORAGE_KEY) setAvatarState(readAvatar());
+      if (e.key === keyFor(userId)) setAvatarState(readAvatar(userId));
     };
-    const onCustom = () => setAvatarState(readAvatar());
+    const onCustom = () => setAvatarState(readAvatar(userId));
     window.addEventListener("storage", onStorage);
-    window.addEventListener("juropro:admin_avatar_changed", onCustom);
+    window.addEventListener(EVENT, onCustom);
     return () => {
       window.removeEventListener("storage", onStorage);
-      window.removeEventListener("juropro:admin_avatar_changed", onCustom);
+      window.removeEventListener(EVENT, onCustom);
     };
-  }, []);
+  }, [userId]);
 
   const setAvatar = (next: string | null) => {
     try {
-      if (!next) window.localStorage.removeItem(STORAGE_KEY);
-      else window.localStorage.setItem(STORAGE_KEY, next);
+      const k = keyFor(userId);
+      if (!next) window.localStorage.removeItem(k);
+      else window.localStorage.setItem(k, next);
     } catch {
       /* ignore (quota exceeded em imagens grandes) */
     }
-    window.dispatchEvent(new Event("juropro:admin_avatar_changed"));
+    window.dispatchEvent(new Event(EVENT));
     setAvatarState(next);
   };
 
