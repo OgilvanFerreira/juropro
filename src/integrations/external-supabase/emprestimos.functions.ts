@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
+import { requireAuthForExternal } from "./auth-guard";
 
 function getServerClient(opts?: { admin?: boolean }) {
   const url = process.env.EXTERNAL_SUPABASE_URL;
@@ -62,7 +63,9 @@ export type EmprestimoListItem = {
   total_a_receber: number;
 };
 
-export const listEmprestimos = createServerFn({ method: "GET" }).handler(
+export const listEmprestimos = createServerFn({ method: "GET" })
+  .middleware([requireAuthForExternal])
+  .handler(
   async (): Promise<{ data: EmprestimoListItem[]; error: string | null }> => {
     const supabase = getServerClient();
 
@@ -149,6 +152,7 @@ export const listEmprestimos = createServerFn({ method: "GET" }).handler(
 );
 
 export const createEmprestimo = createServerFn({ method: "POST" })
+  .middleware([requireAuthForExternal])
   .inputValidator((input: CreateEmprestimoInput) =>
     createEmprestimoSchema.parse(input),
   )
@@ -239,6 +243,7 @@ export type EmprestimoFull = {
 };
 
 export const getEmprestimo = createServerFn({ method: "GET" })
+  .middleware([requireAuthForExternal])
   .inputValidator((input: { id: string | number }) => idSchema.parse(input))
   .handler(
     async ({
@@ -291,6 +296,7 @@ const updateEmprestimoSchema = z.object({
 export type UpdateEmprestimoInput = z.infer<typeof updateEmprestimoSchema>;
 
 export const updateEmprestimo = createServerFn({ method: "POST" })
+  .middleware([requireAuthForExternal])
   .inputValidator((input: UpdateEmprestimoInput) =>
     updateEmprestimoSchema.parse(input),
   )
@@ -359,6 +365,7 @@ export const updateEmprestimo = createServerFn({ method: "POST" })
   });
 
 export const deleteEmprestimo = createServerFn({ method: "POST" })
+  .middleware([requireAuthForExternal])
   .inputValidator((input: { id: string | number }) => idSchema.parse(input))
   .handler(async ({ data }): Promise<{ ok: boolean; error: string | null }> => {
     const supabase = getServerClient({ admin: true });

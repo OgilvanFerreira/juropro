@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
+import { requireAuthForExternal } from "./auth-guard";
 
 function getServerClient(opts?: { admin?: boolean }) {
   const url = process.env.EXTERNAL_SUPABASE_URL;
@@ -35,7 +36,9 @@ export type ParcelaListItem = {
   emprestimo_seq: number;
 };
 
-export const listParcelas = createServerFn({ method: "GET" }).handler(
+export const listParcelas = createServerFn({ method: "GET" })
+  .middleware([requireAuthForExternal])
+  .handler(
   async (): Promise<{ data: ParcelaListItem[]; error: string | null }> => {
     const supabase = getServerClient();
 
@@ -160,6 +163,7 @@ const baixaSchema = z.object({
 export type BaixaParcelaInput = z.infer<typeof baixaSchema>;
 
 export const baixaParcela = createServerFn({ method: "POST" })
+  .middleware([requireAuthForExternal])
   .inputValidator((input: BaixaParcelaInput) => baixaSchema.parse(input))
   .handler(async ({ data }): Promise<{ ok: boolean; error: string | null }> => {
     const supabase = getServerClient({ admin: true });
@@ -195,6 +199,7 @@ const estornoSchema = z.object({
 export type EstornoParcelaInput = z.infer<typeof estornoSchema>;
 
 export const estornoParcela = createServerFn({ method: "POST" })
+  .middleware([requireAuthForExternal])
   .inputValidator((input: EstornoParcelaInput) => estornoSchema.parse(input))
   .handler(async ({ data }): Promise<{ ok: boolean; error: string | null }> => {
     const supabase = getServerClient({ admin: true });

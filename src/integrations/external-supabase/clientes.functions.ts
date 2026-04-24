@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
+import { requireAuthForExternal } from "./auth-guard";
 
 function getServerClient(opts?: { admin?: boolean }) {
   const url = process.env.EXTERNAL_SUPABASE_URL;
@@ -30,7 +31,9 @@ export type Cliente = {
   created_at: string | null;
 };
 
-export const listClientes = createServerFn({ method: "GET" }).handler(
+export const listClientes = createServerFn({ method: "GET" })
+  .middleware([requireAuthForExternal])
+  .handler(
   async (): Promise<{ data: Cliente[]; error: string | null }> => {
     const supabase = getServerClient();
     const { data, error } = await supabase
@@ -90,6 +93,7 @@ const getClienteSchema = z.object({
 });
 
 export const getCliente = createServerFn({ method: "GET" })
+  .middleware([requireAuthForExternal])
   .inputValidator((input: { id: string | number }) => getClienteSchema.parse(input))
   .handler(
     async ({
@@ -116,6 +120,7 @@ const clienteUpdateSchema = clienteInsertSchema.extend({
 export type ClienteUpdate = z.infer<typeof clienteUpdateSchema>;
 
 export const updateCliente = createServerFn({ method: "POST" })
+  .middleware([requireAuthForExternal])
   .inputValidator((input: ClienteUpdate) => clienteUpdateSchema.parse(input))
   .handler(
     async ({
@@ -183,6 +188,7 @@ export const updateCliente = createServerFn({ method: "POST" })
   );
 
 export const createCliente = createServerFn({ method: "POST" })
+  .middleware([requireAuthForExternal])
   .inputValidator((input: ClienteInsert) => clienteInsertSchema.parse(input))
   .handler(
     async ({
@@ -244,6 +250,7 @@ const deleteClienteSchema = z.object({
 export type DeleteClienteInput = z.infer<typeof deleteClienteSchema>;
 
 export const deleteCliente = createServerFn({ method: "POST" })
+  .middleware([requireAuthForExternal])
   .inputValidator((input: DeleteClienteInput) => deleteClienteSchema.parse(input))
   .handler(
     async ({ data }): Promise<{ ok: boolean; error: string | null }> => {

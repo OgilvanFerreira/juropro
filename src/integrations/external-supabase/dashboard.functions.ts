@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { createClient } from "@supabase/supabase-js";
+import { requireAuthForExternal } from "./auth-guard";
 
 function getServerClient() {
   const url = process.env.EXTERNAL_SUPABASE_URL;
@@ -21,7 +22,9 @@ export type DashboardKpis = {
   vencimentosHoje: number;
 };
 
-export const getDashboardKpis = createServerFn({ method: "GET" }).handler(
+export const getDashboardKpis = createServerFn({ method: "GET" })
+  .middleware([requireAuthForExternal])
+  .handler(
   async (): Promise<DashboardKpis> => {
     const supabase = getServerClient();
     const today = new Date().toISOString().slice(0, 10);
@@ -141,7 +144,9 @@ function mapToBuckets(rows: RpcRow[] | null): ChartPoint[] {
   }));
 }
 
-export const getDashboardCharts = createServerFn({ method: "GET" }).handler(
+export const getDashboardCharts = createServerFn({ method: "GET" })
+  .middleware([requireAuthForExternal])
+  .handler(
   async (): Promise<DashboardCharts> => {
     const supabase = getServerClient();
 

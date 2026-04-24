@@ -13,9 +13,20 @@ interface LoginSearch {
   redirect?: string;
 }
 
+/**
+ * Aceita apenas paths internos (começando com "/" mas não "//" nem "/\\"),
+ * impedindo open-redirect para domínios externos via ?redirect=.
+ */
+function sanitizeRedirect(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined;
+  if (!value.startsWith("/")) return undefined;
+  if (value.startsWith("//") || value.startsWith("/\\")) return undefined;
+  return value;
+}
+
 export const Route = createFileRoute("/login")({
   validateSearch: (s: Record<string, unknown>): LoginSearch => ({
-    redirect: typeof s.redirect === "string" ? s.redirect : undefined,
+    redirect: sanitizeRedirect(s.redirect),
   }),
   head: () => ({ meta: [{ title: "Entrar — JuroPro" }] }),
   component: LoginPage,
