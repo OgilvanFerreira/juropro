@@ -446,7 +446,7 @@ export function NovoEmprestimoDialog({
             id: emprestimo.id,
             cliente_id: form.clienteId,
             valor_principal: parseFloat(form.valorPrincipal),
-            taxa_juros: parseFloat(form.taxaJuros),
+            taxa_juros: parseTaxa(form.taxaJuros),
             numero_parcelas: parseInt(form.numParcelas),
             tipo_juros: form.tipoJuros,
             periodicidade: form.periodicidade,
@@ -462,7 +462,7 @@ export function NovoEmprestimoDialog({
         data: {
           cliente_id: form.clienteId,
           valor_principal: parseFloat(form.valorPrincipal),
-          taxa_juros: parseFloat(form.taxaJuros),
+          taxa_juros: parseTaxa(form.taxaJuros),
           numero_parcelas: parseInt(form.numParcelas),
           tipo_juros: form.tipoJuros,
           periodicidade: form.periodicidade,
