@@ -155,14 +155,21 @@ function mapToBuckets(rows: RpcRow[] | null): ChartPoint[] {
 export const getDashboardCharts = createServerFn({ method: "GET" })
   .middleware([requireAuthForExternal])
   .handler(
-  async (): Promise<DashboardCharts> => {
+  async ({ context }): Promise<DashboardCharts> => {
     const supabase = getServerClient();
+    const userId = context.userId;
+
+    // IMPORTANTE: as RPCs do banco externo precisam aceitar `p_user_id` para
+    // isolar dados por usuário. Enviamos esse parâmetro; se a RPC ainda não o
+    // suportar, ela ignora e retornamos os dados globais (legado).
+    // Veja SUPABASE_EXTERNO_MULTITENANCY.sql para o ALTER FUNCTION sugerido.
+    const params = { p_user_id: userId };
 
     const [clientesRes, contratosRes, volumeRes, recebimentosRes] = await Promise.all([
-      supabase.rpc("get_clientes_por_mes"),
-      supabase.rpc("get_contratos_por_mes"),
-      supabase.rpc("get_volume_por_mes"),
-      supabase.rpc("get_recebimentos_por_mes"),
+      supabase.rpc("get_clientes_por_mes", params),
+      supabase.rpc("get_contratos_por_mes", params),
+      supabase.rpc("get_volume_por_mes", params),
+      supabase.rpc("get_recebimentos_por_mes", params),
     ]);
 
     if (clientesRes.error) console.error("RPC get_clientes_por_mes:", clientesRes.error);
