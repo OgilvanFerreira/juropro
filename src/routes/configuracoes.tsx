@@ -567,6 +567,7 @@ function TabNegocio() {
   const salvar = async () => {
     setSaving(true);
     await new Promise((r) => setTimeout(r, 700));
+    setBusinessName(form.nome.trim());
     setSaving(false);
     toast.success("Dados do negócio salvos com sucesso!");
   };
