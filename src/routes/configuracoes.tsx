@@ -837,10 +837,12 @@ function TabNegocio() {
             <Label htmlFor="neg-taxa">Taxa de Juros Padrão (%)</Label>
             <Input
               id="neg-taxa"
-              type="number"
-              step="0.01"
+              inputMode="decimal"
               value={form.taxaPadrao}
-              onChange={set("taxaPadrao")}
+              onChange={(e) =>
+                setForm((p) => ({ ...p, taxaPadrao: maskTaxa(e.target.value) }))
+              }
+              placeholder="0,00"
             />
           </div>
           <div className="space-y-2">
