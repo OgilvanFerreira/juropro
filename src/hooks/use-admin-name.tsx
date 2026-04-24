@@ -1,12 +1,18 @@
 import { useEffect, useState } from "react";
+import { useAuth } from "@/hooks/use-auth";
 
-const STORAGE_KEY = "juropro:admin_name";
+const BASE_KEY = "juropro:admin_name";
 const DEFAULT_NAME = "Equipe JuroPro";
+const EVENT = "juropro:admin_name_changed";
 
-function readName(): string {
+function keyFor(userId: string | null | undefined): string {
+  return userId ? `${BASE_KEY}:${userId}` : BASE_KEY;
+}
+
+function readName(userId: string | null | undefined): string {
   if (typeof window === "undefined") return DEFAULT_NAME;
   try {
-    const v = window.localStorage.getItem(STORAGE_KEY);
+    const v = window.localStorage.getItem(keyFor(userId));
     return v && v.trim().length > 0 ? v : DEFAULT_NAME;
   } catch {
     return DEFAULT_NAME;
@@ -14,35 +20,38 @@ function readName(): string {
 }
 
 /**
- * Hook simples para nome do administrador logado, persistido em localStorage.
- * Sincroniza entre abas via storage event e dentro da mesma aba via custom event.
+ * Hook simples para nome do administrador logado, persistido em localStorage
+ * COM ESCOPO POR USUÁRIO (cada user.id tem sua própria chave).
  */
 export function useAdminName() {
+  const { user } = useAuth();
+  const userId = user?.id ?? null;
   const [name, setNameState] = useState<string>(DEFAULT_NAME);
 
   useEffect(() => {
-    setNameState(readName());
+    setNameState(readName(userId));
     const onStorage = (e: StorageEvent) => {
-      if (e.key === STORAGE_KEY) setNameState(readName());
+      if (e.key === keyFor(userId)) setNameState(readName(userId));
     };
-    const onCustom = () => setNameState(readName());
+    const onCustom = () => setNameState(readName(userId));
     window.addEventListener("storage", onStorage);
-    window.addEventListener("juropro:admin_name_changed", onCustom);
+    window.addEventListener(EVENT, onCustom);
     return () => {
       window.removeEventListener("storage", onStorage);
-      window.removeEventListener("juropro:admin_name_changed", onCustom);
+      window.removeEventListener(EVENT, onCustom);
     };
-  }, []);
+  }, [userId]);
 
   const setName = (next: string) => {
     const clean = next.trim();
     try {
-      if (clean.length === 0) window.localStorage.removeItem(STORAGE_KEY);
-      else window.localStorage.setItem(STORAGE_KEY, clean);
+      const k = keyFor(userId);
+      if (clean.length === 0) window.localStorage.removeItem(k);
+      else window.localStorage.setItem(k, clean);
     } catch {
       /* ignore */
     }
-    window.dispatchEvent(new Event("juropro:admin_name_changed"));
+    window.dispatchEvent(new Event(EVENT));
     setNameState(clean.length > 0 ? clean : DEFAULT_NAME);
   };
 
