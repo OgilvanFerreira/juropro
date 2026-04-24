@@ -111,12 +111,12 @@ export function AppSidebar() {
         <div className="flex items-center gap-3 px-2 py-2">
           <Avatar className="h-9 w-9 border border-sidebar-border">
             <AvatarFallback className="bg-sidebar-primary text-sidebar-primary-foreground text-xs font-semibold">
-              GF
+              {iniciais}
             </AvatarFallback>
           </Avatar>
           <div className="min-w-0 flex-1 group-data-[collapsible=icon]:hidden">
             <p className="truncate text-sm font-medium text-sidebar-foreground">
-              Gilvan Ferreira Santos
+              {displayName}
             </p>
             <p className="truncate text-xs text-sidebar-foreground/60">Administrador</p>
           </div>
