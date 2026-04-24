@@ -884,23 +884,28 @@ function ContratosTab() {
     codigo: string;
   } | null>(null);
 
+  const { user, loading: authLoading } = useAuth();
+  const authReady = !authLoading && !!user;
   const empQ = useQuery({
     queryKey: ["emprestimos"],
     queryFn: () => listEmprestimos(),
     staleTime: 60_000,
     placeholderData: (prev) => prev,
+    enabled: authReady,
   });
   const parQ = useQuery({
     queryKey: ["parcelas"],
     queryFn: () => listParcelas(),
     staleTime: 60_000,
     placeholderData: (prev) => prev,
+    enabled: authReady,
   });
   const cliQ = useQuery({
     queryKey: ["clientes"],
     queryFn: () => listClientes(),
     staleTime: 60_000,
     placeholderData: (prev) => prev,
+    enabled: authReady,
   });
 
   const emprestimos = useMemo(() => empQ.data?.data ?? [], [empQ.data]);
