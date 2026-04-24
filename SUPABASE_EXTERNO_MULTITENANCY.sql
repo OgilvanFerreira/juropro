@@ -1,6 +1,6 @@
 -- =====================================================
 -- JuroPro — Multi-tenancy no Supabase EXTERNO (Kiwifi/Nexano)
--- VERSÃO 2 — PRESERVA dados existentes vinculando ao ADMIN
+-- VERSÃO 3 — COMPATÍVEL COM ESTRUTURAS ANTIGAS
 -- =====================================================
 --
 -- COMO USAR:
@@ -30,6 +30,7 @@
 ALTER TABLE public.clientes      ADD COLUMN IF NOT EXISTS user_id UUID;
 ALTER TABLE public.emprestimos   ADD COLUMN IF NOT EXISTS user_id UUID;
 ALTER TABLE public.parcelas      ADD COLUMN IF NOT EXISTS user_id UUID;
+ALTER TABLE IF EXISTS public.configuracoes ADD COLUMN IF NOT EXISTS user_id UUID;
 
 -- =====================================================
 -- PASSO 2: Vincula dados existentes ao ADMIN (fsgilvan@gmail.com)
@@ -38,6 +39,7 @@ ALTER TABLE public.parcelas      ADD COLUMN IF NOT EXISTS user_id UUID;
 UPDATE public.clientes    SET user_id = '56e57fc4-8d94-44d1-9a24-5ef1db942531'::uuid WHERE user_id IS NULL;
 UPDATE public.emprestimos SET user_id = '56e57fc4-8d94-44d1-9a24-5ef1db942531'::uuid WHERE user_id IS NULL;
 UPDATE public.parcelas    SET user_id = '56e57fc4-8d94-44d1-9a24-5ef1db942531'::uuid WHERE user_id IS NULL;
+UPDATE public.configuracoes SET user_id = '56e57fc4-8d94-44d1-9a24-5ef1db942531'::uuid WHERE user_id IS NULL;
 
 -- =====================================================
 -- PASSO 3: Marca user_id como NOT NULL (segurança)
@@ -45,11 +47,13 @@ UPDATE public.parcelas    SET user_id = '56e57fc4-8d94-44d1-9a24-5ef1db942531'::
 ALTER TABLE public.clientes      ALTER COLUMN user_id SET NOT NULL;
 ALTER TABLE public.emprestimos   ALTER COLUMN user_id SET NOT NULL;
 ALTER TABLE public.parcelas      ALTER COLUMN user_id SET NOT NULL;
+ALTER TABLE IF EXISTS public.configuracoes ALTER COLUMN user_id SET NOT NULL;
 
 -- Índices para performance
 CREATE INDEX IF NOT EXISTS idx_clientes_user_id    ON public.clientes(user_id);
 CREATE INDEX IF NOT EXISTS idx_emprestimos_user_id ON public.emprestimos(user_id);
 CREATE INDEX IF NOT EXISTS idx_parcelas_user_id    ON public.parcelas(user_id);
+CREATE INDEX IF NOT EXISTS idx_configuracoes_user_id ON public.configuracoes(user_id);
 
 -- =====================================================
 -- PASSO 4: Função utilitária — auto-preenche user_id em INSERT
