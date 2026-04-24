@@ -287,14 +287,21 @@ export function ContratoPdfDialog({
                 gap: "4px 20px",
               }}
             >
-              {[
-                ["Nome Completo", adminName],
-                ["CPF", "021.985.555-22"],
-                ["Endereço", "Rua Edelvito Lavinsky, 55 — Jardim Primavera"],
-                ["Cidade/UF", "Itabuna / BA"],
-                ["Telefone", "(73) 99141-1427"],
-                ["E-mail", "fsgilvan@gmail.com"],
-              ].map(([k, v]) => (
+              {(
+                [
+                  ["Razão Social / Nome", businessName],
+                  ["CNPJ / CPF", businessDetails.cnpj || "—"],
+                  ["Responsável", adminName],
+                  [
+                    "Endereço",
+                    enderecoNegocio.length > 0 ? enderecoNegocio : "—",
+                  ],
+                  ["Cidade/UF", cidadeUfNegocio || "—"],
+                  ["CEP", businessDetails.cep || "—"],
+                  ["Telefone", businessDetails.telefone || "—"],
+                  ["E-mail", businessDetails.email || "—"],
+                ] as [string, string][]
+              ).map(([k, v]) => (
                 <p key={k} className="field" style={{ margin: "0 0 4px" }}>
                   <span style={{ fontWeight: "bold" }}>{k}:</span> {v}
                 </p>
