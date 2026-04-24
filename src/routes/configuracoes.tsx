@@ -904,13 +904,14 @@ type Prefs = {
   notifAtraso: boolean;
   notifPagamento: boolean;
   whatsappAuto: boolean;
-  darkMode: boolean;
   compactView: boolean;
   itensPorPagina: string;
   moeda: string;
 };
 
 function TabPreferencias() {
+  const { name: businessName } = useBusinessName();
+  const { dark, setDark } = useDarkMode();
   const [msg, setMsg] = useState(MSG_PADRAO);
   const [preview, setPreview] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -919,7 +920,6 @@ function TabPreferencias() {
     notifAtraso: true,
     notifPagamento: false,
     whatsappAuto: false,
-    darkMode: false,
     compactView: false,
     itensPorPagina: "10",
     moeda: "BRL",
@@ -936,7 +936,7 @@ function TabPreferencias() {
     .replace(/\{\{contrato\}\}/g, "#004")
     .replace(/\{\{valor\}\}/g, "R$ 620,00")
     .replace(/\{\{vencimento\}\}/g, "23/04/2026")
-    .replace(/\{\{negocio\}\}/g, "JuroPro");
+    .replace(/\{\{negocio\}\}/g, businessName);
 
   const salvar = async () => {
     setSaving(true);
