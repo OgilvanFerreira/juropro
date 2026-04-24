@@ -25,29 +25,37 @@ export type DashboardKpis = {
 export const getDashboardKpis = createServerFn({ method: "GET" })
   .middleware([requireAuthForExternal])
   .handler(
-  async (): Promise<DashboardKpis> => {
+  async ({ context }): Promise<DashboardKpis> => {
     const supabase = getServerClient();
     const today = new Date().toISOString().slice(0, 10);
+    const userId = context.userId;
 
     const [clientesRes, contratosRes, atrasadasStatusRes, atrasadasVencidasRes, hojeRes] =
       await Promise.all([
-        supabase.from("clientes").select("*", { count: "exact", head: true }),
+        supabase
+          .from("clientes")
+          .select("*", { count: "exact", head: true })
+          .eq("user_id", userId),
         supabase
           .from("emprestimos")
           .select("*", { count: "exact", head: true })
+          .eq("user_id", userId)
           .eq("status", "ativo"),
         supabase
           .from("parcelas")
           .select("*", { count: "exact", head: true })
+          .eq("user_id", userId)
           .eq("status", "atrasado"),
         supabase
           .from("parcelas")
           .select("*", { count: "exact", head: true })
+          .eq("user_id", userId)
           .eq("status", "pendente")
           .lt("data_vencimento", today),
         supabase
           .from("parcelas")
           .select("*", { count: "exact", head: true })
+          .eq("user_id", userId)
           .eq("data_vencimento", today),
       ]);
 

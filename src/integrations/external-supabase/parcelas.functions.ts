@@ -39,7 +39,7 @@ export type ParcelaListItem = {
 export const listParcelas = createServerFn({ method: "GET" })
   .middleware([requireAuthForExternal])
   .handler(
-  async (): Promise<{ data: ParcelaListItem[]; error: string | null }> => {
+  async ({ context }): Promise<{ data: ParcelaListItem[]; error: string | null }> => {
     const supabase = getServerClient();
 
     const { data: parcelas, error: parErr } = await supabase
@@ -47,6 +47,7 @@ export const listParcelas = createServerFn({ method: "GET" })
       .select(
         "id, emprestimo_id, numero_parcela, data_vencimento, valor_parcela, status, data_pagamento, valor_pago",
       )
+      .eq("user_id", context.userId)
       .order("data_vencimento", { ascending: true })
       .limit(2000);
 
@@ -64,6 +65,7 @@ export const listParcelas = createServerFn({ method: "GET" })
       ? await supabase
           .from("emprestimos")
           .select("id, cliente_id, numero_parcelas, taxa_juros, valor_principal, created_at")
+          .eq("user_id", context.userId)
           .in("id", empIds as (string | number)[])
       : { data: [], error: null };
 
@@ -92,10 +94,11 @@ export const listParcelas = createServerFn({ method: "GET" })
       }),
     );
 
-    // Calcula seqId global de TODOS os empréstimos (mais antigo = #001)
+    // Calcula seqId global de TODOS os empréstimos DO USUÁRIO (mais antigo = #001)
     const { data: allEmps } = await supabase
       .from("emprestimos")
       .select("id, created_at")
+      .eq("user_id", context.userId)
       .order("created_at", { ascending: true })
       .limit(2000);
     const seqMap = new Map<string, number>();
@@ -113,6 +116,7 @@ export const listParcelas = createServerFn({ method: "GET" })
       ? await supabase
           .from("clientes")
           .select("id, nome, telefone")
+          .eq("user_id", context.userId)
           .in("id", clienteIds as (string | number)[])
       : { data: [], error: null };
 
@@ -165,7 +169,7 @@ export type BaixaParcelaInput = z.infer<typeof baixaSchema>;
 export const baixaParcela = createServerFn({ method: "POST" })
   .middleware([requireAuthForExternal])
   .inputValidator((input: BaixaParcelaInput) => baixaSchema.parse(input))
-  .handler(async ({ data }): Promise<{ ok: boolean; error: string | null }> => {
+  .handler(async ({ data, context }): Promise<{ ok: boolean; error: string | null }> => {
     const supabase = getServerClient({ admin: true });
 
     const { data: updated, error } = await supabase
@@ -176,6 +180,7 @@ export const baixaParcela = createServerFn({ method: "POST" })
         valor_pago: data.valor_pago,
       })
       .eq("id", data.id)
+      .eq("user_id", context.userId)
       .select("id");
 
     if (error) {
@@ -201,7 +206,7 @@ export type EstornoParcelaInput = z.infer<typeof estornoSchema>;
 export const estornoParcela = createServerFn({ method: "POST" })
   .middleware([requireAuthForExternal])
   .inputValidator((input: EstornoParcelaInput) => estornoSchema.parse(input))
-  .handler(async ({ data }): Promise<{ ok: boolean; error: string | null }> => {
+  .handler(async ({ data, context }): Promise<{ ok: boolean; error: string | null }> => {
     const supabase = getServerClient({ admin: true });
 
     const { data: updated, error } = await supabase
@@ -212,6 +217,7 @@ export const estornoParcela = createServerFn({ method: "POST" })
         valor_pago: null,
       })
       .eq("id", data.id)
+      .eq("user_id", context.userId)
       .select("id");
 
     if (error) {
