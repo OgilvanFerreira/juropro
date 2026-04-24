@@ -183,6 +183,20 @@ export function ContratoPdfDialog({
             className="mx-auto max-w-3xl bg-white p-4 sm:p-8 md:p-12 shadow-lg text-[#1e293b] text-[11px] sm:text-base"
             style={{ fontFamily: "Georgia, 'Times New Roman', serif", lineHeight: 1.6 }}
           >
+            {businessLogo ? (
+              <div style={{ textAlign: "center", marginBottom: 8 }}>
+                <img
+                  src={businessLogo}
+                  alt={businessName}
+                  style={{
+                    maxHeight: "70px",
+                    maxWidth: "220px",
+                    objectFit: "contain",
+                    margin: "0 auto",
+                  }}
+                />
+              </div>
+            ) : null}
             <h1
               style={{
                 fontSize: "22pt",
@@ -190,9 +204,10 @@ export function ContratoPdfDialog({
                 color: "#0f766e",
                 margin: "0 0 4px",
                 letterSpacing: 1,
+                textTransform: "uppercase",
               }}
             >
-              💰 JUROP<span style={{ color: "#1d4ed8" }}>RO</span>
+              {businessName}
             </h1>
             <p
               className="sub"
@@ -204,8 +219,28 @@ export function ContratoPdfDialog({
               }}
             >
               Gestão Profissional de Empréstimos
-              <br />
-              CNPJ: 00.000.000/0001-00 • Itabuna, Bahia
+              {(businessDetails.cnpj || cidadeUfNegocio) && (
+                <>
+                  <br />
+                  {businessDetails.cnpj
+                    ? `CNPJ/CPF: ${businessDetails.cnpj}`
+                    : ""}
+                  {businessDetails.cnpj && cidadeUfNegocio ? " • " : ""}
+                  {cidadeUfNegocio}
+                </>
+              )}
+              {(businessDetails.telefone || businessDetails.email) && (
+                <>
+                  <br />
+                  {businessDetails.telefone
+                    ? `Tel: ${businessDetails.telefone}`
+                    : ""}
+                  {businessDetails.telefone && businessDetails.email
+                    ? " • "
+                    : ""}
+                  {businessDetails.email}
+                </>
+              )}
             </p>
 
             <div
