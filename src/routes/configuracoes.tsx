@@ -184,6 +184,7 @@ function PasswordField({
 
 function TabPerfil() {
   const { name, setName, defaultName } = useAdminName();
+  const { avatar, setAvatar } = useAdminAvatar();
 
   const [form, setForm] = useState({
     nome: "",
@@ -194,7 +195,6 @@ function TabPerfil() {
     cidade: "Itabuna",
     uf: "BA",
   });
-  const [avatar, setAvatar] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [senhaAtual, setSenhaAtual] = useState("");
   const [novaSenha, setNovaSenha] = useState("");
