@@ -3,8 +3,8 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import {
   queryOptions,
   useMutation,
+  useQuery,
   useQueryClient,
-  useSuspenseQuery,
 } from "@tanstack/react-query";
 import {
   ArrowDown,
@@ -81,9 +81,7 @@ export const Route = createFileRoute("/clientes")({
       },
     ],
   }),
-  loader: ({ context: { queryClient } }) => {
-    queryClient.ensureQueryData(clientesQuery());
-  },
+  // Sem loader SSR — query roda só no client (ver AuthGuard).
   component: ClientesPage,
 });
 
@@ -101,7 +99,8 @@ function formatDate(value: string | null) {
 }
 
 function ClientesPage() {
-  const { data } = useSuspenseQuery(clientesQuery());
+  const clientesQ = useQuery(clientesQuery());
+  const data = clientesQ.data ?? { data: [], error: null };
   const { novo } = Route.useSearch();
   const navigate = useNavigate({ from: "/clientes" });
   const queryClient = useQueryClient();

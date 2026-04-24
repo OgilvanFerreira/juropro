@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
+import { queryOptions, useQuery } from "@tanstack/react-query";
+import { Loader2 } from "lucide-react";
 import {
   CalendarClock,
   AlertTriangle,
@@ -51,10 +52,8 @@ export const Route = createFileRoute("/")({
       },
     ],
   }),
-  loader: ({ context: { queryClient } }) => {
-    queryClient.ensureQueryData(dashboardKpisQuery());
-    queryClient.ensureQueryData(dashboardChartsQuery());
-  },
+  // Sem loader SSR: as queries só rodam no client após a sessão Supabase
+  // estar hidratada (ver AuthGuard). Isto evita 401 durante SSR.
   component: Dashboard,
 });
 
@@ -115,10 +114,21 @@ const formatBRL = (v: number) => {
 };
 
 function Dashboard() {
-  const { data } = useSuspenseQuery(dashboardKpisQuery());
-  const { data: charts } = useSuspenseQuery(dashboardChartsQuery());
-  const kpis = buildKpis(data);
+  const kpisQ = useQuery(dashboardKpisQuery());
+  const chartsQ = useQuery(dashboardChartsQuery());
   const [novoEmprestimoOpen, setNovoEmprestimoOpen] = useState(false);
+
+  if (kpisQ.isLoading || chartsQ.isLoading || !kpisQ.data || !chartsQ.data) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  const data = kpisQ.data;
+  const charts = chartsQ.data;
+  const kpis = buildKpis(data);
 
   return (
     <SidebarProvider>
