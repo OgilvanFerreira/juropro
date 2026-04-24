@@ -57,6 +57,7 @@ import { ContratoPdfDialog } from "@/components/relatorios/ContratoPdfDialog";
 import { exportToCsv } from "@/lib/csv";
 import { useAdminName } from "@/hooks/use-admin-name";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/hooks/use-auth";
 
 export const Route = createFileRoute("/relatorios")({
   head: () => ({
@@ -336,19 +337,22 @@ function FinanceiroTab() {
   const [sortKey, setSortKey] = useState<FinSortKey | null>("vencimento");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
 
+  const { user, loading: authLoading } = useAuth();
+  const authReady = !authLoading && !!user;
   const empQ = useQuery({
     queryKey: ["emprestimos"],
     queryFn: () => listEmprestimos(),
     staleTime: 60_000,
     placeholderData: (prev) => prev,
+    enabled: authReady,
   });
   const parQ = useQuery({
     queryKey: ["parcelas"],
     queryFn: () => listParcelas(),
     staleTime: 60_000,
     placeholderData: (prev) => prev,
+    enabled: authReady,
   });
-
   const emprestimos = useMemo(() => empQ.data?.data ?? [], [empQ.data]);
   const parcelas = useMemo(() => parQ.data?.data ?? [], [parQ.data]);
 
