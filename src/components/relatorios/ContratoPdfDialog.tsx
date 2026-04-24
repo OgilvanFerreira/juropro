@@ -116,7 +116,7 @@ export function ContratoPdfDialog({
     if (!conteudo) return;
     const win = window.open("", "_blank", "width=900,height=900");
     if (!win) return;
-    win.document.write(`<!doctype html><html><head><title>Contrato ${contratoCodigo} - JuroPro</title>
+    win.document.write(`<!doctype html><html><head><title>Contrato ${contratoCodigo} - ${businessName}</title>
       <meta charset="utf-8" />
       <style>
         @page { size: A4; margin: 16mm; }
