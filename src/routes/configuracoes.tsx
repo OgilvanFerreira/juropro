@@ -492,8 +492,11 @@ function TabPerfil() {
 // ---------------------------------------------------------------------------
 
 function TabNegocio() {
+  const { name: businessName, setName: setBusinessName } = useBusinessName();
+  const { logo, setLogo } = useBusinessLogo();
+
   const [form, setForm] = useState({
-    nome: "JuroPro",
+    nome: businessName,
     cnpj: "",
     telefone: "(73) 99141-1427",
     email: "contato@juropro.com.br",
@@ -504,17 +507,21 @@ function TabNegocio() {
     bairro: "Jardim Primavera",
     cidade: "Itabuna",
     uf: "BA",
-    taxaPadrao: "5",
+    taxaPadrao: "5,00",
     tipoJurosPadrao: "simples",
-    multaAtraso: "2",
+    multaAtraso: "2,00",
   });
-  const [logo, setLogo] = useState<string | null>(null);
   const [drag, setDrag] = useState(false);
   const [saving, setSaving] = useState(false);
   const [cepLoading, setCepLoading] = useState(false);
   const [cepOk, setCepOk] = useState(false);
   const [cepErro, setCepErro] = useState("");
   const fileRef = useRef<HTMLInputElement | null>(null);
+
+  // Hidrata "nome" sempre que o hook trouxer um valor diferente
+  useEffect(() => {
+    setForm((p) => (p.nome === businessName ? p : { ...p, nome: businessName }));
+  }, [businessName]);
 
   const set =
     (field: keyof typeof form) => (e: ChangeEvent<HTMLInputElement>) =>
