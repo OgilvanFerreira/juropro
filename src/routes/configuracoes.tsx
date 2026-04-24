@@ -50,7 +50,11 @@ import {
   maskTaxa,
 } from "@/lib/masks";
 import { lookupCep, BRAZIL_UFS } from "@/lib/cep";
-import { useBusinessName, useBusinessLogo } from "@/hooks/use-business-info";
+import {
+  useBusinessName,
+  useBusinessLogo,
+  useBusinessDetails,
+} from "@/hooks/use-business-info";
 import { useDarkMode } from "@/hooks/use-dark-mode";
 
 export const Route = createFileRoute("/configuracoes")({
@@ -494,19 +498,20 @@ function TabPerfil() {
 function TabNegocio() {
   const { name: businessName, setName: setBusinessName } = useBusinessName();
   const { logo, setLogo } = useBusinessLogo();
+  const { details, setDetails } = useBusinessDetails();
 
   const [form, setForm] = useState({
     nome: businessName,
-    cnpj: "",
-    telefone: "(73) 99141-1427",
-    email: "contato@juropro.com.br",
-    cep: "45608-818",
-    endereco: "Rua Edelvito Lavinsky",
-    numero: "55",
-    complemento: "",
-    bairro: "Jardim Primavera",
-    cidade: "Itabuna",
-    uf: "BA",
+    cnpj: details.cnpj,
+    telefone: details.telefone || "(73) 99141-1427",
+    email: details.email || "contato@juropro.com.br",
+    cep: details.cep || "45608-818",
+    endereco: details.endereco || "Rua Edelvito Lavinsky",
+    numero: details.numero || "55",
+    complemento: details.complemento,
+    bairro: details.bairro || "Jardim Primavera",
+    cidade: details.cidade || "Itabuna",
+    uf: details.uf || "BA",
     taxaPadrao: "5,00",
     tipoJurosPadrao: "simples",
     multaAtraso: "2,00",
@@ -568,6 +573,18 @@ function TabNegocio() {
     setSaving(true);
     await new Promise((r) => setTimeout(r, 700));
     setBusinessName(form.nome.trim());
+    setDetails({
+      cnpj: form.cnpj,
+      telefone: form.telefone,
+      email: form.email,
+      cep: form.cep,
+      endereco: form.endereco,
+      numero: form.numero,
+      complemento: form.complemento,
+      bairro: form.bairro,
+      cidade: form.cidade,
+      uf: form.uf,
+    });
     setSaving(false);
     toast.success("Dados do negócio salvos com sucesso!");
   };

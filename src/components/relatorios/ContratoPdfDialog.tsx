@@ -5,6 +5,11 @@ import { Printer, X } from "lucide-react";
 import type { EmprestimoListItem } from "@/integrations/external-supabase/emprestimos.functions";
 import type { ParcelaListItem } from "@/integrations/external-supabase/parcelas.functions";
 import { useAdminName } from "@/hooks/use-admin-name";
+import {
+  useBusinessName,
+  useBusinessLogo,
+  useBusinessDetails,
+} from "@/hooks/use-business-info";
 
 interface ContratoPdfDialogProps {
   open: boolean;
@@ -65,6 +70,26 @@ export function ContratoPdfDialog({
   cliente,
 }: ContratoPdfDialogProps) {
   const { name: adminName } = useAdminName();
+  const { name: businessName } = useBusinessName();
+  const { logo: businessLogo } = useBusinessLogo();
+  const { details: businessDetails } = useBusinessDetails();
+
+  const enderecoNegocio = useMemo(() => {
+    const partes = [
+      businessDetails.endereco,
+      businessDetails.numero,
+      businessDetails.complemento,
+      businessDetails.bairro,
+    ].filter((s) => s && s.trim().length > 0);
+    return partes.join(", ");
+  }, [businessDetails]);
+
+  const cidadeUfNegocio = useMemo(() => {
+    if (!businessDetails.cidade) return "";
+    return businessDetails.uf
+      ? `${businessDetails.cidade} / ${businessDetails.uf}`
+      : businessDetails.cidade;
+  }, [businessDetails]);
 
   const parcelasContrato = useMemo(
     () =>
@@ -91,7 +116,7 @@ export function ContratoPdfDialog({
     if (!conteudo) return;
     const win = window.open("", "_blank", "width=900,height=900");
     if (!win) return;
-    win.document.write(`<!doctype html><html><head><title>Contrato ${contratoCodigo} - JuroPro</title>
+    win.document.write(`<!doctype html><html><head><title>Contrato ${contratoCodigo} - ${businessName}</title>
       <meta charset="utf-8" />
       <style>
         @page { size: A4; margin: 16mm; }
@@ -158,6 +183,20 @@ export function ContratoPdfDialog({
             className="mx-auto max-w-3xl bg-white p-4 sm:p-8 md:p-12 shadow-lg text-[#1e293b] text-[11px] sm:text-base"
             style={{ fontFamily: "Georgia, 'Times New Roman', serif", lineHeight: 1.6 }}
           >
+            {businessLogo ? (
+              <div style={{ textAlign: "center", marginBottom: 8 }}>
+                <img
+                  src={businessLogo}
+                  alt={businessName}
+                  style={{
+                    maxHeight: "70px",
+                    maxWidth: "220px",
+                    objectFit: "contain",
+                    margin: "0 auto",
+                  }}
+                />
+              </div>
+            ) : null}
             <h1
               style={{
                 fontSize: "22pt",
@@ -165,9 +204,10 @@ export function ContratoPdfDialog({
                 color: "#0f766e",
                 margin: "0 0 4px",
                 letterSpacing: 1,
+                textTransform: "uppercase",
               }}
             >
-              💰 JUROP<span style={{ color: "#1d4ed8" }}>RO</span>
+              {businessName}
             </h1>
             <p
               className="sub"
@@ -179,8 +219,28 @@ export function ContratoPdfDialog({
               }}
             >
               Gestão Profissional de Empréstimos
-              <br />
-              CNPJ: 00.000.000/0001-00 • Itabuna, Bahia
+              {(businessDetails.cnpj || cidadeUfNegocio) && (
+                <>
+                  <br />
+                  {businessDetails.cnpj
+                    ? `CNPJ/CPF: ${businessDetails.cnpj}`
+                    : ""}
+                  {businessDetails.cnpj && cidadeUfNegocio ? " • " : ""}
+                  {cidadeUfNegocio}
+                </>
+              )}
+              {(businessDetails.telefone || businessDetails.email) && (
+                <>
+                  <br />
+                  {businessDetails.telefone
+                    ? `Tel: ${businessDetails.telefone}`
+                    : ""}
+                  {businessDetails.telefone && businessDetails.email
+                    ? " • "
+                    : ""}
+                  {businessDetails.email}
+                </>
+              )}
             </p>
 
             <div
@@ -227,14 +287,21 @@ export function ContratoPdfDialog({
                 gap: "4px 20px",
               }}
             >
-              {[
-                ["Nome Completo", adminName],
-                ["CPF", "021.985.555-22"],
-                ["Endereço", "Rua Edelvito Lavinsky, 55 — Jardim Primavera"],
-                ["Cidade/UF", "Itabuna / BA"],
-                ["Telefone", "(73) 99141-1427"],
-                ["E-mail", "fsgilvan@gmail.com"],
-              ].map(([k, v]) => (
+              {(
+                [
+                  ["Razão Social / Nome", businessName],
+                  ["CNPJ / CPF", businessDetails.cnpj || "—"],
+                  ["Responsável", adminName],
+                  [
+                    "Endereço",
+                    enderecoNegocio.length > 0 ? enderecoNegocio : "—",
+                  ],
+                  ["Cidade/UF", cidadeUfNegocio || "—"],
+                  ["CEP", businessDetails.cep || "—"],
+                  ["Telefone", businessDetails.telefone || "—"],
+                  ["E-mail", businessDetails.email || "—"],
+                ] as [string, string][]
+              ).map(([k, v]) => (
                 <p key={k} className="field" style={{ margin: "0 0 4px" }}>
                   <span style={{ fontWeight: "bold" }}>{k}:</span> {v}
                 </p>
@@ -346,7 +413,7 @@ export function ContratoPdfDialog({
               ],
               [
                 "CLÁUSULA 4ª – DO FORO",
-                "As partes elegem o foro da Comarca de Itabuna/BA para dirimir quaisquer questões oriundas deste contrato, com renúncia expressa a qualquer outro, por mais privilegiado que seja.",
+                `As partes elegem o foro da Comarca de ${cidadeUfNegocio || "—"} para dirimir quaisquer questões oriundas deste contrato, com renúncia expressa a qualquer outro, por mais privilegiado que seja.`,
               ],
             ].map(([t, c]) => (
               <p
@@ -517,7 +584,9 @@ export function ContratoPdfDialog({
             >
               <div style={{ textAlign: "center" }}>
                 <p style={{ margin: "0 0 32px", fontSize: "10pt" }}>
-                  Itabuna, {fmtDate(new Date().toISOString().slice(0, 10))}
+                  {(businessDetails.cidade || "—")}
+                  {businessDetails.cidade ? ", " : " "}
+                  {fmtDate(new Date().toISOString().slice(0, 10))}
                 </p>
                 <div
                   style={{
@@ -528,7 +597,13 @@ export function ContratoPdfDialog({
                 >
                   <b>{adminName}</b>
                   <br />
-                  CPF: 021.985.555-22 (Credor)
+                  {businessName} (Credor)
+                  {businessDetails.cnpj ? (
+                    <>
+                      <br />
+                      CNPJ/CPF: {businessDetails.cnpj}
+                    </>
+                  ) : null}
                 </div>
               </div>
               <div style={{ textAlign: "center" }}>

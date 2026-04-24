@@ -2,9 +2,37 @@ import { useEffect, useState } from "react";
 
 const NAME_KEY = "juropro:business_name";
 const LOGO_KEY = "juropro:business_logo";
+const DETAILS_KEY = "juropro:business_details";
 const DEFAULT_NAME = "JuroPro";
 const NAME_EVENT = "juropro:business_name_changed";
 const LOGO_EVENT = "juropro:business_logo_changed";
+const DETAILS_EVENT = "juropro:business_details_changed";
+
+export interface BusinessDetails {
+  cnpj: string;
+  telefone: string;
+  email: string;
+  cep: string;
+  endereco: string;
+  numero: string;
+  complemento: string;
+  bairro: string;
+  cidade: string;
+  uf: string;
+}
+
+const DEFAULT_DETAILS: BusinessDetails = {
+  cnpj: "",
+  telefone: "",
+  email: "",
+  cep: "",
+  endereco: "",
+  numero: "",
+  complemento: "",
+  bairro: "",
+  cidade: "",
+  uf: "",
+};
 
 function readName(): string {
   if (typeof window === "undefined") return DEFAULT_NAME;
@@ -23,6 +51,18 @@ function readLogo(): string | null {
     return v && v.length > 0 ? v : null;
   } catch {
     return null;
+  }
+}
+
+function readDetails(): BusinessDetails {
+  if (typeof window === "undefined") return DEFAULT_DETAILS;
+  try {
+    const raw = window.localStorage.getItem(DETAILS_KEY);
+    if (!raw) return DEFAULT_DETAILS;
+    const parsed = JSON.parse(raw) as Partial<BusinessDetails>;
+    return { ...DEFAULT_DETAILS, ...parsed };
+  } catch {
+    return DEFAULT_DETAILS;
   }
 }
 
@@ -89,4 +129,35 @@ export function useBusinessLogo() {
   };
 
   return { logo, setLogo };
+}
+
+/** Hook compartilhado para os dados completos do negócio (CNPJ, endereço, contato). */
+export function useBusinessDetails() {
+  const [details, setDetailsState] = useState<BusinessDetails>(DEFAULT_DETAILS);
+
+  useEffect(() => {
+    setDetailsState(readDetails());
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === DETAILS_KEY) setDetailsState(readDetails());
+    };
+    const onCustom = () => setDetailsState(readDetails());
+    window.addEventListener("storage", onStorage);
+    window.addEventListener(DETAILS_EVENT, onCustom);
+    return () => {
+      window.removeEventListener("storage", onStorage);
+      window.removeEventListener(DETAILS_EVENT, onCustom);
+    };
+  }, []);
+
+  const setDetails = (next: BusinessDetails) => {
+    try {
+      window.localStorage.setItem(DETAILS_KEY, JSON.stringify(next));
+    } catch {
+      /* ignore */
+    }
+    window.dispatchEvent(new Event(DETAILS_EVENT));
+    setDetailsState(next);
+  };
+
+  return { details, setDetails, defaultDetails: DEFAULT_DETAILS };
 }
