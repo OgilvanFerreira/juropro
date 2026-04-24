@@ -60,12 +60,7 @@ import {
 } from "@/integrations/external-supabase/clientes.functions";
 import { formatCpfCnpj, formatTelefone } from "@/lib/masks";
 import { cn } from "@/lib/utils";
-
-const clientesQuery = () =>
-  queryOptions({
-    queryKey: ["clientes", "list"],
-    queryFn: () => listClientes(),
-  });
+import { useAuth } from "@/hooks/use-auth";
 
 export const Route = createFileRoute("/clientes")({
   validateSearch: (search: Record<string, unknown>) => ({
@@ -99,7 +94,13 @@ function formatDate(value: string | null) {
 }
 
 function ClientesPage() {
-  const clientesQ = useQuery(clientesQuery());
+  const { user, loading: authLoading } = useAuth();
+  const authReady = !authLoading && !!user;
+  const clientesQ = useQuery({
+    queryKey: ["clientes", "list"],
+    queryFn: () => listClientes(),
+    enabled: authReady,
+  });
   const data = clientesQ.data ?? { data: [], error: null };
   const { novo } = Route.useSearch();
   const navigate = useNavigate({ from: "/clientes" });
