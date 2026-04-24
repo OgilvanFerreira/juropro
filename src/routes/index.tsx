@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { queryOptions, useQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
+import { useAuth } from "@/hooks/use-auth";
 import {
   CalendarClock,
   AlertTriangle,
@@ -27,19 +28,6 @@ type DashboardKpis = {
   parcelasAtrasadas: number;
   vencimentosHoje: number;
 };
-
-const dashboardKpisQuery = () =>
-  queryOptions({
-    queryKey: ["dashboard", "kpis"],
-    queryFn: () => getDashboardKpis(),
-  });
-
-const dashboardChartsQuery = () =>
-  queryOptions({
-    queryKey: ["dashboard", "charts"],
-    queryFn: () => getDashboardCharts(),
-    staleTime: 60_000,
-  });
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -114,11 +102,23 @@ const formatBRL = (v: number) => {
 };
 
 function Dashboard() {
-  const kpisQ = useQuery(dashboardKpisQuery());
-  const chartsQ = useQuery(dashboardChartsQuery());
+  const { user, loading: authLoading } = useAuth();
+  const authReady = !authLoading && !!user;
+
+  const kpisQ = useQuery({
+    queryKey: ["dashboard", "kpis"],
+    queryFn: () => getDashboardKpis(),
+    enabled: authReady,
+  });
+  const chartsQ = useQuery({
+    queryKey: ["dashboard", "charts"],
+    queryFn: () => getDashboardCharts(),
+    staleTime: 60_000,
+    enabled: authReady,
+  });
   const [novoEmprestimoOpen, setNovoEmprestimoOpen] = useState(false);
 
-  if (kpisQ.isLoading || chartsQ.isLoading || !kpisQ.data || !chartsQ.data) {
+  if (!authReady || kpisQ.isLoading || chartsQ.isLoading || !kpisQ.data || !chartsQ.data) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
