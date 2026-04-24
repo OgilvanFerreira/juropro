@@ -42,6 +42,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import { useAdminName } from "@/hooks/use-admin-name";
+import { useAdminAvatar } from "@/hooks/use-admin-avatar";
 import {
   maskCpfCnpj,
   maskTelefone,
