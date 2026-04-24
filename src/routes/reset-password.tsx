@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/hooks/use-auth";
 import { useBusinessName, useBusinessLogo } from "@/hooks/use-business-info";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/reset-password")({
@@ -51,16 +52,33 @@ function ResetPasswordPage() {
   const [errConf, setErrConf] = useState("");
   const [loading, setLoading] = useState(false);
   const [ok, setOk] = useState(false);
+  const [recoveryReady, setRecoveryReady] = useState(false);
 
   const forca = useMemo(() => avaliar(nova), [nova]);
   const senhasOk = nova && conf && nova === conf;
 
-  // Se não há sessão de recovery, manda pro login depois de carregar
+  // Aguarda o evento PASSWORD_RECOVERY do link de email antes de decidir redirecionar
   useEffect(() => {
-    if (!authLoading && !user) {
-      navigate({ to: "/login" });
-    }
-  }, [authLoading, user, navigate]);
+    const { data: sub } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "PASSWORD_RECOVERY" || event === "SIGNED_IN") {
+        setRecoveryReady(true);
+      }
+    });
+    // Se já há sessão (usuário logado normalmente abrindo a página), libera também
+    if (user) setRecoveryReady(true);
+    return () => sub.subscription.unsubscribe();
+  }, [user]);
+
+  // Se após carregar não houver sessão nem evento de recovery, manda pro login
+  useEffect(() => {
+    if (authLoading) return;
+    const t = setTimeout(() => {
+      if (!user && !recoveryReady) {
+        navigate({ to: "/login" });
+      }
+    }, 1500);
+    return () => clearTimeout(t);
+  }, [authLoading, user, recoveryReady, navigate]);
 
   const validar = () => {
     let bom = true;
