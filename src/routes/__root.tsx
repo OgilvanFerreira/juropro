@@ -8,6 +8,7 @@ import {
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/sonner";
 import { AuthProvider } from "@/hooks/use-auth";
+import { AuthGuard } from "@/components/auth/AuthGuard";
 
 import appCss from "../styles.css?url";
 
@@ -91,7 +92,9 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <Outlet />
+        <AuthGuard>
+          <Outlet />
+        </AuthGuard>
         <Toaster richColors position="top-right" />
       </AuthProvider>
     </QueryClientProvider>
