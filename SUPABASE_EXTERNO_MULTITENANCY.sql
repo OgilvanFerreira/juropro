@@ -77,14 +77,25 @@ $$;
 -- =====================================================
 CREATE TABLE IF NOT EXISTS public.configuracoes (
   id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
-  user_id UUID NOT NULL,
+  user_id UUID,
   chave TEXT NOT NULL,
   valor JSONB,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  UNIQUE (user_id, chave)
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
-CREATE INDEX IF NOT EXISTS idx_configuracoes_user_id ON public.configuracoes(user_id);
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint
+    WHERE conname = 'configuracoes_user_id_chave_key'
+      AND conrelid = 'public.configuracoes'::regclass
+  ) THEN
+    ALTER TABLE public.configuracoes
+      ADD CONSTRAINT configuracoes_user_id_chave_key UNIQUE (user_id, chave);
+  END IF;
+END $$;
 
 -- =====================================================
 -- PASSO 6: Ativa RLS em todas as tabelas
@@ -135,9 +146,20 @@ CREATE TABLE IF NOT EXISTS public.user_roles (
   id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id UUID NOT NULL,
   role public.app_role NOT NULL,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  UNIQUE (user_id, role)
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint
+    WHERE conname = 'user_roles_user_id_role_key'
+      AND conrelid = 'public.user_roles'::regclass
+  ) THEN
+    ALTER TABLE public.user_roles
+      ADD CONSTRAINT user_roles_user_id_role_key UNIQUE (user_id, role);
+  END IF;
+END $$;
 ALTER TABLE public.user_roles ENABLE ROW LEVEL SECURITY;
 
 CREATE OR REPLACE FUNCTION public.has_role(_user_id UUID, _role public.app_role)
