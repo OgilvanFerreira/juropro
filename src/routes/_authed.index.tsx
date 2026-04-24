@@ -3,6 +3,8 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
+import { useProfile } from "@/hooks/use-profile";
+import { useAdminName } from "@/hooks/use-admin-name";
 import {
   CalendarClock,
   AlertTriangle,
@@ -103,7 +105,16 @@ const formatBRL = (v: number) => {
 
 function Dashboard() {
   const { user, loading: authLoading } = useAuth();
+  const { profile } = useProfile();
+  const { name: adminName, defaultName } = useAdminName();
   const authReady = !authLoading && !!user;
+
+  const displayName =
+    profile?.nome ||
+    (adminName && adminName !== defaultName ? adminName : null) ||
+    user?.email?.split("@")[0] ||
+    "Usuário";
+  const firstName = displayName.split(" ")[0];
 
   const kpisQ = useQuery({
     queryKey: ["dashboard", "kpis"],
@@ -163,7 +174,7 @@ function Dashboard() {
           <main className="flex-1 space-y-6 p-4 md:p-6 lg:p-8">
             <div className="flex flex-col gap-1">
               <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-                Olá, Gilvan 👋
+                Olá, {firstName} 👋
               </h1>
               <p className="text-sm text-muted-foreground">
                 Visão geral da operação — atualizado agora.
