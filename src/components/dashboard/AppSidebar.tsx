@@ -22,6 +22,7 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { useAdminName } from "@/hooks/use-admin-name";
 
 const navItems = [
   { title: "Início", url: "/", icon: LayoutDashboard },
@@ -38,7 +39,17 @@ const supportItems = [
 
 export function AppSidebar() {
   const { pathname } = useLocation();
+  const { name, defaultName } = useAdminName();
   const isActive = (url: string) => pathname === url;
+
+  const displayName =
+    name && name !== defaultName ? name : "Gilvan Ferreira Santos";
+  const iniciais = displayName
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((n) => n[0]?.toUpperCase() ?? "")
+    .join("") || "GF";
 
   return (
     <Sidebar collapsible="icon" className="border-r border-sidebar-border">
@@ -100,12 +111,12 @@ export function AppSidebar() {
         <div className="flex items-center gap-3 px-2 py-2">
           <Avatar className="h-9 w-9 border border-sidebar-border">
             <AvatarFallback className="bg-sidebar-primary text-sidebar-primary-foreground text-xs font-semibold">
-              GF
+              {iniciais}
             </AvatarFallback>
           </Avatar>
           <div className="min-w-0 flex-1 group-data-[collapsible=icon]:hidden">
             <p className="truncate text-sm font-medium text-sidebar-foreground">
-              Gilvan Ferreira Santos
+              {displayName}
             </p>
             <p className="truncate text-xs text-sidebar-foreground/60">Administrador</p>
           </div>
