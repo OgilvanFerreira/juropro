@@ -553,12 +553,11 @@ export function NovoEmprestimoDialog({
                 <div className="space-y-2">
                   <Label>Taxa de Juros (%) *</Label>
                   <Input
-                    type="number"
-                    step="0.01"
-                    placeholder="0.00"
+                    inputMode="decimal"
+                    placeholder="0,00"
                     value={form.taxaJuros}
                     onChange={(e) =>
-                      setForm((p) => ({ ...p, taxaJuros: e.target.value }))
+                      setForm((p) => ({ ...p, taxaJuros: maskTaxa(e.target.value) }))
                     }
                     className="h-11"
                   />
