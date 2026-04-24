@@ -21,8 +21,9 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAdminName } from "@/hooks/use-admin-name";
+import { useAdminAvatar } from "@/hooks/use-admin-avatar";
 
 const navItems = [
   { title: "Início", url: "/", icon: LayoutDashboard },
@@ -40,6 +41,7 @@ const supportItems = [
 export function AppSidebar() {
   const { pathname } = useLocation();
   const { name, defaultName } = useAdminName();
+  const { avatar } = useAdminAvatar();
   const isActive = (url: string) => pathname === url;
 
   const displayName =
@@ -110,6 +112,7 @@ export function AppSidebar() {
       <SidebarFooter className="border-t border-sidebar-border">
         <div className="flex items-center gap-3 px-2 py-2">
           <Avatar className="h-9 w-9 border border-sidebar-border">
+            {avatar && <AvatarImage src={avatar} alt={displayName} />}
             <AvatarFallback className="bg-sidebar-primary text-sidebar-primary-foreground text-xs font-semibold">
               {iniciais}
             </AvatarFallback>
