@@ -14,6 +14,196 @@ export type Database = {
   }
   public: {
     Tables: {
+      clientes: {
+        Row: {
+          bairro: string | null
+          cep: string | null
+          cidade: string | null
+          complemento: string | null
+          cpf_cnpj: string | null
+          created_at: string
+          data_nascimento: string | null
+          email: string | null
+          endereco: string | null
+          id: string
+          nome: string
+          numero: string | null
+          rg: string | null
+          telefone: string | null
+          uf: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          bairro?: string | null
+          cep?: string | null
+          cidade?: string | null
+          complemento?: string | null
+          cpf_cnpj?: string | null
+          created_at?: string
+          data_nascimento?: string | null
+          email?: string | null
+          endereco?: string | null
+          id?: string
+          nome: string
+          numero?: string | null
+          rg?: string | null
+          telefone?: string | null
+          uf?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          bairro?: string | null
+          cep?: string | null
+          cidade?: string | null
+          complemento?: string | null
+          cpf_cnpj?: string | null
+          created_at?: string
+          data_nascimento?: string | null
+          email?: string | null
+          endereco?: string | null
+          id?: string
+          nome?: string
+          numero?: string | null
+          rg?: string | null
+          telefone?: string | null
+          uf?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      configuracoes: {
+        Row: {
+          chave: string
+          created_at: string
+          id: string
+          updated_at: string
+          user_id: string
+          valor: Json | null
+        }
+        Insert: {
+          chave: string
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_id: string
+          valor?: Json | null
+        }
+        Update: {
+          chave?: string
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_id?: string
+          valor?: Json | null
+        }
+        Relationships: []
+      }
+      emprestimos: {
+        Row: {
+          cliente_id: string
+          created_at: string
+          data_inicio: string
+          id: string
+          numero_parcelas: number
+          observacoes: string | null
+          status: string
+          taxa_juros: number
+          tipo_juros: string
+          updated_at: string
+          user_id: string
+          valor_principal: number
+        }
+        Insert: {
+          cliente_id: string
+          created_at?: string
+          data_inicio: string
+          id?: string
+          numero_parcelas: number
+          observacoes?: string | null
+          status?: string
+          taxa_juros?: number
+          tipo_juros?: string
+          updated_at?: string
+          user_id: string
+          valor_principal: number
+        }
+        Update: {
+          cliente_id?: string
+          created_at?: string
+          data_inicio?: string
+          id?: string
+          numero_parcelas?: number
+          observacoes?: string | null
+          status?: string
+          taxa_juros?: number
+          tipo_juros?: string
+          updated_at?: string
+          user_id?: string
+          valor_principal?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "emprestimos_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      parcelas: {
+        Row: {
+          created_at: string
+          data_pagamento: string | null
+          data_vencimento: string
+          emprestimo_id: string
+          id: string
+          numero_parcela: number
+          status: string
+          updated_at: string
+          user_id: string
+          valor_pago: number | null
+          valor_parcela: number
+        }
+        Insert: {
+          created_at?: string
+          data_pagamento?: string | null
+          data_vencimento: string
+          emprestimo_id: string
+          id?: string
+          numero_parcela: number
+          status?: string
+          updated_at?: string
+          user_id: string
+          valor_pago?: number | null
+          valor_parcela: number
+        }
+        Update: {
+          created_at?: string
+          data_pagamento?: string | null
+          data_vencimento?: string
+          emprestimo_id?: string
+          id?: string
+          numero_parcela?: number
+          status?: string
+          updated_at?: string
+          user_id?: string
+          valor_pago?: number | null
+          valor_parcela?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "parcelas_emprestimo_id_fkey"
+            columns: ["emprestimo_id"]
+            isOneToOne: false
+            referencedRelation: "emprestimos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
