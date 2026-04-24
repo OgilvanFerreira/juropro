@@ -108,9 +108,12 @@ function ContratosPage() {
   const getFn = useServerFn(getEmprestimo);
   const deleteFn = useServerFn(deleteEmprestimo);
 
+  const { user, loading: authLoading } = useAuth();
+  const authReady = !authLoading && !!user;
   const query = useQuery({
     queryKey: ["emprestimos", "list"],
     queryFn: () => listFn(),
+    enabled: authReady,
   });
 
   const listaRaw = query.data?.data ?? [];
