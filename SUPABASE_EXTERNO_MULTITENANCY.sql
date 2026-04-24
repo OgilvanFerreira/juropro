@@ -222,3 +222,104 @@ AS $$
   GROUP BY 1
   ORDER BY 1;
 $$;
+
+-- =====================================================
+-- ADMIN (chave mestra) — para o Supabase EXTERNO
+-- =====================================================
+
+-- Enum de papéis (idempotente)
+DO $$ BEGIN
+  CREATE TYPE public.app_role AS ENUM ('admin', 'user');
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
+
+CREATE TABLE IF NOT EXISTS public.user_roles (
+  id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID NOT NULL,
+  role public.app_role NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (user_id, role)
+);
+
+CREATE INDEX IF NOT EXISTS idx_user_roles_user_id ON public.user_roles(user_id);
+ALTER TABLE public.user_roles ENABLE ROW LEVEL SECURITY;
+
+CREATE OR REPLACE FUNCTION public.has_role(_user_id UUID, _role public.app_role)
+RETURNS BOOLEAN
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.user_roles
+    WHERE user_id = _user_id AND role = _role
+  )
+$$;
+
+CREATE OR REPLACE FUNCTION public.is_admin()
+RETURNS BOOLEAN
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT public.has_role(auth.uid(), 'admin')
+$$;
+
+-- Policies em user_roles
+DROP POLICY IF EXISTS "Usuário vê suas próprias roles" ON public.user_roles;
+DROP POLICY IF EXISTS "Admin gerencia roles (insert)" ON public.user_roles;
+DROP POLICY IF EXISTS "Admin gerencia roles (update)" ON public.user_roles;
+DROP POLICY IF EXISTS "Admin gerencia roles (delete)" ON public.user_roles;
+
+CREATE POLICY "Usuário vê suas próprias roles"
+  ON public.user_roles FOR SELECT TO authenticated
+  USING (user_id = auth.uid() OR public.is_admin());
+CREATE POLICY "Admin gerencia roles (insert)"
+  ON public.user_roles FOR INSERT TO authenticated
+  WITH CHECK (public.is_admin());
+CREATE POLICY "Admin gerencia roles (update)"
+  ON public.user_roles FOR UPDATE TO authenticated
+  USING (public.is_admin()) WITH CHECK (public.is_admin());
+CREATE POLICY "Admin gerencia roles (delete)"
+  ON public.user_roles FOR DELETE TO authenticated
+  USING (public.is_admin());
+
+-- Policies de ADMIN nas tabelas de negócio
+-- (usuário comum continua só com as policies *_own; admin ganha acesso total)
+DO $$
+DECLARE
+  t TEXT;
+BEGIN
+  FOREACH t IN ARRAY ARRAY['clientes','emprestimos','parcelas','configuracoes']
+  LOOP
+    EXECUTE format('DROP POLICY IF EXISTS "Admin total %1$s select" ON public.%1$I', t);
+    EXECUTE format('DROP POLICY IF EXISTS "Admin total %1$s insert" ON public.%1$I', t);
+    EXECUTE format('DROP POLICY IF EXISTS "Admin total %1$s update" ON public.%1$I', t);
+    EXECUTE format('DROP POLICY IF EXISTS "Admin total %1$s delete" ON public.%1$I', t);
+
+    EXECUTE format('CREATE POLICY "Admin total %1$s select" ON public.%1$I
+      FOR SELECT TO authenticated USING (public.is_admin())', t);
+    EXECUTE format('CREATE POLICY "Admin total %1$s insert" ON public.%1$I
+      FOR INSERT TO authenticated WITH CHECK (public.is_admin())', t);
+    EXECUTE format('CREATE POLICY "Admin total %1$s update" ON public.%1$I
+      FOR UPDATE TO authenticated USING (public.is_admin()) WITH CHECK (public.is_admin())', t);
+    EXECUTE format('CREATE POLICY "Admin total %1$s delete" ON public.%1$I
+      FOR DELETE TO authenticated USING (public.is_admin())', t);
+  END LOOP;
+END $$;
+
+-- =====================================================
+-- Marca seu usuário como ADMIN (chave mestra)
+-- IMPORTANTE: o user_id abaixo é o do Lovable Cloud. No Supabase externo,
+-- esse ID provavelmente é DIFERENTE (cada projeto Supabase tem seu auth.users).
+-- 
+-- 1) Crie/garanta seu usuário no painel Auth do Supabase EXTERNO.
+-- 2) Pegue o UUID dele em Authentication → Users → copy id.
+-- 3) Substitua no INSERT abaixo e rode.
+-- =====================================================
+-- INSERT INTO public.user_roles (user_id, role)
+-- VALUES ('COLE_AQUI_O_UUID_DO_USUARIO_NO_EXTERNO', 'admin')
+-- ON CONFLICT (user_id, role) DO NOTHING;
