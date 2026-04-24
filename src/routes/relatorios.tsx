@@ -1417,17 +1417,21 @@ function InadimplenciaTab() {
   const [sortKey, setSortKey] = useState<InadSortKey>("atraso");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
+  const { user, loading: authLoading } = useAuth();
+  const authReady = !authLoading && !!user;
   const parQ = useQuery({
     queryKey: ["parcelas"],
     queryFn: () => listParcelas(),
     staleTime: 60_000,
     placeholderData: (prev) => prev,
+    enabled: authReady,
   });
   const cliQ = useQuery({
     queryKey: ["clientes"],
     queryFn: () => listClientes(),
     staleTime: 60_000,
     placeholderData: (prev) => prev,
+    enabled: authReady,
   });
 
   const parcelas = useMemo(() => parQ.data?.data ?? [], [parQ.data]);
