@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { PlaceholderPage } from "@/components/dashboard/PlaceholderPage";
 
-export const Route = createFileRoute("/suporte")({
+export const Route = createFileRoute("/_authed/suporte")({
   head: () => ({
     meta: [{ title: "Suporte — JuroPro" }],
   }),

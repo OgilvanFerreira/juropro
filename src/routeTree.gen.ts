@@ -9,37 +9,22 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as VencimentosRouteImport } from './routes/vencimentos'
-import { Route as SuporteRouteImport } from './routes/suporte'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
-import { Route as RelatoriosRouteImport } from './routes/relatorios'
 import { Route as RecuperarSenhaRouteImport } from './routes/recuperar-senha'
 import { Route as LoginRouteImport } from './routes/login'
-import { Route as ContratosRouteImport } from './routes/contratos'
-import { Route as ConfiguracoesRouteImport } from './routes/configuracoes'
-import { Route as ClientesRouteImport } from './routes/clientes'
-import { Route as BemVindoRouteImport } from './routes/bem-vindo'
 import { Route as AuthedRouteImport } from './routes/_authed'
 import { Route as AuthedIndexRouteImport } from './routes/_authed.index'
+import { Route as AuthedVencimentosRouteImport } from './routes/_authed.vencimentos'
+import { Route as AuthedSuporteRouteImport } from './routes/_authed.suporte'
+import { Route as AuthedRelatoriosRouteImport } from './routes/_authed.relatorios'
+import { Route as AuthedContratosRouteImport } from './routes/_authed.contratos'
+import { Route as AuthedConfiguracoesRouteImport } from './routes/_authed.configuracoes'
+import { Route as AuthedClientesRouteImport } from './routes/_authed.clientes'
+import { Route as AuthedBemVindoRouteImport } from './routes/_authed.bem-vindo'
 
-const VencimentosRoute = VencimentosRouteImport.update({
-  id: '/vencimentos',
-  path: '/vencimentos',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const SuporteRoute = SuporteRouteImport.update({
-  id: '/suporte',
-  path: '/suporte',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
   id: '/reset-password',
   path: '/reset-password',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const RelatoriosRoute = RelatoriosRouteImport.update({
-  id: '/relatorios',
-  path: '/relatorios',
   getParentRoute: () => rootRouteImport,
 } as any)
 const RecuperarSenhaRoute = RecuperarSenhaRouteImport.update({
@@ -52,26 +37,6 @@ const LoginRoute = LoginRouteImport.update({
   path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ContratosRoute = ContratosRouteImport.update({
-  id: '/contratos',
-  path: '/contratos',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ConfiguracoesRoute = ConfiguracoesRouteImport.update({
-  id: '/configuracoes',
-  path: '/configuracoes',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ClientesRoute = ClientesRouteImport.update({
-  id: '/clientes',
-  path: '/clientes',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const BemVindoRoute = BemVindoRouteImport.update({
-  id: '/bem-vindo',
-  path: '/bem-vindo',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const AuthedRoute = AuthedRouteImport.update({
   id: '/_authed',
   getParentRoute: () => rootRouteImport,
@@ -81,133 +46,140 @@ const AuthedIndexRoute = AuthedIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AuthedRoute,
 } as any)
+const AuthedVencimentosRoute = AuthedVencimentosRouteImport.update({
+  id: '/vencimentos',
+  path: '/vencimentos',
+  getParentRoute: () => AuthedRoute,
+} as any)
+const AuthedSuporteRoute = AuthedSuporteRouteImport.update({
+  id: '/suporte',
+  path: '/suporte',
+  getParentRoute: () => AuthedRoute,
+} as any)
+const AuthedRelatoriosRoute = AuthedRelatoriosRouteImport.update({
+  id: '/relatorios',
+  path: '/relatorios',
+  getParentRoute: () => AuthedRoute,
+} as any)
+const AuthedContratosRoute = AuthedContratosRouteImport.update({
+  id: '/contratos',
+  path: '/contratos',
+  getParentRoute: () => AuthedRoute,
+} as any)
+const AuthedConfiguracoesRoute = AuthedConfiguracoesRouteImport.update({
+  id: '/configuracoes',
+  path: '/configuracoes',
+  getParentRoute: () => AuthedRoute,
+} as any)
+const AuthedClientesRoute = AuthedClientesRouteImport.update({
+  id: '/clientes',
+  path: '/clientes',
+  getParentRoute: () => AuthedRoute,
+} as any)
+const AuthedBemVindoRoute = AuthedBemVindoRouteImport.update({
+  id: '/bem-vindo',
+  path: '/bem-vindo',
+  getParentRoute: () => AuthedRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AuthedIndexRoute
-  '/bem-vindo': typeof BemVindoRoute
-  '/clientes': typeof ClientesRoute
-  '/configuracoes': typeof ConfiguracoesRoute
-  '/contratos': typeof ContratosRoute
   '/login': typeof LoginRoute
   '/recuperar-senha': typeof RecuperarSenhaRoute
-  '/relatorios': typeof RelatoriosRoute
   '/reset-password': typeof ResetPasswordRoute
-  '/suporte': typeof SuporteRoute
-  '/vencimentos': typeof VencimentosRoute
+  '/bem-vindo': typeof AuthedBemVindoRoute
+  '/clientes': typeof AuthedClientesRoute
+  '/configuracoes': typeof AuthedConfiguracoesRoute
+  '/contratos': typeof AuthedContratosRoute
+  '/relatorios': typeof AuthedRelatoriosRoute
+  '/suporte': typeof AuthedSuporteRoute
+  '/vencimentos': typeof AuthedVencimentosRoute
 }
 export interface FileRoutesByTo {
-  '/bem-vindo': typeof BemVindoRoute
-  '/clientes': typeof ClientesRoute
-  '/configuracoes': typeof ConfiguracoesRoute
-  '/contratos': typeof ContratosRoute
   '/login': typeof LoginRoute
   '/recuperar-senha': typeof RecuperarSenhaRoute
-  '/relatorios': typeof RelatoriosRoute
   '/reset-password': typeof ResetPasswordRoute
-  '/suporte': typeof SuporteRoute
-  '/vencimentos': typeof VencimentosRoute
+  '/bem-vindo': typeof AuthedBemVindoRoute
+  '/clientes': typeof AuthedClientesRoute
+  '/configuracoes': typeof AuthedConfiguracoesRoute
+  '/contratos': typeof AuthedContratosRoute
+  '/relatorios': typeof AuthedRelatoriosRoute
+  '/suporte': typeof AuthedSuporteRoute
+  '/vencimentos': typeof AuthedVencimentosRoute
   '/': typeof AuthedIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_authed': typeof AuthedRouteWithChildren
-  '/bem-vindo': typeof BemVindoRoute
-  '/clientes': typeof ClientesRoute
-  '/configuracoes': typeof ConfiguracoesRoute
-  '/contratos': typeof ContratosRoute
   '/login': typeof LoginRoute
   '/recuperar-senha': typeof RecuperarSenhaRoute
-  '/relatorios': typeof RelatoriosRoute
   '/reset-password': typeof ResetPasswordRoute
-  '/suporte': typeof SuporteRoute
-  '/vencimentos': typeof VencimentosRoute
+  '/_authed/bem-vindo': typeof AuthedBemVindoRoute
+  '/_authed/clientes': typeof AuthedClientesRoute
+  '/_authed/configuracoes': typeof AuthedConfiguracoesRoute
+  '/_authed/contratos': typeof AuthedContratosRoute
+  '/_authed/relatorios': typeof AuthedRelatoriosRoute
+  '/_authed/suporte': typeof AuthedSuporteRoute
+  '/_authed/vencimentos': typeof AuthedVencimentosRoute
   '/_authed/': typeof AuthedIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/login'
+    | '/recuperar-senha'
+    | '/reset-password'
     | '/bem-vindo'
     | '/clientes'
     | '/configuracoes'
     | '/contratos'
-    | '/login'
-    | '/recuperar-senha'
     | '/relatorios'
-    | '/reset-password'
     | '/suporte'
     | '/vencimentos'
   fileRoutesByTo: FileRoutesByTo
   to:
+    | '/login'
+    | '/recuperar-senha'
+    | '/reset-password'
     | '/bem-vindo'
     | '/clientes'
     | '/configuracoes'
     | '/contratos'
-    | '/login'
-    | '/recuperar-senha'
     | '/relatorios'
-    | '/reset-password'
     | '/suporte'
     | '/vencimentos'
     | '/'
   id:
     | '__root__'
     | '/_authed'
-    | '/bem-vindo'
-    | '/clientes'
-    | '/configuracoes'
-    | '/contratos'
     | '/login'
     | '/recuperar-senha'
-    | '/relatorios'
     | '/reset-password'
-    | '/suporte'
-    | '/vencimentos'
+    | '/_authed/bem-vindo'
+    | '/_authed/clientes'
+    | '/_authed/configuracoes'
+    | '/_authed/contratos'
+    | '/_authed/relatorios'
+    | '/_authed/suporte'
+    | '/_authed/vencimentos'
     | '/_authed/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   AuthedRoute: typeof AuthedRouteWithChildren
-  BemVindoRoute: typeof BemVindoRoute
-  ClientesRoute: typeof ClientesRoute
-  ConfiguracoesRoute: typeof ConfiguracoesRoute
-  ContratosRoute: typeof ContratosRoute
   LoginRoute: typeof LoginRoute
   RecuperarSenhaRoute: typeof RecuperarSenhaRoute
-  RelatoriosRoute: typeof RelatoriosRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
-  SuporteRoute: typeof SuporteRoute
-  VencimentosRoute: typeof VencimentosRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/vencimentos': {
-      id: '/vencimentos'
-      path: '/vencimentos'
-      fullPath: '/vencimentos'
-      preLoaderRoute: typeof VencimentosRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/suporte': {
-      id: '/suporte'
-      path: '/suporte'
-      fullPath: '/suporte'
-      preLoaderRoute: typeof SuporteRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/reset-password': {
       id: '/reset-password'
       path: '/reset-password'
       fullPath: '/reset-password'
       preLoaderRoute: typeof ResetPasswordRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/relatorios': {
-      id: '/relatorios'
-      path: '/relatorios'
-      fullPath: '/relatorios'
-      preLoaderRoute: typeof RelatoriosRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/recuperar-senha': {
@@ -224,34 +196,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/contratos': {
-      id: '/contratos'
-      path: '/contratos'
-      fullPath: '/contratos'
-      preLoaderRoute: typeof ContratosRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/configuracoes': {
-      id: '/configuracoes'
-      path: '/configuracoes'
-      fullPath: '/configuracoes'
-      preLoaderRoute: typeof ConfiguracoesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/clientes': {
-      id: '/clientes'
-      path: '/clientes'
-      fullPath: '/clientes'
-      preLoaderRoute: typeof ClientesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/bem-vindo': {
-      id: '/bem-vindo'
-      path: '/bem-vindo'
-      fullPath: '/bem-vindo'
-      preLoaderRoute: typeof BemVindoRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/_authed': {
       id: '/_authed'
       path: ''
@@ -266,14 +210,77 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedIndexRouteImport
       parentRoute: typeof AuthedRoute
     }
+    '/_authed/vencimentos': {
+      id: '/_authed/vencimentos'
+      path: '/vencimentos'
+      fullPath: '/vencimentos'
+      preLoaderRoute: typeof AuthedVencimentosRouteImport
+      parentRoute: typeof AuthedRoute
+    }
+    '/_authed/suporte': {
+      id: '/_authed/suporte'
+      path: '/suporte'
+      fullPath: '/suporte'
+      preLoaderRoute: typeof AuthedSuporteRouteImport
+      parentRoute: typeof AuthedRoute
+    }
+    '/_authed/relatorios': {
+      id: '/_authed/relatorios'
+      path: '/relatorios'
+      fullPath: '/relatorios'
+      preLoaderRoute: typeof AuthedRelatoriosRouteImport
+      parentRoute: typeof AuthedRoute
+    }
+    '/_authed/contratos': {
+      id: '/_authed/contratos'
+      path: '/contratos'
+      fullPath: '/contratos'
+      preLoaderRoute: typeof AuthedContratosRouteImport
+      parentRoute: typeof AuthedRoute
+    }
+    '/_authed/configuracoes': {
+      id: '/_authed/configuracoes'
+      path: '/configuracoes'
+      fullPath: '/configuracoes'
+      preLoaderRoute: typeof AuthedConfiguracoesRouteImport
+      parentRoute: typeof AuthedRoute
+    }
+    '/_authed/clientes': {
+      id: '/_authed/clientes'
+      path: '/clientes'
+      fullPath: '/clientes'
+      preLoaderRoute: typeof AuthedClientesRouteImport
+      parentRoute: typeof AuthedRoute
+    }
+    '/_authed/bem-vindo': {
+      id: '/_authed/bem-vindo'
+      path: '/bem-vindo'
+      fullPath: '/bem-vindo'
+      preLoaderRoute: typeof AuthedBemVindoRouteImport
+      parentRoute: typeof AuthedRoute
+    }
   }
 }
 
 interface AuthedRouteChildren {
+  AuthedBemVindoRoute: typeof AuthedBemVindoRoute
+  AuthedClientesRoute: typeof AuthedClientesRoute
+  AuthedConfiguracoesRoute: typeof AuthedConfiguracoesRoute
+  AuthedContratosRoute: typeof AuthedContratosRoute
+  AuthedRelatoriosRoute: typeof AuthedRelatoriosRoute
+  AuthedSuporteRoute: typeof AuthedSuporteRoute
+  AuthedVencimentosRoute: typeof AuthedVencimentosRoute
   AuthedIndexRoute: typeof AuthedIndexRoute
 }
 
 const AuthedRouteChildren: AuthedRouteChildren = {
+  AuthedBemVindoRoute: AuthedBemVindoRoute,
+  AuthedClientesRoute: AuthedClientesRoute,
+  AuthedConfiguracoesRoute: AuthedConfiguracoesRoute,
+  AuthedContratosRoute: AuthedContratosRoute,
+  AuthedRelatoriosRoute: AuthedRelatoriosRoute,
+  AuthedSuporteRoute: AuthedSuporteRoute,
+  AuthedVencimentosRoute: AuthedVencimentosRoute,
   AuthedIndexRoute: AuthedIndexRoute,
 }
 
@@ -282,16 +289,9 @@ const AuthedRouteWithChildren =
 
 const rootRouteChildren: RootRouteChildren = {
   AuthedRoute: AuthedRouteWithChildren,
-  BemVindoRoute: BemVindoRoute,
-  ClientesRoute: ClientesRoute,
-  ConfiguracoesRoute: ConfiguracoesRoute,
-  ContratosRoute: ContratosRoute,
   LoginRoute: LoginRoute,
   RecuperarSenhaRoute: RecuperarSenhaRoute,
-  RelatoriosRoute: RelatoriosRoute,
   ResetPasswordRoute: ResetPasswordRoute,
-  SuporteRoute: SuporteRoute,
-  VencimentosRoute: VencimentosRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
