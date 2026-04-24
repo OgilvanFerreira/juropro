@@ -46,20 +46,34 @@ const supportItems = [
 
 export function AppSidebar() {
   const { pathname } = useLocation();
+  const navigate = useNavigate();
   const { name, defaultName } = useAdminName();
   const { avatar } = useAdminAvatar();
   const { name: businessName } = useBusinessName();
   const { logo: businessLogo } = useBusinessLogo();
+  const { signOut, user } = useAuth();
+  const { profile } = useProfile();
   const isActive = (url: string) => pathname === url;
 
   const displayName =
-    name && name !== defaultName ? name : "Gilvan Ferreira Santos";
-  const iniciais = displayName
-    .split(" ")
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((n) => n[0]?.toUpperCase() ?? "")
-    .join("") || "GF";
+    profile?.nome ||
+    (name && name !== defaultName ? name : null) ||
+    user?.email?.split("@")[0] ||
+    "Usuário";
+  const displayAvatar = profile?.avatar_url || avatar;
+  const iniciais =
+    displayName
+      .split(" ")
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((n) => n[0]?.toUpperCase() ?? "")
+      .join("") || "U";
+
+  const handleSair = async () => {
+    await signOut();
+    toast.success("Você saiu da conta");
+    navigate({ to: "/login" });
+  };
 
   return (
     <Sidebar collapsible="icon" className="border-r border-sidebar-border">
