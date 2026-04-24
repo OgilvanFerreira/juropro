@@ -15,7 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
-import { formatCpfCnpj } from "@/lib/masks";
+import { formatCpfCnpj, maskTaxa, parseTaxa } from "@/lib/masks";
 import { listClientes, type Cliente } from "@/integrations/external-supabase/clientes.functions";
 import {
   createEmprestimo,
