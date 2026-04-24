@@ -413,7 +413,7 @@ export function ContratoPdfDialog({
               ],
               [
                 "CLÁUSULA 4ª – DO FORO",
-                "As partes elegem o foro da Comarca de Itabuna/BA para dirimir quaisquer questões oriundas deste contrato, com renúncia expressa a qualquer outro, por mais privilegiado que seja.",
+                `As partes elegem o foro da Comarca de ${cidadeUfNegocio || "—"} para dirimir quaisquer questões oriundas deste contrato, com renúncia expressa a qualquer outro, por mais privilegiado que seja.`,
               ],
             ].map(([t, c]) => (
               <p
