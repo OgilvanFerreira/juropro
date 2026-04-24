@@ -73,22 +73,36 @@ END;
 $$;
 
 -- =====================================================
--- PASSO 5: Tabela CONFIGURACOES (cria se não existir)
+-- PASSO 5: Tabela CONFIGURACOES (cria se não existir, e garante colunas)
 -- =====================================================
 CREATE TABLE IF NOT EXISTS public.configuracoes (
   id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id UUID,
-  chave TEXT NOT NULL,
+  chave TEXT,
   valor JSONB,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- Garante que as colunas existam mesmo se a tabela já existia com outra estrutura
+ALTER TABLE public.configuracoes ADD COLUMN IF NOT EXISTS chave TEXT;
+ALTER TABLE public.configuracoes ADD COLUMN IF NOT EXISTS valor JSONB;
+ALTER TABLE public.configuracoes ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT now();
+ALTER TABLE public.configuracoes ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT now();
+
+-- Só adiciona a constraint UNIQUE se as duas colunas existirem e ainda não houver
 DO $$
 BEGIN
-  IF NOT EXISTS (
-    SELECT 1
-    FROM pg_constraint
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema='public' AND table_name='configuracoes' AND column_name='chave'
+  )
+  AND EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema='public' AND table_name='configuracoes' AND column_name='user_id'
+  )
+  AND NOT EXISTS (
+    SELECT 1 FROM pg_constraint
     WHERE conname = 'configuracoes_user_id_chave_key'
       AND conrelid = 'public.configuracoes'::regclass
   ) THEN
