@@ -16,6 +16,9 @@ import { verifyAuthFromCookie } from "@/integrations/supabase/verify-auth.functi
  * Para proteger uma rota nova, basta criar `src/routes/_authed.{nome}.tsx`.
  */
 export const Route = createFileRoute("/_authed")({
+  // Evita re-executar verifyAuthFromCookie a cada navegação client.
+  // O AuthProvider/onAuthStateChange já reage a mudanças de sessão no client;
+  // este beforeLoad serve principalmente como Cortina de Ferro no SSR/hard load.
   beforeLoad: async ({ location }) => {
     const result = await verifyAuthFromCookie();
     if (!result.authenticated) {
@@ -26,6 +29,10 @@ export const Route = createFileRoute("/_authed")({
     }
     return { userId: result.userId };
   },
+  // Cache de 5 minutos: não revalida em navegações entre rotas _authed.
+  beforeLoadGcTime: 5 * 60 * 1000,
+  staleTime: 5 * 60 * 1000,
+  shouldReload: false,
   component: AuthedLayout,
 });
 
