@@ -1,5 +1,5 @@
 import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
-import { verifyAuthFromCookie } from "@/integrations/supabase/verify-auth.server";
+import { verifyAuthFromCookie } from "@/integrations/supabase/verify-auth.functions";
 
 /**
  * Layout route SEM segmento de URL (`_authed`) que envolve TODAS as rotas
