@@ -198,11 +198,11 @@ function TabPerfil() {
 
   const [form, setForm] = useState({
     nome: "",
-    email: "fsgilvan@gmail.com",
-    telefone: "(73) 99141-1427",
-    cpf: "021.985.555-22",
+    email: "",
+    telefone: "",
+    cpf: "",
     cargo: "Administrador",
-    cidade: "Itabuna",
+    cidade: "",
     uf: "BA",
   });
   const [saving, setSaving] = useState(false);
@@ -211,11 +211,18 @@ function TabPerfil() {
   const [confSenha, setConfSenha] = useState("");
   const fileRef = useRef<HTMLInputElement | null>(null);
 
-  // Hidrata "nome" a partir do hook quando ele estiver disponível
+  // E-mail vem do auth (read-only de fato — preenchido automaticamente)
+  useEffect(() => {
+    if (user?.email) {
+      setForm((p) => (p.email === user.email ? p : { ...p, email: user.email ?? "" }));
+    }
+  }, [user?.email]);
+
+  // Hidrata "nome" a partir do hook (vazio se o usuário ainda não salvou)
   useEffect(() => {
     setForm((p) => ({
       ...p,
-      nome: name === defaultName ? "Gilvan Ferreira Santos" : name,
+      nome: name === defaultName ? "" : name,
     }));
   }, [name, defaultName]);
 
@@ -554,14 +561,14 @@ function TabNegocio() {
   const [form, setForm] = useState({
     nome: businessName,
     cnpj: details.cnpj,
-    telefone: details.telefone || "(73) 99141-1427",
-    email: details.email || "contato@juropro.com.br",
-    cep: details.cep || "45608-818",
-    endereco: details.endereco || "Rua Edelvito Lavinsky",
-    numero: details.numero || "55",
+    telefone: details.telefone,
+    email: details.email,
+    cep: details.cep,
+    endereco: details.endereco,
+    numero: details.numero,
     complemento: details.complemento,
-    bairro: details.bairro || "Jardim Primavera",
-    cidade: details.cidade || "Itabuna",
+    bairro: details.bairro,
+    cidade: details.cidade,
     uf: details.uf || "BA",
     taxaPadrao: "5,00",
     tipoJurosPadrao: "simples",
