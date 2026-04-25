@@ -180,6 +180,7 @@ function Dashboard() {
               </h2>
             </div>
             <div className="flex items-center gap-2">
+              <InstallAppButton />
               <Button
                 onClick={() => setNovoEmprestimoOpen(true)}
                 className="bg-success text-success-foreground shadow-sm hover:bg-success/90"
