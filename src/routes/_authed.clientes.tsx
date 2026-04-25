@@ -667,6 +667,14 @@ function ClientesPage() {
           cliente={clienteEditando}
         />
 
+        <NovoEmprestimoDialog
+          open={novoEmprestimoClienteId !== null}
+          onOpenChange={(next) => {
+            if (!next) setNovoEmprestimoClienteId(null);
+          }}
+          defaultClienteId={novoEmprestimoClienteId ?? undefined}
+        />
+
         <AlertDialog
           open={clienteParaExcluir !== null}
           onOpenChange={(next) => {
