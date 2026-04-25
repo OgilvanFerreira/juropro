@@ -39,7 +39,7 @@ export function NewClientsChart() {
       </div>
 
       <div className="h-72 w-full">
-        <ResponsiveContainer width="100%" height="100%">
+        <ResponsiveContainer width="99%" height="100%">
           <AreaChart
             data={data}
             margin={{ top: 8, right: 12, left: 0, bottom: 0 }}
