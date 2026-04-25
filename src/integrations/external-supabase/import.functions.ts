@@ -197,13 +197,14 @@ export const bulkImport = createServerFn({ method: "POST" })
           warnings.push(`Cliente "${cli.nome}" (${cli.cpf_cnpj}): ${insErr?.message ?? "falha ao criar"}`);
           continue;
         }
-        clienteId = created.id;
+        clienteId = created.id as string | number;
         cpfToClienteId.set(cpfKey, clienteId);
         clientes_criados++;
       } else {
         clientes_existentes++;
       }
 
+      if (clienteId === undefined) continue;
       const clienteIdResolved: string | number = clienteId;
       // Empréstimos do cliente já no banco (detecta duplicatas via observacoes)
       const { data: empsExist } = await supabase
@@ -234,7 +235,7 @@ export const bulkImport = createServerFn({ method: "POST" })
           .from("emprestimos")
           .insert({
             user_id: userId,
-            cliente_id: clienteId,
+            cliente_id: clienteIdResolved,
             valor_principal: contrato.valor_principal,
             taxa_juros: contrato.taxa_juros,
             numero_parcelas: contrato.num_parcelas,
