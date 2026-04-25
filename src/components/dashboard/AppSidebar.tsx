@@ -5,7 +5,7 @@ import {
   CalendarClock,
   BarChart3,
   Settings,
-  LifeBuoy,
+  Headset,
   Wallet,
   LogOut,
 } from "lucide-react";
