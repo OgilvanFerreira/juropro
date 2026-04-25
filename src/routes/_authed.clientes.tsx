@@ -11,6 +11,7 @@ import {
   ArrowUpDown,
   Loader2,
   Pencil,
+  Plus,
   Search,
   Trash2,
   UserPlus,
