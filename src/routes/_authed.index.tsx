@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { Loader2 } from "lucide-react";
+import { Loader2, Eye, EyeOff } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useProfile } from "@/hooks/use-profile";
 import { useAdminName } from "@/hooks/use-admin-name";
@@ -19,6 +19,8 @@ import { AreaChartCard } from "@/components/dashboard/AreaChartCard";
 import { KpiCard } from "@/components/dashboard/KpiCard";
 import { Button } from "@/components/ui/button";
 import { NovoEmprestimoDialog } from "@/components/emprestimos/NovoEmprestimoDialog";
+import { InstallAppButton } from "@/components/pwa/InstallAppButton";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   getDashboardKpis,
   getDashboardCharts,
