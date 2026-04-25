@@ -514,10 +514,21 @@ function ClientesPage() {
                                     <Button
                                       variant="ghost"
                                       size="icon"
+                                      className="h-8 w-8 text-muted-foreground hover:bg-success/10 hover:text-success"
+                                      onClick={() => setNovoEmprestimoClienteId(c.id)}
+                                      aria-label={`Novo empréstimo para ${c.nome ?? ""}`}
+                                      title="Novo empréstimo"
+                                    >
+                                      <Plus className="h-4 w-4" />
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
                                       className="h-8 w-8 text-muted-foreground hover:bg-primary/10 hover:text-primary"
                                       onClick={() => handleEditar(c.id)}
                                       disabled={loadingEditId === c.id}
                                       aria-label={`Editar cliente ${c.nome ?? ""}`}
+                                      title="Editar cliente"
                                     >
                                       {loadingEditId === c.id ? (
                                         <Loader2 className="h-4 w-4 animate-spin" />
