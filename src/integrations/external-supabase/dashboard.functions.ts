@@ -105,7 +105,8 @@ function buildLast12Months(): { key: string; label: string }[] {
     const year = d.getFullYear();
     const month = d.getMonth(); // 0-11
     const key = `${year}-${String(month + 1).padStart(2, "0")}`;
-    buckets.push({ key, label: MONTH_LABELS_PT[month] });
+    const yy = String(year).slice(-2);
+    buckets.push({ key, label: `${MONTH_LABELS_PT[month]}/${yy}` });
   }
   return buckets;
 }

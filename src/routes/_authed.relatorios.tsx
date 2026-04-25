@@ -391,9 +391,10 @@ function FinanceiroTab() {
       [];
     for (let i = 5; i >= 0; i--) {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const yy = String(d.getFullYear()).slice(-2);
       buckets.push({
         key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`,
-        label: MESES[d.getMonth()],
+        label: `${MESES[d.getMonth()]}/${yy}`,
         previsto: 0,
         realizado: 0,
       });

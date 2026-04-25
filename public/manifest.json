@@ -4,8 +4,8 @@
   "description": "Sistema profissional de gestão de empréstimos",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#1e3a5f",
-  "theme_color": "#16a34a",
+  "background_color": "#ffffff",
+  "theme_color": "#1e3a5f",
   "orientation": "portrait",
   "icons": [
     { "src": "/icons/icon-72x72.png", "sizes": "72x72", "type": "image/png" },

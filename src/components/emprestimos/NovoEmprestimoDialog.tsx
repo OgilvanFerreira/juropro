@@ -338,6 +338,8 @@ interface NovoEmprestimoDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   emprestimo?: EmprestimoFull | null;
+  /** Pré-seleciona um cliente ao abrir o diálogo (para fluxo "novo a partir do cliente"). */
+  defaultClienteId?: string | number;
 }
 
 const INITIAL_FORM = {
@@ -374,6 +376,7 @@ export function NovoEmprestimoDialog({
   open,
   onOpenChange,
   emprestimo,
+  defaultClienteId,
 }: NovoEmprestimoDialogProps) {
   const [form, setForm] = useState(INITIAL_FORM);
   const queryClient = useQueryClient();
@@ -412,9 +415,9 @@ export function NovoEmprestimoDialog({
         observacoes,
       });
     } else {
-      setForm(INITIAL_FORM);
+      setForm({ ...INITIAL_FORM, clienteId: defaultClienteId ?? "" });
     }
-  }, [open, emprestimo]);
+  }, [open, emprestimo, defaultClienteId]);
 
   const resultado = useMemo(
     () =>
