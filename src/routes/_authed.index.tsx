@@ -171,7 +171,7 @@ function Dashboard() {
       <div className="flex min-h-screen w-full bg-secondary">
         <AppSidebar />
 
-        <div className="flex flex-1 flex-col">
+        <div className="flex flex-1 flex-col min-w-0">
           <header className="sticky top-0 z-30 flex h-16 items-center justify-between gap-3 border-b bg-background/90 px-4 backdrop-blur md:px-6">
             <div className="flex items-center gap-3">
               <SidebarTrigger className="text-foreground" />
