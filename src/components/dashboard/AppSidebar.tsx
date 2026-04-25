@@ -37,11 +37,11 @@ const navItems = [
   { title: "Contratos", url: "/contratos", icon: FileText },
   { title: "Vencimentos", url: "/vencimentos", icon: CalendarClock },
   { title: "Relatórios", url: "/relatorios", icon: BarChart3 },
+  { title: "Suporte", url: "/suporte", icon: Headset, highlight: true },
 ];
 
 const supportItems = [
   { title: "Configurações", url: "/configuracoes", icon: Settings },
-  { title: "Suporte", url: "/suporte", icon: LifeBuoy },
 ];
 
 export function AppSidebar() {
