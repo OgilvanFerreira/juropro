@@ -47,6 +47,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { NovoClienteDialog } from "@/components/clientes/NovoClienteDialog";
+import { NovoEmprestimoDialog } from "@/components/emprestimos/NovoEmprestimoDialog";
 import {
   TablePagination,
   type PageSize,
@@ -118,6 +119,9 @@ function ClientesPage() {
   const [loadingEditId, setLoadingEditId] = useState<string | number | null>(
     null,
   );
+  const [novoEmprestimoClienteId, setNovoEmprestimoClienteId] = useState<
+    string | number | null
+  >(null);
   type SortKey =
     | "seqId"
     | "nome"
