@@ -5,7 +5,7 @@ import {
   CalendarClock,
   BarChart3,
   Settings,
-  LifeBuoy,
+  Headset,
   Wallet,
   LogOut,
 } from "lucide-react";
@@ -37,11 +37,11 @@ const navItems = [
   { title: "Contratos", url: "/contratos", icon: FileText },
   { title: "Vencimentos", url: "/vencimentos", icon: CalendarClock },
   { title: "Relatórios", url: "/relatorios", icon: BarChart3 },
+  { title: "Suporte", url: "/suporte", icon: Headset, highlight: true },
 ];
 
 const supportItems = [
   { title: "Configurações", url: "/configuracoes", icon: Settings },
-  { title: "Suporte", url: "/suporte", icon: LifeBuoy },
 ];
 
 export function AppSidebar() {
@@ -110,8 +110,12 @@ export function AppSidebar() {
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild isActive={isActive(item.url)} tooltip={item.title}>
                     <Link to={item.url}>
-                      <item.icon className="h-4 w-4" />
-                      <span>{item.title}</span>
+                      <item.icon
+                        className={`h-4 w-4 ${item.highlight ? "text-success" : ""}`}
+                      />
+                      <span className={item.highlight ? "font-medium text-success" : ""}>
+                        {item.title}
+                      </span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
