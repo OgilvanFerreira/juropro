@@ -110,8 +110,12 @@ export function AppSidebar() {
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild isActive={isActive(item.url)} tooltip={item.title}>
                     <Link to={item.url}>
-                      <item.icon className="h-4 w-4" />
-                      <span>{item.title}</span>
+                      <item.icon
+                        className={`h-4 w-4 ${item.highlight ? "text-success" : ""}`}
+                      />
+                      <span className={item.highlight ? "font-medium text-success" : ""}>
+                        {item.title}
+                      </span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
