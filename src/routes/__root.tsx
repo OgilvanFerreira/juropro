@@ -55,7 +55,7 @@ export const Route = createRootRouteWithContext<RouterContext>()({
       { property: "og:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/attachments/og-images/3125b263-c20b-4f98-b606-b3d0c2449863" },
       { name: "twitter:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/attachments/og-images/3125b263-c20b-4f98-b606-b3d0c2449863" },
       // PWA
-      { name: "theme-color", content: "#16a34a" },
+      { name: "theme-color", content: "#1e3a5f" },
       { name: "apple-mobile-web-app-capable", content: "yes" },
       { name: "mobile-web-app-capable", content: "yes" },
       { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
