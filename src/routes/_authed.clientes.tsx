@@ -604,7 +604,16 @@ function ClientesPage() {
                               </div>
                             </div>
 
-                            <div className="flex justify-end gap-2 border-t pt-3">
+                            <div className="flex flex-wrap justify-end gap-2 border-t pt-3">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-8 text-xs text-success hover:bg-success/10 hover:text-success"
+                                onClick={() => setNovoEmprestimoClienteId(c.id)}
+                              >
+                                <Plus className="h-3.5 w-3.5" />
+                                Empréstimo
+                              </Button>
                               <Button
                                 variant="outline"
                                 size="sm"
