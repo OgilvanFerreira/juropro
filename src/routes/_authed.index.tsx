@@ -130,6 +130,29 @@ function Dashboard() {
     enabled: authReady,
   });
   const [novoEmprestimoOpen, setNovoEmprestimoOpen] = useState(false);
+  const [valuesHidden, setValuesHidden] = useState(false);
+
+  // persistência local da preferência de privacidade
+  useEffect(() => {
+    try {
+      const saved = window.localStorage.getItem("juropro:hide_values");
+      if (saved === "1") setValuesHidden(true);
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  const toggleValues = () => {
+    setValuesHidden((prev) => {
+      const next = !prev;
+      try {
+        window.localStorage.setItem("juropro:hide_values", next ? "1" : "0");
+      } catch {
+        /* ignore */
+      }
+      return next;
+    });
+  };
 
   if (!authReady || kpisQ.isLoading || chartsQ.isLoading || !kpisQ.data || !chartsQ.data) {
     return (
