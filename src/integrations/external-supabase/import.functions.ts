@@ -204,13 +204,13 @@ export const bulkImport = createServerFn({ method: "POST" })
         clientes_existentes++;
       }
 
-      // Empréstimos do cliente já no banco (para detectar contrato existente
-      // baseado em valor_principal + data_inicio - já que não temos coluna contrato_id)
+      const clienteIdResolved: string | number = clienteId;
+      // Empréstimos do cliente já no banco (detecta duplicatas via observacoes)
       const { data: empsExist } = await supabase
         .from("emprestimos")
         .select("id, valor_principal, data_inicio, observacoes")
         .eq("user_id", userId)
-        .eq("cliente_id", clienteId)
+        .eq("cliente_id", clienteIdResolved)
         .limit(500);
 
       for (const [contratoId, contrato] of cli.contratos.entries()) {
