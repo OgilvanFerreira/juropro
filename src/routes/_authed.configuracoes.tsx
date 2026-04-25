@@ -21,8 +21,10 @@ import {
   Upload,
   CheckCircle2,
   XCircle,
+  Database,
 } from "lucide-react";
 import { toast } from "sonner";
+import { BulkImporter } from "@/components/import/BulkImporter";
 
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/dashboard/AppSidebar";
@@ -1281,7 +1283,7 @@ function ConfiguracoesPage() {
 
             <div className="mx-auto w-full max-w-4xl">
               <Tabs defaultValue="perfil" className="w-full">
-                <TabsList className="grid h-auto w-full grid-cols-3 gap-1 bg-muted p-1">
+                <TabsList className="grid h-auto w-full grid-cols-2 gap-1 bg-muted p-1 sm:grid-cols-4">
                   <TabsTrigger
                     value="perfil"
                     className="flex items-center gap-2 py-2 text-xs sm:text-sm"
@@ -1306,6 +1308,14 @@ function ConfiguracoesPage() {
                     <span className="hidden sm:inline">Preferências</span>
                     <span className="sm:hidden">Prefs</span>
                   </TabsTrigger>
+                  <TabsTrigger
+                    value="dados"
+                    className="flex items-center gap-2 py-2 text-xs sm:text-sm"
+                  >
+                    <Database className="h-4 w-4" />
+                    <span className="hidden sm:inline">Dados e Backup</span>
+                    <span className="sm:hidden">Dados</span>
+                  </TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="perfil" className="mt-4 md:mt-6">
@@ -1316,6 +1326,9 @@ function ConfiguracoesPage() {
                 </TabsContent>
                 <TabsContent value="preferencias" className="mt-4 md:mt-6">
                   <TabPreferencias />
+                </TabsContent>
+                <TabsContent value="dados" className="mt-4 md:mt-6">
+                  <BulkImporter />
                 </TabsContent>
               </Tabs>
             </div>
