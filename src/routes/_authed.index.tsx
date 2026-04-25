@@ -198,18 +198,42 @@ function Dashboard() {
           </header>
 
           <main className="flex-1 space-y-6 p-4 md:p-6 lg:p-8">
-            <div className="flex flex-col gap-1">
-              <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-                Olá, {firstName} 👋
-              </h1>
-              <p className="text-sm text-muted-foreground">
-                Visão geral da operação — atualizado agora.
-              </p>
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="flex flex-col gap-1">
+                <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+                  Olá, {firstName} 👋
+                </h1>
+                <p className="text-sm text-muted-foreground">
+                  Visão geral da operação — atualizado agora.
+                </p>
+              </div>
+              <TooltipProvider delayDuration={150}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={toggleValues}
+                      aria-pressed={valuesHidden}
+                      aria-label={valuesHidden ? "Mostrar valores" : "Ocultar valores"}
+                    >
+                      {valuesHidden ? (
+                        <EyeOff className="h-4 w-4" />
+                      ) : (
+                        <Eye className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    {valuesHidden ? "Mostrar valores" : "Ocultar valores"}
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             </div>
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
               {kpis.map((k) => (
-                <KpiCard key={k.label} {...k} />
+                <KpiCard key={k.label} {...k} hidden={valuesHidden} />
               ))}
             </div>
 
