@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { Loader2 } from "lucide-react";
+import { Loader2, Eye, EyeOff } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useProfile } from "@/hooks/use-profile";
 import { useAdminName } from "@/hooks/use-admin-name";
@@ -19,6 +19,8 @@ import { AreaChartCard } from "@/components/dashboard/AreaChartCard";
 import { KpiCard } from "@/components/dashboard/KpiCard";
 import { Button } from "@/components/ui/button";
 import { NovoEmprestimoDialog } from "@/components/emprestimos/NovoEmprestimoDialog";
+import { InstallAppButton } from "@/components/pwa/InstallAppButton";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   getDashboardKpis,
   getDashboardCharts,
@@ -128,6 +130,29 @@ function Dashboard() {
     enabled: authReady,
   });
   const [novoEmprestimoOpen, setNovoEmprestimoOpen] = useState(false);
+  const [valuesHidden, setValuesHidden] = useState(false);
+
+  // persistência local da preferência de privacidade
+  useEffect(() => {
+    try {
+      const saved = window.localStorage.getItem("juropro:hide_values");
+      if (saved === "1") setValuesHidden(true);
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  const toggleValues = () => {
+    setValuesHidden((prev) => {
+      const next = !prev;
+      try {
+        window.localStorage.setItem("juropro:hide_values", next ? "1" : "0");
+      } catch {
+        /* ignore */
+      }
+      return next;
+    });
+  };
 
   if (!authReady || kpisQ.isLoading || chartsQ.isLoading || !kpisQ.data || !chartsQ.data) {
     return (
@@ -155,6 +180,7 @@ function Dashboard() {
               </h2>
             </div>
             <div className="flex items-center gap-2">
+              <InstallAppButton />
               <Button
                 onClick={() => setNovoEmprestimoOpen(true)}
                 className="bg-success text-success-foreground shadow-sm hover:bg-success/90"
@@ -172,18 +198,42 @@ function Dashboard() {
           </header>
 
           <main className="flex-1 space-y-6 p-4 md:p-6 lg:p-8">
-            <div className="flex flex-col gap-1">
-              <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-                Olá, {firstName} 👋
-              </h1>
-              <p className="text-sm text-muted-foreground">
-                Visão geral da operação — atualizado agora.
-              </p>
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="flex flex-col gap-1">
+                <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+                  Olá, {firstName} 👋
+                </h1>
+                <p className="text-sm text-muted-foreground">
+                  Visão geral da operação — atualizado agora.
+                </p>
+              </div>
+              <TooltipProvider delayDuration={150}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={toggleValues}
+                      aria-pressed={valuesHidden}
+                      aria-label={valuesHidden ? "Mostrar valores" : "Ocultar valores"}
+                    >
+                      {valuesHidden ? (
+                        <EyeOff className="h-4 w-4" />
+                      ) : (
+                        <Eye className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    {valuesHidden ? "Mostrar valores" : "Ocultar valores"}
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             </div>
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
               {kpis.map((k) => (
-                <KpiCard key={k.label} {...k} />
+                <KpiCard key={k.label} {...k} hidden={valuesHidden} />
               ))}
             </div>
 

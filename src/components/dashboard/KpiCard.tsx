@@ -10,6 +10,7 @@ interface KpiCardProps {
   tone: "warning" | "destructive" | "info" | "success";
   loading?: boolean;
   empty?: boolean;
+  hidden?: boolean;
   to?: "/vencimentos" | "/relatorios" | "/clientes" | "/contratos";
   search?: Record<string, string>;
 }
@@ -29,6 +30,7 @@ export function KpiCard({
   tone,
   loading = false,
   empty = false,
+  hidden = false,
   to,
   search,
 }: KpiCardProps) {
@@ -44,11 +46,13 @@ export function KpiCard({
           ) : (
             <p
               className={cn(
-                "mt-2 text-3xl font-semibold tracking-tight",
+                "mt-2 text-3xl font-semibold tracking-tight tabular-nums transition",
                 empty ? "text-muted-foreground/60" : "text-foreground",
+                hidden && "select-none blur-md",
               )}
+              aria-hidden={hidden}
             >
-              {value}
+              {hidden ? "•••••" : value}
             </p>
           )}
         </div>
