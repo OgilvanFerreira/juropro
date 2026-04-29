@@ -13,4 +13,8 @@ export default defineConfig({
     react(),
     tsconfigPaths(),
   ],
+<<<<<<< HEAD
 });
+=======
+});
+>>>>>>> b31ba9f (fix: configurar TanStack Start com Nitro preset vercel)
