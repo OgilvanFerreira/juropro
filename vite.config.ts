@@ -9,12 +9,9 @@ export default defineConfig({
     tanstackStart(),
     nitro({
       preset: "vercel",
+      traceDeps: ["tslib"],
     }),
     react(),
     tsconfigPaths(),
   ],
-<<<<<<< HEAD
 });
-=======
-});
->>>>>>> b31ba9f (fix: configurar TanStack Start com Nitro preset vercel)
