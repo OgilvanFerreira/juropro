@@ -9,7 +9,11 @@ export default defineConfig({
     tanstackStart(),
     nitro({
       preset: "vercel",
-      traceDeps: ["tslib"],
+      rollupConfig: {
+        external: [],
+      },
+      serverExternals: [],
+      traceDeps: ["tslib", "@supabase/auth-js", "@supabase/supabase-js"],
     }),
     react(),
     tsconfigPaths(),
