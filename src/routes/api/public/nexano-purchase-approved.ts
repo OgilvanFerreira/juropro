@@ -16,7 +16,7 @@
 //   7. Idempotência via upsert no email
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { createAPIFileRoute } from "@tanstack/start/api";
+import { createFileRoute } from "@tanstack/react-router";
 import { createClient } from "@supabase/supabase-js";
 
 // ─── Supabase Admin (Lovable Cloud — usuários do app) ────────────────────────
