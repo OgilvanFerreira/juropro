@@ -14,6 +14,8 @@ import { Route as RecuperarSenhaRouteImport } from './routes/recuperar-senha'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AuthedRouteImport } from './routes/_authed'
 import { Route as AuthedIndexRouteImport } from './routes/_authed.index'
+import { Route as ApiWebhookCompraAprovadaRouteImport } from './routes/api/webhook-compra-aprovada'
+import { Route as ApiWebhookCancelamentoRouteImport } from './routes/api/webhook-cancelamento'
 import { Route as AuthedVencimentosRouteImport } from './routes/_authed.vencimentos'
 import { Route as AuthedSuporteRouteImport } from './routes/_authed.suporte'
 import { Route as AuthedRelatoriosRouteImport } from './routes/_authed.relatorios'
@@ -45,6 +47,17 @@ const AuthedIndexRoute = AuthedIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => AuthedRoute,
+} as any)
+const ApiWebhookCompraAprovadaRoute =
+  ApiWebhookCompraAprovadaRouteImport.update({
+    id: '/api/webhook-compra-aprovada',
+    path: '/api/webhook-compra-aprovada',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiWebhookCancelamentoRoute = ApiWebhookCancelamentoRouteImport.update({
+  id: '/api/webhook-cancelamento',
+  path: '/api/webhook-cancelamento',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const AuthedVencimentosRoute = AuthedVencimentosRouteImport.update({
   id: '/vencimentos',
@@ -94,6 +107,8 @@ export interface FileRoutesByFullPath {
   '/relatorios': typeof AuthedRelatoriosRoute
   '/suporte': typeof AuthedSuporteRoute
   '/vencimentos': typeof AuthedVencimentosRoute
+  '/api/webhook-cancelamento': typeof ApiWebhookCancelamentoRoute
+  '/api/webhook-compra-aprovada': typeof ApiWebhookCompraAprovadaRoute
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
@@ -106,6 +121,8 @@ export interface FileRoutesByTo {
   '/relatorios': typeof AuthedRelatoriosRoute
   '/suporte': typeof AuthedSuporteRoute
   '/vencimentos': typeof AuthedVencimentosRoute
+  '/api/webhook-cancelamento': typeof ApiWebhookCancelamentoRoute
+  '/api/webhook-compra-aprovada': typeof ApiWebhookCompraAprovadaRoute
   '/': typeof AuthedIndexRoute
 }
 export interface FileRoutesById {
@@ -121,6 +138,8 @@ export interface FileRoutesById {
   '/_authed/relatorios': typeof AuthedRelatoriosRoute
   '/_authed/suporte': typeof AuthedSuporteRoute
   '/_authed/vencimentos': typeof AuthedVencimentosRoute
+  '/api/webhook-cancelamento': typeof ApiWebhookCancelamentoRoute
+  '/api/webhook-compra-aprovada': typeof ApiWebhookCompraAprovadaRoute
   '/_authed/': typeof AuthedIndexRoute
 }
 export interface FileRouteTypes {
@@ -137,6 +156,8 @@ export interface FileRouteTypes {
     | '/relatorios'
     | '/suporte'
     | '/vencimentos'
+    | '/api/webhook-cancelamento'
+    | '/api/webhook-compra-aprovada'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/login'
@@ -149,6 +170,8 @@ export interface FileRouteTypes {
     | '/relatorios'
     | '/suporte'
     | '/vencimentos'
+    | '/api/webhook-cancelamento'
+    | '/api/webhook-compra-aprovada'
     | '/'
   id:
     | '__root__'
@@ -163,6 +186,8 @@ export interface FileRouteTypes {
     | '/_authed/relatorios'
     | '/_authed/suporte'
     | '/_authed/vencimentos'
+    | '/api/webhook-cancelamento'
+    | '/api/webhook-compra-aprovada'
     | '/_authed/'
   fileRoutesById: FileRoutesById
 }
@@ -171,6 +196,8 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   RecuperarSenhaRoute: typeof RecuperarSenhaRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
+  ApiWebhookCancelamentoRoute: typeof ApiWebhookCancelamentoRoute
+  ApiWebhookCompraAprovadaRoute: typeof ApiWebhookCompraAprovadaRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -209,6 +236,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/'
       preLoaderRoute: typeof AuthedIndexRouteImport
       parentRoute: typeof AuthedRoute
+    }
+    '/api/webhook-compra-aprovada': {
+      id: '/api/webhook-compra-aprovada'
+      path: '/api/webhook-compra-aprovada'
+      fullPath: '/api/webhook-compra-aprovada'
+      preLoaderRoute: typeof ApiWebhookCompraAprovadaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/webhook-cancelamento': {
+      id: '/api/webhook-cancelamento'
+      path: '/api/webhook-cancelamento'
+      fullPath: '/api/webhook-cancelamento'
+      preLoaderRoute: typeof ApiWebhookCancelamentoRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/_authed/vencimentos': {
       id: '/_authed/vencimentos'
@@ -292,6 +333,8 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   RecuperarSenhaRoute: RecuperarSenhaRoute,
   ResetPasswordRoute: ResetPasswordRoute,
+  ApiWebhookCancelamentoRoute: ApiWebhookCancelamentoRoute,
+  ApiWebhookCompraAprovadaRoute: ApiWebhookCompraAprovadaRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
