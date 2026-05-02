@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { Mail, Lock, Eye, EyeOff, LogIn, Loader2, AlertCircle } from "lucide-react";
+import { Mail, Lock, Eye, EyeOff, LogIn, Loader2, AlertCircle, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,10 +13,6 @@ interface LoginSearch {
   redirect?: string;
 }
 
-/**
- * Aceita apenas paths internos (começando com "/" mas não "//" nem "/\\"),
- * impedindo open-redirect para domínios externos via ?redirect=.
- */
 function sanitizeRedirect(value: unknown): string | undefined {
   if (typeof value !== "string") return undefined;
   if (!value.startsWith("/")) return undefined;
@@ -48,7 +44,6 @@ function LoginPage() {
   const [errSenha, setErrSenha] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // Se já logado, redireciona (em useEffect para evitar setState no render)
   useEffect(() => {
     if (!authLoading && user) {
       navigate({ to: (redirect as never) ?? "/", replace: true });
@@ -108,6 +103,16 @@ function LoginPage() {
       />
 
       <div className="relative z-10 w-full max-w-md animate-in fade-in slide-in-from-bottom-4 duration-500">
+
+        {/* Banner primeiro acesso */}
+        <div className="mb-3 flex items-start gap-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-300 backdrop-blur-sm">
+          <Info className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400" />
+          <p>
+            <span className="font-semibold text-emerald-200">Primeiro acesso?</span>{" "}
+            Use o e-mail e o número do documento (CPF ou CNPJ) utilizado na compra como senha.
+          </p>
+        </div>
+
         <div className="rounded-2xl bg-card p-7 shadow-2xl ring-1 ring-border sm:p-9">
           {/* Logo */}
           <div className="mb-7 text-center">
