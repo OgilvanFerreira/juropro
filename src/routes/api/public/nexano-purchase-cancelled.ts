@@ -62,28 +62,17 @@ function extractBuyerIdentifier(body: Record<string, unknown>): {
   document: string | null;
   externalId: string | null;
 } {
-  const customer =
-    (body.customer as Record<string, unknown>) ??
-    (body.buyer as Record<string, unknown>) ??
-    (body.data as Record<string, unknown>)?.customer ??
-    (body.data as Record<string, unknown>)?.buyer ??
-    body;
+  const client = (body.client as Record<string, unknown>) ?? {};
+  const transaction = (body.transaction as Record<string, unknown>) ?? {};
+  const subscription = (body.subscription as Record<string, unknown>) ?? {};
 
-  const email =
-    (customer.email as string) ?? (body.email as string) ?? null;
-
+  const email = (client.email as string) ?? null;
   const document =
-    (customer.document as string) ??
-    (customer.cpf as string) ??
-    (customer.cnpj as string) ??
-    (customer.cpf_cnpj as string) ??
-    null;
-
+    (client.cpf as string) ?? (client.cnpj as string) ?? null;
   const externalId =
-    (body.id as string) ??
-    (body.order_id as string) ??
-    (body.subscription_id as string) ??
-    ((body.data as Record<string, unknown>)?.id as string) ??
+    (subscription.id as string) ??
+    (transaction.id as string) ??
+    (body.token as string) ??
     null;
 
   return { email, document, externalId };

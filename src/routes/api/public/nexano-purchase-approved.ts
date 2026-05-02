@@ -77,45 +77,19 @@ function extractBuyerData(body: Record<string, unknown>): {
   phone: string | null;
   externalId: string | null; // ID do pedido/transação para idempotência
 } {
-  // ── Inspecione o console após o primeiro teste e ajuste os caminhos ──
+  // Nexano: dados do comprador em body.client.*; transação em body.transaction.id
+  const client = (body.client as Record<string, unknown>) ?? {};
+  const transaction = (body.transaction as Record<string, unknown>) ?? {};
 
-  // Padrão genérico — tenta vários caminhos comuns
-  const customer =
-    (body.customer as Record<string, unknown>) ??
-    (body.buyer as Record<string, unknown>) ??
-    (body.data as Record<string, unknown>)?.customer ??
-    (body.data as Record<string, unknown>)?.buyer ??
-    body;
-
-  const email =
-    (customer.email as string) ??
-    (body.email as string) ??
-    null;
-
-  const name =
-    (customer.name as string) ??
-    (customer.full_name as string) ??
-    (customer.nome as string) ??
-    null;
-
+  const email = (client.email as string) ?? null;
+  const name = (client.name as string) ?? null;
   const document =
-    (customer.document as string) ??
-    (customer.cpf as string) ??
-    (customer.cnpj as string) ??
-    (customer.cpf_cnpj as string) ??
-    null;
-
-  const phone =
-    (customer.phone as string) ??
-    (customer.telefone as string) ??
-    (customer.celular as string) ??
-    null;
-
+    (client.cpf as string) ?? (client.cnpj as string) ?? null;
+  const phone = (client.phone as string) ?? null;
   const externalId =
-    (body.id as string) ??
-    (body.order_id as string) ??
-    (body.transaction_id as string) ??
-    ((body.data as Record<string, unknown>)?.id as string) ??
+    (transaction.id as string) ??
+    (transaction.identifier as string) ??
+    (body.token as string) ??
     null;
 
   return { email, name, document, phone, externalId };
