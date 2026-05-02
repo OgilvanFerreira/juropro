@@ -10,15 +10,6 @@ export default defineConfig({
     tanstackStart(),
     nitro({
       preset: "vercel",
-      externals: {
-        external: [
-          "@supabase/supabase-js",
-          "@supabase/auth-js",
-          "@supabase/realtime-js",
-          "@supabase/postgrest-js",
-          "tslib",
-        ],
-      },
     }),
     tailwindcss(),
     react(),
