@@ -21,6 +21,7 @@ import { Route as AuthedContratosRouteImport } from './routes/_authed.contratos'
 import { Route as AuthedConfiguracoesRouteImport } from './routes/_authed.configuracoes'
 import { Route as AuthedClientesRouteImport } from './routes/_authed.clientes'
 import { Route as AuthedBemVindoRouteImport } from './routes/_authed.bem-vindo'
+import { Route as ApiPublicNexanoPurchaseCancelledRouteImport } from './routes/api/public/nexano-purchase-cancelled'
 import { Route as ApiPublicNexanoPurchaseApprovedRouteImport } from './routes/api/public/nexano-purchase-approved'
 
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
@@ -82,6 +83,12 @@ const AuthedBemVindoRoute = AuthedBemVindoRouteImport.update({
   path: '/bem-vindo',
   getParentRoute: () => AuthedRoute,
 } as any)
+const ApiPublicNexanoPurchaseCancelledRoute =
+  ApiPublicNexanoPurchaseCancelledRouteImport.update({
+    id: '/api/public/nexano-purchase-cancelled',
+    path: '/api/public/nexano-purchase-cancelled',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicNexanoPurchaseApprovedRoute =
   ApiPublicNexanoPurchaseApprovedRouteImport.update({
     id: '/api/public/nexano-purchase-approved',
@@ -102,6 +109,7 @@ export interface FileRoutesByFullPath {
   '/suporte': typeof AuthedSuporteRoute
   '/vencimentos': typeof AuthedVencimentosRoute
   '/api/public/nexano-purchase-approved': typeof ApiPublicNexanoPurchaseApprovedRoute
+  '/api/public/nexano-purchase-cancelled': typeof ApiPublicNexanoPurchaseCancelledRoute
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
@@ -116,6 +124,7 @@ export interface FileRoutesByTo {
   '/vencimentos': typeof AuthedVencimentosRoute
   '/': typeof AuthedIndexRoute
   '/api/public/nexano-purchase-approved': typeof ApiPublicNexanoPurchaseApprovedRoute
+  '/api/public/nexano-purchase-cancelled': typeof ApiPublicNexanoPurchaseCancelledRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -132,6 +141,7 @@ export interface FileRoutesById {
   '/_authed/vencimentos': typeof AuthedVencimentosRoute
   '/_authed/': typeof AuthedIndexRoute
   '/api/public/nexano-purchase-approved': typeof ApiPublicNexanoPurchaseApprovedRoute
+  '/api/public/nexano-purchase-cancelled': typeof ApiPublicNexanoPurchaseCancelledRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -148,6 +158,7 @@ export interface FileRouteTypes {
     | '/suporte'
     | '/vencimentos'
     | '/api/public/nexano-purchase-approved'
+    | '/api/public/nexano-purchase-cancelled'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/login'
@@ -162,6 +173,7 @@ export interface FileRouteTypes {
     | '/vencimentos'
     | '/'
     | '/api/public/nexano-purchase-approved'
+    | '/api/public/nexano-purchase-cancelled'
   id:
     | '__root__'
     | '/_authed'
@@ -177,6 +189,7 @@ export interface FileRouteTypes {
     | '/_authed/vencimentos'
     | '/_authed/'
     | '/api/public/nexano-purchase-approved'
+    | '/api/public/nexano-purchase-cancelled'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -185,6 +198,7 @@ export interface RootRouteChildren {
   RecuperarSenhaRoute: typeof RecuperarSenhaRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   ApiPublicNexanoPurchaseApprovedRoute: typeof ApiPublicNexanoPurchaseApprovedRoute
+  ApiPublicNexanoPurchaseCancelledRoute: typeof ApiPublicNexanoPurchaseCancelledRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -273,6 +287,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedBemVindoRouteImport
       parentRoute: typeof AuthedRoute
     }
+    '/api/public/nexano-purchase-cancelled': {
+      id: '/api/public/nexano-purchase-cancelled'
+      path: '/api/public/nexano-purchase-cancelled'
+      fullPath: '/api/public/nexano-purchase-cancelled'
+      preLoaderRoute: typeof ApiPublicNexanoPurchaseCancelledRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/nexano-purchase-approved': {
       id: '/api/public/nexano-purchase-approved'
       path: '/api/public/nexano-purchase-approved'
@@ -314,6 +335,7 @@ const rootRouteChildren: RootRouteChildren = {
   RecuperarSenhaRoute: RecuperarSenhaRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   ApiPublicNexanoPurchaseApprovedRoute: ApiPublicNexanoPurchaseApprovedRoute,
+  ApiPublicNexanoPurchaseCancelledRoute: ApiPublicNexanoPurchaseCancelledRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

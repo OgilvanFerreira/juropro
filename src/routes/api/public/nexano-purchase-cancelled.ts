@@ -257,5 +257,7 @@ export const Route = createFileRoute("/api/public/nexano-purchase-cancelled")({
       }),
       { status: 200, headers: { "Content-Type": "application/json" } }
     );
+      },
+    },
   },
 });
