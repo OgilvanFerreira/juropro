@@ -19,8 +19,8 @@ import { createClient } from "@supabase/supabase-js";
 
 // ─── Supabase Admin ───────────────────────────────────────────────────────────
 function getSupabaseAdmin() {
-  const url = process.env.SUPABASE_URL!;
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+  const url = process.env.SUPABASE_URL || process.env.EXTERNAL_SUPABASE_URL!;
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.EXTERNAL_SUPABASE_SERVICE_ROLE_KEY!;
   return createClient(url, serviceKey, {
     auth: { autoRefreshToken: false, persistSession: false },
   });

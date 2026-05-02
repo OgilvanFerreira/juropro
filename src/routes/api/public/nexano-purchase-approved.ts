@@ -23,8 +23,8 @@ import { createClient } from "@supabase/supabase-js";
 // Use a Service Role Key para operações admin (criar usuários, etc.)
 // Variáveis configuradas no Cloudflare Workers / wrangler.jsonc (secrets)
 function getSupabaseAdmin() {
-  const url = process.env.SUPABASE_URL!;
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+  const url = process.env.SUPABASE_URL || process.env.EXTERNAL_SUPABASE_URL!;
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.EXTERNAL_SUPABASE_SERVICE_ROLE_KEY!;
   return createClient(url, serviceKey, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
