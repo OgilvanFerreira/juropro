@@ -279,5 +279,7 @@ export const Route = createFileRoute("/api/public/nexano-purchase-approved")({
       }),
       { status: 201, headers: { "Content-Type": "application/json" } }
     );
+      },
+    },
   },
 });
