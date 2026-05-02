@@ -23,11 +23,49 @@ import { createClient } from "@supabase/supabase-js";
 // Use a Service Role Key para operações admin (criar usuários, etc.)
 // Variáveis configuradas no Cloudflare Workers / wrangler.jsonc (secrets)
 function getSupabaseAdmin() {
-  const url = process.env.SUPABASE_URL || process.env.EXTERNAL_SUPABASE_URL!;
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.EXTERNAL_SUPABASE_SERVICE_ROLE_KEY!;
+  const url = process.env.SUPABASE_URL || process.env.EXTERNAL_SUPABASE_URL;
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.EXTERNAL_SUPABASE_SERVICE_ROLE_KEY;
+  const urlSource = process.env.SUPABASE_URL ? "SUPABASE_URL" : "EXTERNAL_SUPABASE_URL";
+  const serviceKeySource = process.env.SUPABASE_SERVICE_ROLE_KEY
+    ? "SUPABASE_SERVICE_ROLE_KEY"
+    : "EXTERNAL_SUPABASE_SERVICE_ROLE_KEY";
+
+  if (!url || !serviceKey) {
+    throw new Error("Configuração do backend ausente: URL ou service role key não encontrada.");
+  }
+
+  const keyInfo = inspectServiceKey(serviceKey);
+  console.log("[webhook-approved] Backend selecionado:", {
+    urlSource,
+    serviceKeySource,
+    host: new URL(url).host,
+    keyRole: keyInfo.role,
+    keyRef: keyInfo.ref,
+    keyIssuer: keyInfo.iss,
+  });
+
   return createClient(url, serviceKey, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
+}
+
+function inspectServiceKey(key: string): { role: string | null; ref: string | null; iss: string | null } {
+  try {
+    const payload = key.split(".")[1];
+    if (!payload) return { role: null, ref: null, iss: null };
+
+    const json = JSON.parse(
+      Buffer.from(payload.replace(/-/g, "+").replace(/_/g, "/"), "base64").toString("utf8"),
+    ) as { role?: string; ref?: string; iss?: string };
+
+    return {
+      role: json.role ?? null,
+      ref: json.ref ?? null,
+      iss: json.iss ?? null,
+    };
+  } catch {
+    return { role: null, ref: null, iss: null };
+  }
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
