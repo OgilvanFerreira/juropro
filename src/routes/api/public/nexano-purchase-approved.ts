@@ -1,139 +1,75 @@
 // src/routes/api/public/nexano-purchase-approved.ts
 //
-// Webhook: Compra Aprovada — Nexano / Kiwifi
+// Webhook: Compra Aprovada — Nexano
 // Rota pública: /api/public/nexano-purchase-approved
-// Deploy: Cloudflare Workers (TanStack Start v1 + Vite 7)
+// Deploy: Vercel (TanStack Start v1 + Vite 7 + React 19)
 //
 // FLUXO:
-//   1. Recebe POST da plataforma de pagamentos
-//   2. No primeiro teste: inspeciona o payload bruto e loga no console
-//      para que você possa ver exatamente onde vêm os campos e o token
-//   3. Após primeiro teste: habilite a validação HMAC abaixo
-//   4. Cria usuário no Supabase Auth (auth.users) — trigger handle_new_user()
-//      cria o profiles automaticamente
-//   5. Define senha temporária = documento (CPF/CNPJ) hasheado
-//   6. Marca must_change_password = true no profile
-//   7. Idempotência via upsert no email
+//   1. Recebe POST da Nexano
+//   2. Valida token via body.token === NEXANO_WEBHOOK_SECRET
+//   3. Extrai dados do comprador (body.client.*)
+//   4. Opera SOMENTE no Supabase EXTERNO (EXTERNAL_SUPABASE_URL)
+//   5. Cria usuário no auth.users do externo
+//   6. Senha temporária = CPF/CNPJ sem formatação
+//   7. Insere role 'user' em public.user_roles
+//   8. Idempotência via listUsers() + checa email duplicado
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { createFileRoute } from "@tanstack/react-router";
 import { createClient } from "@supabase/supabase-js";
 
-// ─── Supabase Admin (Lovable Cloud — usuários do app) ────────────────────────
-// Use a Service Role Key para operações admin (criar usuários, etc.)
-// Variáveis configuradas no Cloudflare Workers / wrangler.jsonc (secrets)
-function getSupabaseAdmin() {
-  const url = process.env.SUPABASE_URL || process.env.EXTERNAL_SUPABASE_URL;
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.EXTERNAL_SUPABASE_SERVICE_ROLE_KEY;
-  const urlSource = process.env.SUPABASE_URL ? "SUPABASE_URL" : "EXTERNAL_SUPABASE_URL";
-  const serviceKeySource = process.env.SUPABASE_SERVICE_ROLE_KEY
-    ? "SUPABASE_SERVICE_ROLE_KEY"
-    : "EXTERNAL_SUPABASE_SERVICE_ROLE_KEY";
+// ─── Supabase Admin — APENAS o Externo (JuroPro / dados de negócio) ──────────
+function getExternalAdmin() {
+  const url = process.env.EXTERNAL_SUPABASE_URL!;
+  const serviceKey = process.env.EXTERNAL_SUPABASE_SERVICE_ROLE_KEY!;
 
   if (!url || !serviceKey) {
-    throw new Error("Configuração do backend ausente: URL ou service role key não encontrada.");
+    throw new Error(
+      "[webhook-approved] EXTERNAL_SUPABASE_URL ou EXTERNAL_SUPABASE_SERVICE_ROLE_KEY não configurados na Vercel"
+    );
   }
-
-  const keyInfo = inspectServiceKey(serviceKey);
-  console.log("[webhook-approved] Backend selecionado:", {
-    urlSource,
-    serviceKeySource,
-    host: new URL(url).host,
-    keyRole: keyInfo.role,
-    keyRef: keyInfo.ref,
-    keyIssuer: keyInfo.iss,
-  });
 
   return createClient(url, serviceKey, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
 }
 
-function inspectServiceKey(key: string): { role: string | null; ref: string | null; iss: string | null } {
-  try {
-    const payload = key.split(".")[1];
-    if (!payload) return { role: null, ref: null, iss: null };
-
-    const json = JSON.parse(
-      Buffer.from(payload.replace(/-/g, "+").replace(/_/g, "/"), "base64").toString("utf8"),
-    ) as { role?: string; ref?: string; iss?: string };
-
-    return {
-      role: json.role ?? null,
-      ref: json.ref ?? null,
-      iss: json.iss ?? null,
-    };
-  } catch {
-    return { role: null, ref: null, iss: null };
-  }
-}
-
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-/** Extrai o token de autenticação do webhook de onde ele vier no request.
- *  Adaptamos após o primeiro teste — por isso inspecionamos todos os headers
- *  e o body para mapear o campo correto. */
-function extractToken(req: Request, body: unknown): string | null {
-  // Candidatos comuns — ajuste após primeiro teste
-  return (
-    req.headers.get("authorization")?.replace("Bearer ", "") ??
-    req.headers.get("x-webhook-token") ??
-    req.headers.get("x-nexano-token") ??
-    req.headers.get("x-api-key") ??
-    (body as Record<string, unknown>)?.token?.toString() ??
-    null
-  );
+/** Token vem em body.token (confirmado nos logs da Nexano) */
+function extractToken(body: Record<string, unknown>): string | null {
+  return (body.token as string) ?? null;
 }
 
-/** Valida o token recebido contra o segredo configurado.
- *  ATIVE após confirmar o campo correto no primeiro teste. */
 function validateToken(token: string | null): boolean {
   const secret = process.env.NEXANO_WEBHOOK_SECRET;
+
   if (!secret) {
-    // Se ainda não configuramos o secret, loga aviso mas deixa passar
-    // (modo "inspeção") — REMOVA isso em produção!
-    console.warn(
-      "[webhook-approved] NEXANO_WEBHOOK_SECRET não configurado — " +
-        "validação desativada (modo inspeção)"
-    );
-    return true;
-  }
-  if (!token) {
-    console.error("[webhook-approved] Token ausente no request");
+    console.error("[webhook-approved] NEXANO_WEBHOOK_SECRET não configurado na Vercel");
     return false;
   }
+
+  if (!token) {
+    console.error("[webhook-approved] Token ausente no payload");
+    return false;
+  }
+
   return token === secret;
 }
 
-/** Extrai dados do comprador do payload.
- *  Esta função é o ponto de adaptação após o primeiro teste:
- *  mapeie aqui os campos reais vindos da Nexano. */
-function extractBuyerData(body: Record<string, unknown>): {
-  email: string | null;
-  name: string | null;
-  document: string | null; // CPF ou CNPJ
-  phone: string | null;
-  externalId: string | null; // ID do pedido/transação para idempotência
-} {
-  // Nexano: dados do comprador em body.client.*; transação em body.transaction.id
+function extractBuyerData(body: Record<string, unknown>) {
   const client = (body.client as Record<string, unknown>) ?? {};
   const transaction = (body.transaction as Record<string, unknown>) ?? {};
 
-  const email = (client.email as string) ?? null;
-  const name = (client.name as string) ?? null;
-  const document =
-    (client.cpf as string) ?? (client.cnpj as string) ?? null;
-  const phone = (client.phone as string) ?? null;
-  const externalId =
-    (transaction.id as string) ??
-    (transaction.identifier as string) ??
-    (body.token as string) ??
-    null;
-
-  return { email, name, document, phone, externalId };
+  return {
+    email: (client.email as string) ?? null,
+    name: (client.name as string) ?? null,
+    document: (client.cpf as string) ?? (client.cnpj as string) ?? null,
+    phone: (client.phone as string) ?? null,
+    externalId: (transaction.id as string) ?? null,
+  };
 }
 
-/** Limpa documento deixando só dígitos */
 function cleanDocument(doc: string): string {
   return doc.replace(/\D/g, "");
 }
@@ -144,153 +80,127 @@ export const Route = createFileRoute("/api/public/nexano-purchase-approved")({
   server: {
     handlers: {
       POST: async ({ request }: { request: Request }) => {
-    console.log("[webhook-approved] Request recebido");
+        console.log("[webhook-approved] Request recebido");
 
-    // 1. Parse do body
-    let body: Record<string, unknown>;
-    try {
-      body = await request.json();
-    } catch {
-      return new Response(
-        JSON.stringify({ error: "Payload JSON inválido" }),
-        { status: 400, headers: { "Content-Type": "application/json" } }
-      );
-    }
+        // 1. Parse do body
+        let body: Record<string, unknown>;
+        try {
+          body = await request.json();
+        } catch {
+          return new Response(
+            JSON.stringify({ error: "Payload JSON inválido" }),
+            { status: 400, headers: { "Content-Type": "application/json" } }
+          );
+        }
 
-    // ── MODO INSPEÇÃO: loga tudo no primeiro teste ──────────────────────────
-    console.log("[webhook-approved] === PAYLOAD COMPLETO ===");
-    console.log(JSON.stringify(body, null, 2));
-    console.log("[webhook-approved] === HEADERS ===");
-    for (const [key, value] of request.headers.entries()) {
-      console.log(`  ${key}: ${value}`);
-    }
-    // ── FIM MODO INSPEÇÃO ───────────────────────────────────────────────────
+        // 2. Validação do token (body.token === NEXANO_WEBHOOK_SECRET)
+        const token = extractToken(body);
+        if (!validateToken(token)) {
+          return new Response(
+            JSON.stringify({ error: "Token inválido" }),
+            { status: 401, headers: { "Content-Type": "application/json" } }
+          );
+        }
 
-    // 2. Validação do token
-    const token = extractToken(request, body);
-    if (!validateToken(token)) {
-      return new Response(
-        JSON.stringify({ error: "Token inválido" }),
-        { status: 401, headers: { "Content-Type": "application/json" } }
-      );
-    }
+        // 3. Extração dos dados do comprador
+        const { email, name, document, phone, externalId } = extractBuyerData(body);
 
-    // 3. Extração dos dados do comprador
-    const { email, name, document, phone, externalId } =
-      extractBuyerData(body);
+        console.log("[webhook-approved] Dados extraídos:", {
+          email,
+          name,
+          document: document ? "***" + document.slice(-4) : null,
+          phone,
+          externalId,
+        });
 
-    console.log("[webhook-approved] Dados extraídos:", {
-      email,
-      name,
-      document: document ? "***" + document.slice(-4) : null,
-      phone,
-      externalId,
-    });
+        if (!email) {
+          console.error("[webhook-approved] Email não encontrado no payload");
+          return new Response(
+            JSON.stringify({ error: "Email do comprador não encontrado" }),
+            { status: 422, headers: { "Content-Type": "application/json" } }
+          );
+        }
 
-    if (!email) {
-      console.error("[webhook-approved] Email não encontrado no payload");
-      return new Response(
-        JSON.stringify({ error: "Email do comprador não encontrado" }),
-        { status: 422, headers: { "Content-Type": "application/json" } }
-      );
-    }
+        // 4. Senha temporária = documento limpo (CPF/CNPJ)
+        //    Fallback: primeiros 8 chars do email + "2024"
+        const rawPassword = document
+          ? cleanDocument(document)
+          : email.split("@")[0].slice(0, 8) + "2024";
 
-    // 4. Senha temporária = documento sem formatação (CPF/CNPJ)
-    //    Se não tiver documento, usa os primeiros 8 chars do email
-    const rawPassword = document
-      ? cleanDocument(document)
-      : email.split("@")[0].slice(0, 8) + "2024";
+        // 5. Conecta ao Supabase EXTERNO
+        let supabase: ReturnType<typeof getExternalAdmin>;
+        try {
+          supabase = getExternalAdmin();
+        } catch (err: unknown) {
+          const msg = err instanceof Error ? err.message : String(err);
+          console.error("[webhook-approved]", msg);
+          return new Response(
+            JSON.stringify({ error: "Configuração do servidor incompleta", detail: msg }),
+            { status: 500, headers: { "Content-Type": "application/json" } }
+          );
+        }
 
-    const supabase = getSupabaseAdmin();
+        // 6. Idempotência: verifica se usuário já existe pelo email
+        const { data: existingUsers } = await supabase.auth.admin.listUsers();
+        const alreadyExists = existingUsers?.users?.find(
+          (u) => u.email?.toLowerCase() === email.toLowerCase()
+        );
 
-    // 5. Idempotência: verifica se usuário já existe pelo email
-    const { data: existingUsers } = await supabase.auth.admin.listUsers();
-    const alreadyExists = existingUsers?.users?.find(
-      (u) => u.email?.toLowerCase() === email.toLowerCase()
-    );
+        if (alreadyExists) {
+          console.log(`[webhook-approved] Usuário já existe (${email}) — idempotência: sem ação`);
+          return new Response(
+            JSON.stringify({
+              ok: true,
+              message: "Usuário já existente — nenhuma ação necessária",
+              user_id: alreadyExists.id,
+            }),
+            { status: 200, headers: { "Content-Type": "application/json" } }
+          );
+        }
 
-    if (alreadyExists) {
-      console.log(
-        `[webhook-approved] Usuário já existe (${email}) — idempotência: ignorando criação`
-      );
-      return new Response(
-        JSON.stringify({
-          ok: true,
-          message: "Usuário já existente — nenhuma ação necessária",
-          user_id: alreadyExists.id,
-        }),
-        { status: 200, headers: { "Content-Type": "application/json" } }
-      );
-    }
+        // 7. Cria usuário no auth.users do Supabase EXTERNO
+        const { data: newUser, error: createError } =
+          await supabase.auth.admin.createUser({
+            email,
+            password: rawPassword,
+            email_confirm: true,
+            user_metadata: {
+              name: name ?? email.split("@")[0],
+              must_change_password: true,
+              phone: phone ?? null,
+              document: document ?? null,
+              external_purchase_id: externalId ?? null,
+              created_by: "webhook-nexano",
+            },
+          });
 
-    // 6. Cria usuário no Supabase Auth
-    //    O trigger handle_new_user() cria public.profiles automaticamente
-    const { data: newUser, error: createError } =
-      await supabase.auth.admin.createUser({
-        email,
-        password: rawPassword,        // Supabase hasheia internamente (bcrypt)
-        email_confirm: true,          // Confirma email automaticamente
-        user_metadata: {
-          name: name ?? email.split("@")[0],
-          must_change_password: true, // Flag para forçar troca no 1º login
-          phone: phone ?? null,
-          document: document ?? null,
-          external_purchase_id: externalId ?? null,
-          created_by: "webhook-nexano",
-        },
-      });
+        if (createError) {
+          console.error("[webhook-approved] Erro ao criar usuário:", createError);
+          return new Response(
+            JSON.stringify({ error: "Erro ao criar usuário", detail: createError.message }),
+            { status: 500, headers: { "Content-Type": "application/json" } }
+          );
+        }
 
-    if (createError) {
-      console.error("[webhook-approved] Erro ao criar usuário:", createError);
-      return new Response(
-        JSON.stringify({ error: "Erro ao criar usuário", detail: createError.message }),
-        { status: 500, headers: { "Content-Type": "application/json" } }
-      );
-    }
+        console.log(`[webhook-approved] Usuário criado: ${newUser.user.id} (${email})`);
 
-    console.log(
-      `[webhook-approved] Usuário criado: ${newUser.user.id} (${email})`
-    );
+        // 8. Insere role 'user' em public.user_roles
+        const { error: roleError } = await supabase
+          .from("user_roles")
+          .insert({ user_id: newUser.user.id, role: "user" });
 
-    // 7. Atualiza public.profiles com dados adicionais
-    //    (o trigger já criou o registro; aqui complementamos)
-    const { error: profileError } = await supabase
-      .from("profiles")
-      .update({
-        nome: name ?? email.split("@")[0],
-        email,
-        telefone: phone ?? null,
-        cpf: document ? cleanDocument(document) : null,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("user_id", newUser.user.id);
+        if (roleError && !roleError.message.includes("duplicate")) {
+          console.warn("[webhook-approved] Aviso ao inserir role:", roleError);
+        }
 
-    if (profileError) {
-      // Não falha o webhook — o usuário foi criado, o perfil pode ser
-      // atualizado posteriormente
-      console.warn(
-        "[webhook-approved] Aviso ao atualizar profile:",
-        profileError
-      );
-    }
-
-    // 8. Insere role padrão 'user'
-    const { error: roleError } = await supabase
-      .from("user_roles")
-      .insert({ user_id: newUser.user.id, role: "user" });
-
-    if (roleError && !roleError.message.includes("duplicate")) {
-      console.warn("[webhook-approved] Aviso ao inserir role:", roleError);
-    }
-
-    return new Response(
-      JSON.stringify({
-        ok: true,
-        message: "Usuário criado com sucesso",
-        user_id: newUser.user.id,
-      }),
-      { status: 201, headers: { "Content-Type": "application/json" } }
-    );
+        return new Response(
+          JSON.stringify({
+            ok: true,
+            message: "Usuário criado com sucesso",
+            user_id: newUser.user.id,
+          }),
+          { status: 201, headers: { "Content-Type": "application/json" } }
+        );
       },
     },
   },
