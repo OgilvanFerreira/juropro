@@ -16,7 +16,7 @@
 //   7. Idempotência via upsert no email
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { createAPIFileRoute } from "@tanstack/start/api";
+import { createFileRoute } from "@tanstack/react-router";
 import { createClient } from "@supabase/supabase-js";
 
 // ─── Supabase Admin (Lovable Cloud — usuários do app) ────────────────────────
@@ -128,10 +128,10 @@ function cleanDocument(doc: string): string {
 
 // ─── Handler Principal ────────────────────────────────────────────────────────
 
-export const APIRoute = createAPIFileRoute(
-  "/api/public/nexano-purchase-approved"
-)({
-  POST: async ({ request }) => {
+export const Route = createFileRoute("/api/public/nexano-purchase-approved")({
+  server: {
+    handlers: {
+      POST: async ({ request }: { request: Request }) => {
     console.log("[webhook-approved] Request recebido");
 
     // 1. Parse do body
@@ -279,5 +279,7 @@ export const APIRoute = createAPIFileRoute(
       }),
       { status: 201, headers: { "Content-Type": "application/json" } }
     );
+      },
+    },
   },
 });
