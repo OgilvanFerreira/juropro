@@ -14,7 +14,7 @@
 //   7. Se usuário não existe: loga e retorna 200 (evita retries)
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { createAPIFileRoute } from "@tanstack/start/api";
+import { createFileRoute } from "@tanstack/react-router";
 import { createClient } from "@supabase/supabase-js";
 
 // ─── Supabase Admin ───────────────────────────────────────────────────────────
