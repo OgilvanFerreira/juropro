@@ -94,10 +94,10 @@ const BANNED_UNTIL = "2099-01-01T00:00:00Z";
 
 // ─── Handler Principal ────────────────────────────────────────────────────────
 
-export const APIRoute = createAPIFileRoute(
-  "/api/public/nexano-purchase-cancelled"
-)({
-  POST: async ({ request }) => {
+export const Route = createFileRoute("/api/public/nexano-purchase-cancelled")({
+  server: {
+    handlers: {
+      POST: async ({ request }: { request: Request }) => {
     console.log("[webhook-cancelled] Request recebido");
 
     // 1. Parse
