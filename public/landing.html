@@ -584,7 +584,7 @@ function updateCountdown() {
   const h = String(Math.floor(diff/3600)).padStart(2,'0');
   const m = String(Math.floor((diff%3600)/60)).padStart(2,'0');
   const s = String(diff%60).padStart(2,'0');
-  document.getElementById('countdown').textContent = h+'h '+m+'m '+s+'s';
+  const el = document.getElementById('countdown'); if(el) el.textContent = h + 'h ' + m + 'm ' + s + 's';
 }
 updateCountdown(); setInterval(updateCountdown, 1000);
 
