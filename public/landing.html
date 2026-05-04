@@ -128,9 +128,14 @@ h2{font-family:'Bebas Neue',sans-serif;font-size:clamp(2.2rem,4.5vw,3.6rem);lett
 .whatsapp-badge{margin:0 20px 18px;display:inline-flex;align-items:center;gap:6px;background:rgba(37,211,102,.08);border:1px solid rgba(37,211,102,.2);padding:4px 10px;border-radius:100px;font-size:.68rem;font-weight:700;color:#25D366}
 
 /* ══════════════════════════════════════
-   PRICING — novo layout com anual no meio
+   PRICING — ESTRATÉGIA PSICOLÓGICA
 ══════════════════════════════════════ */
 .price-section{background:var(--navy2);padding:96px 5%}
+.price-header{text-align:center;max-width:600px;margin:0 auto 60px}
+.price-header .stag{display:block;margin-bottom:14px}
+.price-header h2{margin-bottom:16px}
+.price-header .sub{margin:0 auto}
+
 .price-wrapper{
   display:grid;
   grid-template-columns:1fr 1.18fr 1fr;
@@ -138,11 +143,10 @@ h2{font-family:'Bebas Neue',sans-serif;font-size:clamp(2.2rem,4.5vw,3.6rem);lett
   align-items:start;
   max-width:1060px;
   margin:0 auto;
-  margin-top:60px;
   position:relative;
 }
 
-/* LATERAL CARDS (mensal e semestral) */
+/* LATERAL CARDS */
 .price-card{
   background:var(--navy);
   border:1px solid var(--border);
@@ -203,9 +207,9 @@ h2{font-family:'Bebas Neue',sans-serif;font-size:clamp(2.2rem,4.5vw,3.6rem);lett
 .price-old{font-size:.85rem;color:var(--muted);text-decoration:line-through;margin-bottom:2px}
 .price-discount-badge{
   display:inline-block;
-  background:rgba(239,68,68,.12);
-  border:1px solid rgba(239,68,68,.25);
-  color:#FCA5A5;
+  background:rgba(34,197,94,.12);
+  border:1px solid rgba(34,197,94,.25);
+  color:var(--green);
   padding:3px 12px;
   border-radius:100px;
   font-size:.72rem;
@@ -225,8 +229,9 @@ h2{font-family:'Bebas Neue',sans-serif;font-size:clamp(2.2rem,4.5vw,3.6rem);lett
   font-family:'Plus Jakarta Sans',sans-serif;
   font-size:.85rem;font-weight:600;color:var(--muted);
 }
-.price-installments{font-size:.78rem;color:var(--muted);margin-bottom:4px}
+.price-installments{font-size:.78rem;color:var(--green);margin-bottom:4px;font-weight:600}
 .price-period{font-size:.75rem;color:var(--muted);margin-bottom:22px}
+.price-savings{font-size:.78rem;color:var(--green);font-weight:700;margin-bottom:12px;display:flex;align-items:center;gap:4px}
 
 hr.pd{border:none;border-top:1px solid var(--border);margin:18px 0}
 .price-feats-label{font-size:.7rem;font-weight:800;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:12px}
@@ -238,6 +243,58 @@ hr.pd{border:none;border-top:1px solid var(--border);margin:18px 0}
 .pbtn.main:hover{background:var(--green2);box-shadow:0 8px 36px rgba(34,197,94,.5);transform:translateY(-2px)}
 .pbtn.out{background:transparent;color:var(--text);border:1px solid var(--border)}
 .pbtn.out:hover{border-color:var(--green);color:var(--green)}
+
+/* INSTALLMENT OPTIONS */
+.installment-section{
+  margin-top:80px;
+  padding:40px 32px;
+  background:rgba(34,197,94,.04);
+  border:1px solid var(--border);
+  border-radius:16px;
+  text-align:center;
+}
+.installment-title{
+  font-size:1.1rem;
+  font-weight:700;
+  margin-bottom:6px;
+  color:var(--text);
+}
+.installment-subtitle{
+  font-size:.85rem;
+  color:var(--muted);
+  margin-bottom:24px;
+}
+.installment-grid{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:16px;
+}
+.installment-card{
+  background:var(--navy);
+  border:1px solid var(--border);
+  border-radius:12px;
+  padding:20px;
+  transition:all .3s;
+}
+.installment-card:hover{
+  border-color:var(--green);
+  box-shadow:0 8px 24px rgba(34,197,94,.15);
+}
+.installment-plan{
+  font-size:.85rem;
+  color:var(--muted);
+  margin-bottom:8px;
+}
+.installment-value{
+  font-family:'Bebas Neue',sans-serif;
+  font-size:1.8rem;
+  color:var(--green);
+  margin-bottom:4px;
+}
+.installment-note{
+  font-size:.72rem;
+  color:var(--muted);
+}
 
 /* CTA */
 .cta-section{background:var(--navy);padding:80px 5%}
@@ -278,6 +335,7 @@ footer{background:var(--navy);border-top:1px solid var(--border);padding:36px 5%
   .prob-grid,.feat-grid,.diffs,.test-grid{grid-template-columns:1fr}
   .price-wrapper{grid-template-columns:1fr;gap:20px}
   .price-card.feat{margin:0}
+  .installment-grid{grid-template-columns:1fr}
   .metrics{grid-template-columns:repeat(2,1fr)}
   .metric:nth-child(2){border-right:none}
   .hero-ctas{flex-direction:column;align-items:center}
@@ -291,7 +349,7 @@ footer{background:var(--navy);border-top:1px solid var(--border);padding:36px 5%
 <!-- NAV -->
 <nav>
   <div class="nav-logo">
-    <img src="/juropro-logo.png"
+    <img src="/juropro-logo.png" alt="JuroPro">
     <span>Juro<em>Pro</em></span>
   </div>
   <ul class="nav-links">
@@ -324,7 +382,6 @@ footer{background:var(--navy);border-top:1px solid var(--border);padding:36px 5%
   </div>
 </section>
 
-<!-- METRICS -->
 <div class="metrics reveal">
   <div class="metric"><div class="m-num">+42%</div><div class="m-label">Aumento de faturamento</div></div>
   <div class="metric"><div class="m-num">-68%</div><div class="m-label">Tempo gasto em gestão</div></div>
@@ -436,10 +493,10 @@ footer{background:var(--navy);border-top:1px solid var(--border);padding:36px 5%
 <!-- PLANOS -->
 <section id="planos" class="price-section">
   <div class="wrap">
-    <div style="text-align:center;max-width:600px;margin:0 auto">
+    <div class="price-header">
       <span class="stag reveal">Planos</span>
       <h2 class="reveal">Escolha seu plano.<br>7 dias de garantia.</h2>
-      <p class="sub reveal" style="margin:0 auto">Teste sem risco. Se não gostar em 7 dias, devolvemos 100% do seu dinheiro.</p>
+      <p class="sub reveal">Teste sem risco. Se não gostar em 7 dias, devolvemos 100% do seu dinheiro.</p>
     </div>
 
     <div class="price-wrapper">
@@ -448,9 +505,7 @@ footer{background:var(--navy);border-top:1px solid var(--border);padding:36px 5%
       <div class="price-card reveal">
         <div class="plan-sub-badge gray">Ideal para testar</div>
         <div class="plan-name">Mensal</div>
-        <div class="price-old">De R$ 197/mês</div>
-        <div class="price-discount-badge">50% OFF</div>
-        <div class="price-val">R$97<span>/mês</span></div>
+        <div class="price-val">R$127<span>/mês</span></div>
         <div class="price-period">Renovação mensal · sem fidelidade</div>
         <hr class="pd">
         <div class="price-feats-label">✦ Tudo incluído:</div>
@@ -462,18 +517,17 @@ footer{background:var(--navy);border-top:1px solid var(--border);padding:36px 5%
           <li>Suporte Standard</li>
           <li>App no Celular (PWA)</li>
         </ul>
-        <a href="https://checkout.nexano.com.br/checkout/cmoli9bhf000e1yrtaw4nt9v7?offer=4PO8N6E" class="pbtn out" target="_blank">Assinar Agora</a>
+        <a href="https://checkout.nexano.com.br/" class="pbtn out" target="_blank">Começar Agora</a>
       </div>
 
       <!-- ANUAL (centro — destaque) -->
       <div class="price-card feat reveal">
-        <div class="popular-badge">🔥 MAIS POPULAR</div>
+        <div class="popular-badge">🔥 MAIOR ECONOMIA</div>
         <div class="plan-sub-badge" style="margin-top:10px">Melhor custo-benefício</div>
         <div class="plan-name">Anual</div>
-        <div class="price-old">De R$ 1.164/ano</div>
-        <div class="price-discount-badge">ECONOMIZE 45% — MELHOR OFERTA</div>
-        <div class="price-val feat-val">R$57<span>/mês</span></div>
-        <div class="price-installments">12x de R$57 — cobrado anualmente</div>
+        <div class="price-val feat-val">R$997<span>/ano</span></div>
+        <div class="price-installments">💰 Equivalente a R$ 83,08/mês</div>
+        <div class="price-savings">💚 Economize R$ 43,92/mês vs. Mensal</div>
         <div class="price-period">Acesso por 1 ano completo</div>
         <hr class="pd">
         <div class="price-feats-label">✦ Tudo incluído:</div>
@@ -485,17 +539,16 @@ footer{background:var(--navy);border-top:1px solid var(--border);padding:36px 5%
           <li><strong style="color:var(--green)">Suporte VIP + Consultoria</strong></li>
           <li>App no Celular (PWA)</li>
         </ul>
-        <a href="https://checkout.nexano.com.br/checkout/cmoli9bhf000e1yrtaw4nt9v7?offer=4GWOF62" class="pbtn main" target="_blank">QUERO O PLANO ANUAL</a>
+        <a href="https://checkout.nexano.com.br/" class="pbtn main" target="_blank">QUERO O PLANO ANUAL</a>
       </div>
 
       <!-- SEMESTRAL (direita) -->
       <div class="price-card reveal">
         <div class="plan-sub-badge gray">Ótimo desconto</div>
         <div class="plan-name">Semestral</div>
-        <div class="price-old">De R$ 582/semestre</div>
-        <div class="price-discount-badge">20% OFF</div>
-        <div class="price-val">R$77<span>/mês</span></div>
-        <div class="price-installments">6x de R$77 — cobrado semestralmente</div>
+        <div class="price-val">R$597<span>/6 meses</span></div>
+        <div class="price-installments">💰 Equivalente a R$ 99,50/mês</div>
+        <div class="price-savings">💚 Economize R$ 27,50/mês vs. Mensal</div>
         <div class="price-period">Acesso por 6 meses</div>
         <hr class="pd">
         <div class="price-feats-label">✦ Tudo incluído:</div>
@@ -507,10 +560,35 @@ footer{background:var(--navy);border-top:1px solid var(--border);padding:36px 5%
           <li>Suporte Prioritário</li>
           <li>App no Celular (PWA)</li>
         </ul>
-        <a href="https://checkout.nexano.com.br/checkout/cmoli9bhf000e1yrtaw4nt9v7?offer=5FCLGDX" class="pbtn out" target="_blank">Assinar Agora</a>
+        <a href="https://checkout.nexano.com.br/" class="pbtn out" target="_blank">Começar Agora</a>
       </div>
 
     </div>
+
+    <!-- OPÇÕES DE PARCELAMENTO -->
+    <div class="installment-section reveal">
+      <div class="installment-title">💳 Prefere Distribuir o Investimento?</div>
+      <div class="installment-subtitle">Escolha a forma que melhor se encaixa no seu fluxo de caixa</div>
+      <div class="installment-grid">
+        <div class="installment-card">
+          <div class="installment-plan">Semestral em 6x</div>
+          <div class="installment-value">R$ 112,43</div>
+          <div class="installment-note">por mês (R$ 597 + 13%)</div>
+        </div>
+        <div class="installment-card">
+          <div class="installment-plan">Anual em 6x</div>
+          <div class="installment-value">R$ 187,77</div>
+          <div class="installment-note">por mês (R$ 997 + 13%)</div>
+        </div>
+        <div class="installment-card" style="border-color:var(--green);background:rgba(34,197,94,.05)">
+          <div class="installment-plan">⭐ Anual em 12x</div>
+          <div class="installment-value">R$ 98,86</div>
+          <div class="installment-note">por mês (R$ 997 + 19%)</div>
+        </div>
+      </div>
+      <p style="margin-top:20px;font-size:.85rem;color:var(--muted)">Todas as opções de parcelamento são processadas de forma segura via Nexano. Primeira parcela em até 3 dias úteis.</p>
+    </div>
+
   </div>
 </section>
 
