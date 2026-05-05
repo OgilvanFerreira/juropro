@@ -59,6 +59,7 @@ function ResetPasswordPage() {
 
   // Lógica agressiva para capturar o token e evitar redirecionamento precoce
   useEffect(() => {
+    if (typeof window === "undefined") return;
     let mounted = true;
 
     const checkAuth = async () => {
@@ -99,7 +100,7 @@ function ResetPasswordPage() {
 
   // Redirecionamento de segurança (apenas se tivermos certeza que não é um link de recovery)
   useEffect(() => {
-    if (authLoading) return;
+    if (authLoading || typeof window === "undefined") return;
 
     // Aumentamos o tempo para 5 segundos para dar tempo total ao processamento do Supabase
     const timer = setTimeout(() => {
