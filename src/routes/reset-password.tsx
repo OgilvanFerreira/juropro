@@ -57,26 +57,47 @@ function ResetPasswordPage() {
   const forca = useMemo(() => avaliar(nova), [nova]);
   const senhasOk = nova && conf && nova === conf;
 
-  // Aguarda o evento PASSWORD_RECOVERY do link de email antes de decidir redirecionar
+  // Captura o token de recuperação da URL e aguarda a sessão ser estabelecida
   useEffect(() => {
-    const { data: sub } = supabase.auth.onAuthStateChange((event) => {
-      if (event === "PASSWORD_RECOVERY" || event === "SIGNED_IN") {
+    const handleAuth = async () => {
+      // 1. Verifica se há um access_token no hash da URL (padrão do Supabase)
+      const hash = window.location.hash;
+      if (hash && hash.includes("access_token=")) {
+        setRecoveryReady(true);
+        return;
+      }
+
+      // 2. Escuta mudanças de estado de autenticação
+      const { data: sub } = supabase.auth.onAuthStateChange((event) => {
+        if (event === "PASSWORD_RECOVERY" || event === "SIGNED_IN") {
+          setRecoveryReady(true);
+        }
+      });
+
+      // 3. Verifica se já existe uma sessão ativa
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
         setRecoveryReady(true);
       }
-    });
-    // Se já há sessão (usuário logado normalmente abrindo a página), libera também
-    if (user) setRecoveryReady(true);
-    return () => sub.subscription.unsubscribe();
-  }, [user]);
 
-  // Se após carregar não houver sessão nem evento de recovery, manda pro login
+      return () => sub.subscription.unsubscribe();
+    };
+
+    handleAuth();
+  }, []);
+
+  // Se após carregar não houver sessão nem indícios de recovery, manda pro login
   useEffect(() => {
     if (authLoading) return;
+    
+    // Damos um tempo um pouco maior para o Supabase processar o hash da URL
     const t = setTimeout(() => {
-      if (!user && !recoveryReady) {
+      if (!recoveryReady && !user) {
+        console.log("Redirecionando para login: sem sessão e sem recovery detectado");
         navigate({ to: "/login" });
       }
-    }, 1500);
+    }, 2500);
+    
     return () => clearTimeout(t);
   }, [authLoading, user, recoveryReady, navigate]);
 

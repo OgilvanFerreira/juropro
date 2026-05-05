@@ -64,21 +64,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [hasPersistedSession, setHasPersistedSession] = useState(initialHasToken);
 
   useEffect(() => {
-    // 1) Listener primeiro
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, sess) => {
+    // 1) Listener primeiro para capturar eventos como PASSWORD_RECOVERY
+    const { data: sub } = supabase.auth.onAuthStateChange((event, sess) => {
+      console.log("Auth event:", event);
       setSession(sess);
       setUser(sess?.user ?? null);
       setHasPersistedSession(!!sess);
       setLoading(false);
     });
 
-    // 2) Hidratação da sessão persistida
-    supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session);
-      setUser(data.session?.user ?? null);
-      setHasPersistedSession(!!data.session);
+    // 2) Hidratação da sessão persistida e captura de tokens na URL
+    const initAuth = async () => {
+      const { data } = await supabase.auth.getSession();
+      if (data.session) {
+        setSession(data.session);
+        setUser(data.session.user);
+        setHasPersistedSession(true);
+      }
       setLoading(false);
-    });
+    };
+
+    initAuth();
 
     return () => sub.subscription.unsubscribe();
   }, []);
