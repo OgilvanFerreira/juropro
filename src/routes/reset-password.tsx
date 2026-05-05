@@ -57,48 +57,64 @@ function ResetPasswordPage() {
   const forca = useMemo(() => avaliar(nova), [nova]);
   const senhasOk = nova && conf && nova === conf;
 
-  // Captura o token de recuperação da URL e aguarda a sessão ser estabelecida
+  // Lógica agressiva para capturar o token e evitar redirecionamento precoce
   useEffect(() => {
-    const handleAuth = async () => {
-      // 1. Verifica se há um access_token no hash da URL (padrão do Supabase)
-      const hash = window.location.hash;
-      if (hash && hash.includes("access_token=")) {
-        setRecoveryReady(true);
-        return;
+    let mounted = true;
+
+    const checkAuth = async () => {
+      // 1. Detecção imediata por URL (Hash ou Query)
+      const hasToken = 
+        window.location.hash.includes("access_token=") || 
+        window.location.search.includes("code=") ||
+        window.location.hash.includes("type=recovery");
+      
+      if (hasToken) {
+        console.log("Token ou indício de recovery detectado na URL");
+        if (mounted) setRecoveryReady(true);
       }
 
-      // 2. Escuta mudanças de estado de autenticação
-      const { data: sub } = supabase.auth.onAuthStateChange((event) => {
-        if (event === "PASSWORD_RECOVERY" || event === "SIGNED_IN") {
+      // 2. Tenta recuperar sessão existente (caso o Supabase já tenha processado)
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session && mounted) {
+        console.log("Sessão ativa encontrada");
+        setRecoveryReady(true);
+      }
+
+      // 3. Listener para eventos futuros
+      const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+        console.log("Evento de auth detectado:", event);
+        if ((event === "PASSWORD_RECOVERY" || event === "SIGNED_IN" || session) && mounted) {
           setRecoveryReady(true);
         }
       });
 
-      // 3. Verifica se já existe uma sessão ativa
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        setRecoveryReady(true);
-      }
-
-      return () => sub.subscription.unsubscribe();
+      return () => {
+        mounted = false;
+        subscription.unsubscribe();
+      };
     };
 
-    handleAuth();
+    checkAuth();
   }, []);
 
-  // Se após carregar não houver sessão nem indícios de recovery, manda pro login
+  // Redirecionamento de segurança (apenas se tivermos certeza que não é um link de recovery)
   useEffect(() => {
     if (authLoading) return;
-    
-    // Damos um tempo um pouco maior para o Supabase processar o hash da URL
-    const t = setTimeout(() => {
-      if (!recoveryReady && !user) {
-        console.log("Redirecionando para login: sem sessão e sem recovery detectado");
-        navigate({ to: "/login" });
+
+    // Aumentamos o tempo para 5 segundos para dar tempo total ao processamento do Supabase
+    const timer = setTimeout(() => {
+      const isRecoveryURL = 
+        window.location.hash.includes("access_token=") || 
+        window.location.search.includes("code=") ||
+        window.location.hash.includes("type=recovery");
+
+      if (!user && !recoveryReady && !isRecoveryURL) {
+        console.warn("Nenhuma sessão ou token detectado. Redirecionando para login.");
+        navigate({ to: "/login", replace: true });
       }
-    }, 2500);
-    
-    return () => clearTimeout(t);
+    }, 5000);
+
+    return () => clearTimeout(timer);
   }, [authLoading, user, recoveryReady, navigate]);
 
   const validar = () => {
