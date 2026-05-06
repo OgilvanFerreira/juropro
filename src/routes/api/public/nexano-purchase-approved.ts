@@ -32,12 +32,16 @@ function getExternalAdmin() {
 }
 
 function extractToken(req: Request, body: Record<string, unknown>): string | null {
+  const urlToken = new URL(req.url).searchParams.get("token");
+
   return (
     req.headers.get("authorization")?.replace(/^Bearer\s+/i, "").trim() ||
     req.headers.get("x-webhook-token") ||
     req.headers.get("x-nexano-token") ||
     req.headers.get("x-api-key") ||
     (body.token as string) ||
+    (body.secret as string) ||
+    urlToken ||
     null
   );
 }
@@ -58,6 +62,24 @@ function validateToken(token: string | null): boolean {
   return token === secret;
 }
 
+function findStringByKeys(value: unknown, keys: string[], depth = 0): string | null {
+  if (!value || typeof value !== "object" || depth > 6) return null;
+
+  const record = value as Record<string, unknown>;
+  for (const key of keys) {
+    const match = record[key];
+    if (typeof match === "string" && match.trim()) return match.trim();
+    if (typeof match === "number") return String(match);
+  }
+
+  for (const nested of Object.values(record)) {
+    const found = findStringByKeys(nested, keys, depth + 1);
+    if (found) return found;
+  }
+
+  return null;
+}
+
 function extractBuyerData(body: Record<string, unknown>) {
   const client = (body.client as Record<string, unknown>) ?? {};
   const customer = (body.customer as Record<string, unknown>) ?? {};
@@ -68,13 +90,16 @@ function extractBuyerData(body: Record<string, unknown>) {
     (client.email as string) ??
     (customer.email as string) ??
     (body.email as string) ??
-    null;
+    findStringByKeys(body, ["email", "customer_email", "buyer_email", "client_email"]);
 
   const name =
     (client.name as string) ??
     (customer.name as string) ??
+    (client.nome as string) ??
+    (customer.nome as string) ??
     (body.name as string) ??
-    null;
+    (body.nome as string) ??
+    findStringByKeys(body, ["name", "nome", "customer_name", "buyer_name", "client_name"]);
 
   const document =
     (client.cpf as string) ??
@@ -83,19 +108,23 @@ function extractBuyerData(body: Record<string, unknown>) {
     (customer.cnpj as string) ??
     (client.document as string) ??
     (customer.document as string) ??
-    null;
+    findStringByKeys(body, ["cpf", "cnpj", "document", "documento", "customer_document"]);
 
   const phone =
     (client.phone as string) ??
     (customer.phone as string) ??
+    (client.telefone as string) ??
+    (customer.telefone as string) ??
     (body.phone as string) ??
-    null;
+    (body.telefone as string) ??
+    findStringByKeys(body, ["phone", "telefone", "whatsapp", "customer_phone", "buyer_phone"]);
 
   const externalId =
     (transaction.id as string) ??
     (subscription.id as string) ??
     (body.transaction_id as string) ??
-    null;
+    (body.id as string) ??
+    findStringByKeys(body, ["transaction_id", "order_id", "sale_id", "purchase_id"]);
 
   return { email, name, document, phone, externalId };
 }

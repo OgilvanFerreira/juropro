@@ -20,12 +20,16 @@ function getExternalAdmin() {
 }
 
 function extractToken(req: Request, body: Record<string, unknown>): string | null {
+  const urlToken = new URL(req.url).searchParams.get("token");
+
   return (
     req.headers.get("authorization")?.replace(/^Bearer\s+/i, "").trim() ||
     req.headers.get("x-webhook-token") ||
     req.headers.get("x-nexano-token") ||
     req.headers.get("x-api-key") ||
     body.token?.toString() ||
+    body.secret?.toString() ||
+    urlToken ||
     null
   );
 }
@@ -43,6 +47,24 @@ function validateToken(token: string | null): boolean {
   return token === secret;
 }
 
+function findStringByKeys(value: unknown, keys: string[], depth = 0): string | null {
+  if (!value || typeof value !== "object" || depth > 6) return null;
+
+  const record = value as Record<string, unknown>;
+  for (const key of keys) {
+    const match = record[key];
+    if (typeof match === "string" && match.trim()) return match.trim();
+    if (typeof match === "number") return String(match);
+  }
+
+  for (const nested of Object.values(record)) {
+    const found = findStringByKeys(nested, keys, depth + 1);
+    if (found) return found;
+  }
+
+  return null;
+}
+
 function extractBuyerIdentifier(body: Record<string, unknown>): {
   email: string | null;
   document: string | null;
@@ -57,7 +79,7 @@ function extractBuyerIdentifier(body: Record<string, unknown>): {
     (client.email as string) ??
     (customer.email as string) ??
     (body.email as string) ??
-    null;
+    findStringByKeys(body, ["email", "customer_email", "buyer_email", "client_email"]);
 
   const document =
     (client.cpf as string) ??
@@ -66,13 +88,14 @@ function extractBuyerIdentifier(body: Record<string, unknown>): {
     (customer.cnpj as string) ??
     (client.document as string) ??
     (customer.document as string) ??
-    null;
+    findStringByKeys(body, ["cpf", "cnpj", "document", "documento", "customer_document"]);
 
   const externalId =
     (subscription.id as string) ??
     (transaction.id as string) ??
     (body.transaction_id as string) ??
-    null;
+    (body.id as string) ??
+    findStringByKeys(body, ["transaction_id", "order_id", "sale_id", "purchase_id"]);
 
   return { email, document, externalId };
 }
