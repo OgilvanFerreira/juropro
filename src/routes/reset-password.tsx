@@ -38,7 +38,7 @@ function avaliar(s: string): Forca {
 }
 
 function ResetPasswordPage() {
-  const { updatePassword, user, loading: authLoading } = useAuth();
+  const { updatePassword, signOut, user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const { name: businessName, defaultName } = useBusinessName();
   const businessLabel = businessName && businessName !== defaultName ? businessName : defaultName;
@@ -152,8 +152,11 @@ function ResetPasswordPage() {
       toast.error(error);
       return;
     }
+    await signOut();
+    setNova("");
+    setConf("");
     setOk(true);
-    toast.success("Senha redefinida com sucesso!");
+    toast.success("Senha redefinida com sucesso. Entre com a nova senha.");
   };
 
   return (
@@ -298,10 +301,10 @@ function ResetPasswordPage() {
               </div>
               <h2 className="text-lg font-bold text-foreground">Senha redefinida!</h2>
               <p className="mb-5 text-sm text-muted-foreground">
-                Sua senha foi alterada com sucesso. Sua conta está protegida com a nova senha.
+                Sua senha foi alterada com sucesso. Agora entre com a nova senha para confirmar o acesso.
               </p>
-              <Button onClick={() => navigate({ to: "/" })} className="h-11 w-full">
-                Ir para o Dashboard
+              <Button onClick={() => navigate({ to: "/login", replace: true })} className="h-11 w-full">
+                Entrar com a nova senha
               </Button>
             </div>
           )}
