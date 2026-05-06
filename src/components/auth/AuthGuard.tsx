@@ -9,6 +9,10 @@ function isPublicPath(pathname: string) {
   return PUBLIC_ROUTES.some((p) => pathname === p || pathname.startsWith(p + "/"));
 }
 
+function deveTrocarSenha(user: { user_metadata?: Record<string, unknown> } | null) {
+  return user?.user_metadata?.must_change_password === true;
+}
+
 /**
  * Skeleton ultra-leve com a mesma estrutura visual do app (sidebar + header
  * + conteúdo). Mostrado por milissegundos enquanto a sessão é validada,
@@ -64,6 +68,8 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
         search: { redirect: pathname } as never,
         replace: true,
       });
+    } else if (user && deveTrocarSenha(user) && pathname !== "/reset-password") {
+      navigate({ to: "/reset-password", replace: true });
     } else if (user && pathname === "/login") {
       navigate({ to: "/", replace: true });
     }
@@ -90,6 +96,10 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   // já está disparando o redirect; mostramos skeleton durante a transição
   // para evitar flash de tela vazia.
   if (!user) {
+    return <AppShellSkeleton />;
+  }
+
+  if (deveTrocarSenha(user)) {
     return <AppShellSkeleton />;
   }
 

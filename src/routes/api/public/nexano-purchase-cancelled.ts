@@ -1,40 +1,31 @@
-// src/routes/api/public/nexano-purchase-cancelled.ts
-//
-// Webhook: Compra Recusada / Cancelamento de Assinatura — Nexano / Kiwifi
-// Rota pública: /api/public/nexano-purchase-cancelled
-// Deploy: Cloudflare Workers (TanStack Start v1 + Vite 7)
-//
-// FLUXO:
-//   1. Recebe POST da plataforma
-//   2. Valida token (mesma lógica do endpoint de aprovação)
-//   3. Localiza usuário no Supabase Auth pelo email/documento
-//   4. Bloqueia o acesso: banned_until = far future (Supabase Admin API)
-//   5. Invalida sessões ativas via signOut admin
-//   6. Idempotência: se já bloqueado, retorna 200 sem reprocessar
-//   7. Se usuário não existe: loga e retorna 200 (evita retries)
-// ─────────────────────────────────────────────────────────────────────────────
+// Webhook: compra recusada/cancelamento - Nexano/Kiwifi
+// Rota publica: /api/public/nexano-purchase-cancelled
 
 import { createFileRoute } from "@tanstack/react-router";
 import { createClient } from "@supabase/supabase-js";
 
-// ─── Supabase Admin ───────────────────────────────────────────────────────────
-function getSupabaseAdmin() {
-  const url = process.env.SUPABASE_URL || process.env.EXTERNAL_SUPABASE_URL!;
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.EXTERNAL_SUPABASE_SERVICE_ROLE_KEY!;
+function getExternalAdmin() {
+  const url = process.env.EXTERNAL_SUPABASE_URL;
+  const serviceKey = process.env.EXTERNAL_SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!url || !serviceKey) {
+    throw new Error(
+      "[webhook-cancelled] EXTERNAL_SUPABASE_URL ou EXTERNAL_SUPABASE_SERVICE_ROLE_KEY nao configurados na Vercel",
+    );
+  }
+
   return createClient(url, serviceKey, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
 }
 
-// ─── Helpers (mesma lógica do endpoint de aprovação) ─────────────────────────
-
-function extractToken(req: Request, body: unknown): string | null {
+function extractToken(req: Request, body: Record<string, unknown>): string | null {
   return (
-    req.headers.get("authorization")?.replace("Bearer ", "") ??
-    req.headers.get("x-webhook-token") ??
-    req.headers.get("x-nexano-token") ??
-    req.headers.get("x-api-key") ??
-    (body as Record<string, unknown>)?.token?.toString() ??
+    req.headers.get("authorization")?.replace(/^Bearer\s+/i, "").trim() ||
+    req.headers.get("x-webhook-token") ||
+    req.headers.get("x-nexano-token") ||
+    req.headers.get("x-api-key") ||
+    body.token?.toString() ||
     null
   );
 }
@@ -42,11 +33,8 @@ function extractToken(req: Request, body: unknown): string | null {
 function validateToken(token: string | null): boolean {
   const secret = process.env.NEXANO_WEBHOOK_SECRET;
   if (!secret) {
-    console.warn(
-      "[webhook-cancelled] NEXANO_WEBHOOK_SECRET não configurado — " +
-        "validação desativada (modo inspeção)"
-    );
-    return true;
+    console.error("[webhook-cancelled] NEXANO_WEBHOOK_SECRET nao configurado na Vercel");
+    return false;
   }
   if (!token) {
     console.error("[webhook-cancelled] Token ausente");
@@ -55,197 +43,184 @@ function validateToken(token: string | null): boolean {
   return token === secret;
 }
 
-/** Extrai identificador do comprador para localizar no banco.
- *  Adaptar após o primeiro teste de cancelamento. */
 function extractBuyerIdentifier(body: Record<string, unknown>): {
   email: string | null;
   document: string | null;
   externalId: string | null;
 } {
   const client = (body.client as Record<string, unknown>) ?? {};
+  const customer = (body.customer as Record<string, unknown>) ?? {};
   const transaction = (body.transaction as Record<string, unknown>) ?? {};
   const subscription = (body.subscription as Record<string, unknown>) ?? {};
 
-  const email = (client.email as string) ?? null;
+  const email =
+    (client.email as string) ??
+    (customer.email as string) ??
+    (body.email as string) ??
+    null;
+
   const document =
-    (client.cpf as string) ?? (client.cnpj as string) ?? null;
+    (client.cpf as string) ??
+    (client.cnpj as string) ??
+    (customer.cpf as string) ??
+    (customer.cnpj as string) ??
+    (client.document as string) ??
+    (customer.document as string) ??
+    null;
+
   const externalId =
     (subscription.id as string) ??
     (transaction.id as string) ??
-    (body.token as string) ??
+    (body.transaction_id as string) ??
     null;
 
   return { email, document, externalId };
 }
 
-// Data muito distante = banido indefinidamente
-const BANNED_UNTIL = "2099-01-01T00:00:00Z";
+async function findUserByEmail(
+  supabase: ReturnType<typeof getExternalAdmin>,
+  email: string,
+) {
+  const target = email.toLowerCase();
+  const perPage = 1000;
 
-// ─── Handler Principal ────────────────────────────────────────────────────────
+  for (let page = 1; page <= 100; page += 1) {
+    const { data, error } = await supabase.auth.admin.listUsers({ page, perPage });
+    if (error) throw error;
+
+    const found = data?.users?.find((u) => u.email?.toLowerCase() === target);
+    if (found) return found;
+    if (!data?.users || data.users.length < perPage) return null;
+  }
+
+  throw new Error("Limite de paginacao atingido ao buscar usuario por email.");
+}
 
 export const Route = createFileRoute("/api/public/nexano-purchase-cancelled")({
   server: {
     handlers: {
       POST: async ({ request }: { request: Request }) => {
-    console.log("[webhook-cancelled] Request recebido");
+        console.log("[webhook-cancelled] Request recebido");
 
-    // 1. Parse
-    let body: Record<string, unknown>;
-    try {
-      body = await request.json();
-    } catch {
-      return new Response(
-        JSON.stringify({ error: "Payload JSON inválido" }),
-        { status: 400, headers: { "Content-Type": "application/json" } }
-      );
-    }
+        let body: Record<string, unknown>;
+        try {
+          body = await request.json();
+        } catch {
+          return Response.json({ error: "Payload JSON invalido" }, { status: 400 });
+        }
 
-    // ── MODO INSPEÇÃO ────────────────────────────────────────────────────────
-    console.log("[webhook-cancelled] === PAYLOAD COMPLETO ===");
-    console.log(JSON.stringify(body, null, 2));
-    console.log("[webhook-cancelled] === HEADERS ===");
-    for (const [key, value] of request.headers.entries()) {
-      console.log(`  ${key}: ${value}`);
-    }
-    // ── FIM MODO INSPEÇÃO ────────────────────────────────────────────────────
+        const token = extractToken(request, body);
+        if (!validateToken(token)) {
+          return Response.json({ error: "Token invalido" }, { status: 401 });
+        }
 
-    // 2. Validação token
-    const token = extractToken(request, body);
-    if (!validateToken(token)) {
-      return new Response(
-        JSON.stringify({ error: "Token inválido" }),
-        { status: 401, headers: { "Content-Type": "application/json" } }
-      );
-    }
+        const { email, document, externalId } = extractBuyerIdentifier(body);
+        console.log("[webhook-cancelled] Identificadores extraidos:", {
+          email,
+          document: document ? `***${document.slice(-4)}` : null,
+          externalId,
+        });
 
-    // 3. Extrai identificador
-    const { email, document, externalId } = extractBuyerIdentifier(body);
+        if (!email && !document) {
+          console.warn("[webhook-cancelled] Nenhum identificador encontrado");
+          return Response.json(
+            { ok: true, message: "Nenhum identificador encontrado" },
+            { status: 200 },
+          );
+        }
 
-    console.log("[webhook-cancelled] Identificadores extraídos:", {
-      email,
-      document: document ? "***" + document.slice(-4) : null,
-      externalId,
-    });
+        let supabase: ReturnType<typeof getExternalAdmin>;
+        try {
+          supabase = getExternalAdmin();
+        } catch (err: unknown) {
+          const msg = err instanceof Error ? err.message : String(err);
+          console.error("[webhook-cancelled]", msg);
+          return Response.json(
+            { error: "Configuracao do servidor incompleta" },
+            { status: 500 },
+          );
+        }
 
-    if (!email && !document) {
-      console.error(
-        "[webhook-cancelled] Nenhum identificador encontrado — " +
-          "registrando e retornando 200 para evitar retry"
-      );
-      return new Response(
-        JSON.stringify({ ok: true, message: "Nenhum identificador — evento registrado" }),
-        { status: 200, headers: { "Content-Type": "application/json" } }
-      );
-    }
+        let targetUserId: string | null = null;
+        try {
+          if (email) {
+            const found = await findUserByEmail(supabase, email);
+            if (found) targetUserId = found.id;
+          }
 
-    const supabase = getSupabaseAdmin();
+          if (!targetUserId && document) {
+            const cleanDoc = document.replace(/\D/g, "");
+            const { data: profile } = await supabase
+              .from("profiles")
+              .select("user_id")
+              .eq("cpf", cleanDoc)
+              .maybeSingle();
+            if (profile?.user_id) targetUserId = profile.user_id;
+          }
+        } catch (err: unknown) {
+          const msg = err instanceof Error ? err.message : String(err);
+          console.error("[webhook-cancelled] Erro ao localizar usuario:", msg);
+          return Response.json(
+            { error: "Erro ao localizar usuario" },
+            { status: 500 },
+          );
+        }
 
-    // 4. Localiza usuário
-    let targetUserId: string | null = null;
+        if (!targetUserId) {
+          console.warn("[webhook-cancelled] Usuario nao encontrado");
+          return Response.json(
+            { ok: true, message: "Usuario nao encontrado" },
+            { status: 200 },
+          );
+        }
 
-    if (email) {
-      // Busca pelo email (mais confiável)
-      const { data: users } = await supabase.auth.admin.listUsers();
-      const found = users?.users?.find(
-        (u) => u.email?.toLowerCase() === email.toLowerCase()
-      );
-      if (found) targetUserId = found.id;
-    }
+        const { data: existingUser } = await supabase.auth.admin.getUserById(targetUserId);
+        const alreadyBanned =
+          existingUser?.user?.banned_until &&
+          new Date(existingUser.user.banned_until) > new Date();
 
-    // Fallback: busca pelo CPF no profile se não achou pelo email
-    if (!targetUserId && document) {
-      const cleanDoc = document.replace(/\D/g, "");
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("user_id")
-        .eq("cpf", cleanDoc)
-        .maybeSingle();
-      if (profile?.user_id) targetUserId = profile.user_id;
-    }
+        if (alreadyBanned) {
+          return Response.json(
+            { ok: true, message: "Usuario ja bloqueado" },
+            { status: 200 },
+          );
+        }
 
-    // 5. Usuário não encontrado — retorna 200 para evitar retries
-    if (!targetUserId) {
-      console.warn(
-        `[webhook-cancelled] Usuário não encontrado para ${email ?? document} — evento registrado`
-      );
-      return new Response(
-        JSON.stringify({
+        const { error: banError } = await supabase.auth.admin.updateUserById(
+          targetUserId,
+          { ban_duration: "876600h" },
+        );
+
+        if (banError) {
+          console.error("[webhook-cancelled] Erro ao bloquear usuario:", banError.message);
+          return Response.json(
+            { error: "Erro ao bloquear usuario" },
+            { status: 500 },
+          );
+        }
+
+        const { error: signOutError } = await supabase.auth.admin.signOut(
+          targetUserId,
+          "global",
+        );
+        if (signOutError) {
+          console.warn(
+            "[webhook-cancelled] Aviso ao invalidar sessoes:",
+            signOutError.message,
+          );
+        }
+
+        await supabase
+          .from("profiles")
+          .update({ updated_at: new Date().toISOString() })
+          .eq("user_id", targetUserId);
+
+        console.log(`[webhook-cancelled] Usuario ${targetUserId} bloqueado`);
+        return Response.json({
           ok: true,
-          message: "Usuário não encontrado — evento registrado sem ação",
-        }),
-        { status: 200, headers: { "Content-Type": "application/json" } }
-      );
-    }
-
-    // 6. Idempotência: verifica se já está bloqueado
-    const { data: existingUser } =
-      await supabase.auth.admin.getUserById(targetUserId);
-
-    const alreadyBanned =
-      existingUser?.user?.banned_until &&
-      new Date(existingUser.user.banned_until) > new Date();
-
-    if (alreadyBanned) {
-      console.log(
-        `[webhook-cancelled] Usuário ${targetUserId} já bloqueado — idempotência: ignorando`
-      );
-      return new Response(
-        JSON.stringify({ ok: true, message: "Usuário já bloqueado" }),
-        { status: 200, headers: { "Content-Type": "application/json" } }
-      );
-    }
-
-    // 7. Bloqueia acesso: ban via Supabase Admin API
-    //    banned_until = data futura distante (bloqueio indefinido)
-    const { error: banError } = await supabase.auth.admin.updateUserById(
-      targetUserId,
-      { ban_duration: "876600h" } // ~100 anos
-    );
-
-    if (banError) {
-      console.error(
-        "[webhook-cancelled] Erro ao bloquear usuário:",
-        banError
-      );
-      return new Response(
-        JSON.stringify({
-          error: "Erro ao bloquear usuário",
-          detail: banError.message,
-        }),
-        { status: 500, headers: { "Content-Type": "application/json" } }
-      );
-    }
-
-    // 8. Invalida sessões ativas (sign out de todos os dispositivos)
-    const { error: signOutError } =
-      await supabase.auth.admin.signOut(targetUserId, "global");
-
-    if (signOutError) {
-      // Não é crítico — o ban já impede novos logins
-      console.warn(
-        "[webhook-cancelled] Aviso ao invalidar sessões:",
-        signOutError
-      );
-    }
-
-    // 9. Marca no profile como inativo (opcional — para queries de negócio)
-    await supabase
-      .from("profiles")
-      .update({ updated_at: new Date().toISOString() })
-      .eq("user_id", targetUserId);
-
-    console.log(
-      `[webhook-cancelled] Usuário ${targetUserId} bloqueado com sucesso (${email ?? document})`
-    );
-
-    return new Response(
-      JSON.stringify({
-        ok: true,
-        message: "Usuário bloqueado com sucesso",
-        user_id: targetUserId,
-      }),
-      { status: 200, headers: { "Content-Type": "application/json" } }
-    );
+          message: "Usuario bloqueado com sucesso",
+          user_id: targetUserId,
+        });
       },
     },
   },

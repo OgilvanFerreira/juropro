@@ -29,6 +29,8 @@ export const Route = createFileRoute("/login")({
 });
 
 const emailValido = (e: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
+const deveTrocarSenha = (user: { user_metadata?: Record<string, unknown> } | null) =>
+  user?.user_metadata?.must_change_password === true;
 
 function LoginPage() {
   const { signIn, user, loading: authLoading } = useAuth();
@@ -46,6 +48,10 @@ function LoginPage() {
 
   useEffect(() => {
     if (!authLoading && user) {
+      if (deveTrocarSenha(user)) {
+        navigate({ to: "/reset-password", replace: true });
+        return;
+      }
       navigate({ to: (redirect as never) ?? "/", replace: true });
     }
   }, [authLoading, user, redirect, navigate]);
@@ -76,7 +82,7 @@ function LoginPage() {
     if (!validar()) return;
     setLoading(true);
     setErro("");
-    const { error } = await signIn(email.trim(), senha);
+    const { error, user: signedUser } = await signIn(email.trim(), senha);
     setLoading(false);
     if (error) {
       setErro(
@@ -87,6 +93,10 @@ function LoginPage() {
       return;
     }
     toast.success("Login realizado com sucesso!");
+    if (deveTrocarSenha(signedUser)) {
+      navigate({ to: "/reset-password", replace: true });
+      return;
+    }
     navigate({ to: "/bem-vindo" });
   };
 
@@ -109,7 +119,7 @@ function LoginPage() {
           <Info className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400" />
           <p>
             <span className="font-semibold text-emerald-200">Primeiro acesso?</span>{" "}
-            Use o e-mail e o número do documento (CPF ou CNPJ) utilizado na compra como senha.
+            Use o e-mail e a senha temporária enviados após a compra.
           </p>
         </div>
 
