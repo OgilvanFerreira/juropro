@@ -69,10 +69,14 @@ function validateSignature(req: Request, rawBody: string, secret: string): boole
 }
 
 function validateWebhook(req: Request, body: Record<string, unknown>, rawBody: string): boolean {
-  const secret = process.env.NEXANO_WEBHOOK_SECRET;
+  const secret =
+    process.env.NEXANO_APPROVED_WEBHOOK_SECRET ||
+    process.env.NEXANO_WEBHOOK_SECRET;
 
   if (!secret) {
-    console.error("[webhook-approved] NEXANO_WEBHOOK_SECRET nao configurado na Vercel");
+    console.error(
+      "[webhook-approved] NEXANO_APPROVED_WEBHOOK_SECRET ou NEXANO_WEBHOOK_SECRET nao configurado na Vercel",
+    );
     return false;
   }
 

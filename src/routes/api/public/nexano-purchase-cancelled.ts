@@ -57,16 +57,30 @@ function validateSignature(req: Request, rawBody: string, secret: string): boole
   return safeCompare(normalized, expected);
 }
 
+function getAcceptedSecrets(): string[] {
+  return [
+    process.env.NEXANO_CANCELLED_WEBHOOK_SECRETS,
+    process.env.NEXANO_CANCELLED_WEBHOOK_SECRET,
+    process.env.NEXANO_WEBHOOK_SECRET,
+  ]
+    .filter(Boolean)
+    .flatMap((value) => value!.split(","))
+    .map((value) => value.trim())
+    .filter(Boolean);
+}
+
 function validateWebhook(req: Request, body: Record<string, unknown>, rawBody: string): boolean {
-  const secret = process.env.NEXANO_WEBHOOK_SECRET;
-  if (!secret) {
-    console.error("[webhook-cancelled] NEXANO_WEBHOOK_SECRET nao configurado na Vercel");
+  const acceptedSecrets = getAcceptedSecrets();
+  if (acceptedSecrets.length === 0) {
+    console.error("[webhook-cancelled] Tokens de webhook nao configurados na Vercel");
     return false;
   }
 
   const token = extractToken(req, body);
   if (!token) {
-    const validSignature = validateSignature(req, rawBody, secret);
+    const validSignature = acceptedSecrets.some((secret) =>
+      validateSignature(req, rawBody, secret),
+    );
     if (!validSignature) {
       console.error("[webhook-cancelled] Token/assinatura ausente ou invalida");
       return false;
@@ -74,7 +88,7 @@ function validateWebhook(req: Request, body: Record<string, unknown>, rawBody: s
     return true;
   }
 
-  return safeCompare(token, secret);
+  return acceptedSecrets.some((secret) => safeCompare(token, secret));
 }
 
 function findStringByKeys(value: unknown, keys: string[], depth = 0): string | null {
