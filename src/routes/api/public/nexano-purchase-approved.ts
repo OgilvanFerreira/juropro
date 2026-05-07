@@ -116,17 +116,32 @@ function extractBuyerData(body: Record<string, unknown>) {
   const email =
     (client.email as string) ??
     (customer.email as string) ??
+    (body.subscriber_email as string) ??
     (body.email as string) ??
-    findStringByKeys(body, ["email", "customer_email", "buyer_email", "client_email"]);
+    findStringByKeys(body, [
+      "email",
+      "customer_email",
+      "buyer_email",
+      "client_email",
+      "subscriber_email",
+    ]);
 
   const name =
     (client.name as string) ??
     (customer.name as string) ??
     (client.nome as string) ??
     (customer.nome as string) ??
+    (body.subscriber_name as string) ??
     (body.name as string) ??
     (body.nome as string) ??
-    findStringByKeys(body, ["name", "nome", "customer_name", "buyer_name", "client_name"]);
+    findStringByKeys(body, [
+      "name",
+      "nome",
+      "customer_name",
+      "buyer_name",
+      "client_name",
+      "subscriber_name",
+    ]);
 
   const document =
     (client.cpf as string) ??
@@ -135,23 +150,52 @@ function extractBuyerData(body: Record<string, unknown>) {
     (customer.cnpj as string) ??
     (client.document as string) ??
     (customer.document as string) ??
-    findStringByKeys(body, ["cpf", "cnpj", "document", "documento", "customer_document"]);
+    (body.subscriber_document_number as string) ??
+    (body.client_cpf as string) ??
+    (body.client_cnpj as string) ??
+    findStringByKeys(body, [
+      "cpf",
+      "cnpj",
+      "document",
+      "documento",
+      "customer_document",
+      "subscriber_document_number",
+      "client_cpf",
+      "client_cnpj",
+    ]);
 
   const phone =
     (client.phone as string) ??
     (customer.phone as string) ??
     (client.telefone as string) ??
     (customer.telefone as string) ??
+    (body.subscriber_phone as string) ??
     (body.phone as string) ??
     (body.telefone as string) ??
-    findStringByKeys(body, ["phone", "telefone", "whatsapp", "customer_phone", "buyer_phone"]);
+    findStringByKeys(body, [
+      "phone",
+      "telefone",
+      "whatsapp",
+      "customer_phone",
+      "buyer_phone",
+      "subscriber_phone",
+    ]);
 
   const externalId =
     (transaction.id as string) ??
     (subscription.id as string) ??
     (body.transaction_id as string) ??
+    (body.payment_order_code as string) ??
+    (body.subscriber_id as string) ??
     (body.id as string) ??
-    findStringByKeys(body, ["transaction_id", "order_id", "sale_id", "purchase_id"]);
+    findStringByKeys(body, [
+      "transaction_id",
+      "order_id",
+      "sale_id",
+      "purchase_id",
+      "payment_order_code",
+      "subscriber_id",
+    ]);
 
   return { email, name, document, phone, externalId };
 }

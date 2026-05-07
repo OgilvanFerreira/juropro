@@ -108,8 +108,15 @@ function extractBuyerIdentifier(body: Record<string, unknown>): {
   const email =
     (client.email as string) ??
     (customer.email as string) ??
+    (body.subscriber_email as string) ??
     (body.email as string) ??
-    findStringByKeys(body, ["email", "customer_email", "buyer_email", "client_email"]);
+    findStringByKeys(body, [
+      "email",
+      "customer_email",
+      "buyer_email",
+      "client_email",
+      "subscriber_email",
+    ]);
 
   const document =
     (client.cpf as string) ??
@@ -118,14 +125,35 @@ function extractBuyerIdentifier(body: Record<string, unknown>): {
     (customer.cnpj as string) ??
     (client.document as string) ??
     (customer.document as string) ??
-    findStringByKeys(body, ["cpf", "cnpj", "document", "documento", "customer_document"]);
+    (body.subscriber_document_number as string) ??
+    (body.client_cpf as string) ??
+    (body.client_cnpj as string) ??
+    findStringByKeys(body, [
+      "cpf",
+      "cnpj",
+      "document",
+      "documento",
+      "customer_document",
+      "subscriber_document_number",
+      "client_cpf",
+      "client_cnpj",
+    ]);
 
   const externalId =
     (subscription.id as string) ??
     (transaction.id as string) ??
     (body.transaction_id as string) ??
+    (body.payment_order_code as string) ??
+    (body.subscriber_id as string) ??
     (body.id as string) ??
-    findStringByKeys(body, ["transaction_id", "order_id", "sale_id", "purchase_id"]);
+    findStringByKeys(body, [
+      "transaction_id",
+      "order_id",
+      "sale_id",
+      "purchase_id",
+      "payment_order_code",
+      "subscriber_id",
+    ]);
 
   return { email, document, externalId };
 }
