@@ -32,6 +32,17 @@ const emailValido = (e: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
 const deveTrocarSenha = (user: { user_metadata?: Record<string, unknown> } | null) =>
   user?.user_metadata?.must_change_password === true;
 
+function mensagemErroLogin(error: string) {
+  const normalized = error.toLowerCase();
+  if (normalized.includes("banned")) {
+    return "Acesso bloqueado. Entre em contato com o suporte JuroPro.";
+  }
+  if (normalized.includes("invalid")) {
+    return "E-mail ou senha incorretos.";
+  }
+  return "Não foi possível entrar agora. Tente novamente em instantes.";
+}
+
 function LoginPage() {
   const { signIn, user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
@@ -85,11 +96,7 @@ function LoginPage() {
     const { error, user: signedUser } = await signIn(email.trim(), senha);
     setLoading(false);
     if (error) {
-      setErro(
-        error.toLowerCase().includes("invalid")
-          ? "E-mail ou senha incorretos."
-          : error,
-      );
+      setErro(mensagemErroLogin(error));
       return;
     }
     toast.success("Login realizado com sucesso!");
@@ -113,13 +120,12 @@ function LoginPage() {
       />
 
       <div className="relative z-10 w-full max-w-md animate-in fade-in slide-in-from-bottom-4 duration-500">
-
         {/* Banner primeiro acesso */}
         <div className="mb-3 flex items-start gap-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-300 backdrop-blur-sm">
           <Info className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400" />
           <p>
-            <span className="font-semibold text-emerald-200">Primeiro acesso?</span>{" "}
-            Use o e-mail e a senha temporária enviados após a compra.
+            <span className="font-semibold text-emerald-200">Primeiro acesso?</span> Use o e-mail e
+            a senha temporária enviados após a compra.
           </p>
         </div>
 
@@ -138,14 +144,10 @@ function LoginPage() {
             <h1 className="text-2xl font-extrabold tracking-tight text-foreground">
               {businessName}
             </h1>
-            <p className="text-xs text-muted-foreground">
-              Gestão Profissional de Empréstimos
-            </p>
+            <p className="text-xs text-muted-foreground">Gestão Profissional de Empréstimos</p>
           </div>
 
-          <h2 className="text-center text-lg font-bold text-foreground">
-            Bem-vindo de volta! 👋
-          </h2>
+          <h2 className="text-center text-lg font-bold text-foreground">Bem-vindo de volta! 👋</h2>
           <p className="mb-6 text-center text-sm text-muted-foreground">
             Entre com suas credenciais para acessar
           </p>

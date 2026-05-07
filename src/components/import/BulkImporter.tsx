@@ -1,5 +1,4 @@
 import { useCallback, useRef, useState } from "react";
-import * as XLSX from "xlsx";
 import Papa from "papaparse";
 import {
   Upload,
@@ -52,9 +51,11 @@ const CAMPOS_OBG = [
 ] as const;
 
 const CHUNK_SIZE = 100;
+const MAX_IMPORT_ROWS = 5_000;
+const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024;
+const MAX_FILE_SIZE_MB = MAX_FILE_SIZE_BYTES / 1024 / 1024;
 
-const fmtBRL = (v: number) =>
-  v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+const fmtBRL = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
 const hojeMidnight = () => {
   const d = new Date();
@@ -145,9 +146,7 @@ function normalizar(rawRows: Record<string, unknown>[]): LinhaNorm[] {
     const get = (k: string): unknown => {
       // tenta variações
       if (r[k] !== undefined) return r[k];
-      const lower = Object.keys(r).find(
-        (kk) => kk.toLowerCase().trim() === k.toLowerCase(),
-      );
+      const lower = Object.keys(r).find((kk) => kk.toLowerCase().trim() === k.toLowerCase());
       return lower ? r[lower] : undefined;
     };
 
@@ -219,39 +218,107 @@ function normalizar(rawRows: Record<string, unknown>[]): LinhaNorm[] {
   });
 }
 
-// ─── Geração do modelo .xlsx ──────────────────────────────────
+function validarArquivoImportacao(file: File, ext: string | undefined): string | null {
+  if (ext !== "csv") {
+    return "Formato inválido. Use .csv compatível com Excel.";
+  }
+  if (file.size > MAX_FILE_SIZE_BYTES) {
+    return `Arquivo muito grande. Envie uma planilha de até ${MAX_FILE_SIZE_MB} MB.`;
+  }
+  return null;
+}
+
+function validarQuantidadeLinhas(raw: Record<string, unknown>[]) {
+  if (raw.length === 0) {
+    throw new Error("EMPTY_FILE");
+  }
+  if (raw.length > MAX_IMPORT_ROWS) {
+    throw new Error("TOO_MANY_ROWS");
+  }
+}
+
+// ─── Geração do modelo .csv ──────────────────────────────────
+function csvCell(value: unknown) {
+  const s = String(value ?? "");
+  return `"${s.replace(/"/g, '""')}"`;
+}
+
 function baixarModelo() {
   const headers = [
-    "nome_cliente", "cpf_cnpj", "telefone", "email",
-    "contrato_id", "valor_principal", "taxa_juros", "tipo_juros",
-    "num_parcelas", "periodicidade", "data_inicio",
-    "num_parcela", "data_vencimento", "valor_parcela", "status_parcela",
-    "data_pagamento", "valor_pago",
+    "nome_cliente",
+    "cpf_cnpj",
+    "telefone",
+    "email",
+    "contrato_id",
+    "valor_principal",
+    "taxa_juros",
+    "tipo_juros",
+    "num_parcelas",
+    "periodicidade",
+    "data_inicio",
+    "num_parcela",
+    "data_vencimento",
+    "valor_parcela",
+    "status_parcela",
+    "data_pagamento",
+    "valor_pago",
   ];
   const exemplos = [
     {
-      nome_cliente: "João da Silva", cpf_cnpj: "123.456.789-00",
-      telefone: "(73) 99999-0000", email: "joao@exemplo.com",
-      contrato_id: "CONT-001", valor_principal: 2000, taxa_juros: 5,
-      tipo_juros: "Simples", num_parcelas: 6, periodicidade: "Mensal",
-      data_inicio: "01/01/2025", num_parcela: 1, data_vencimento: "01/02/2025",
-      valor_parcela: 350, status_parcela: "Pago",
-      data_pagamento: "01/02/2025", valor_pago: 350,
+      nome_cliente: "João da Silva",
+      cpf_cnpj: "123.456.789-00",
+      telefone: "(73) 99999-0000",
+      email: "joao@exemplo.com",
+      contrato_id: "CONT-001",
+      valor_principal: 2000,
+      taxa_juros: 5,
+      tipo_juros: "Simples",
+      num_parcelas: 6,
+      periodicidade: "Mensal",
+      data_inicio: "01/01/2025",
+      num_parcela: 1,
+      data_vencimento: "01/02/2025",
+      valor_parcela: 350,
+      status_parcela: "Pago",
+      data_pagamento: "01/02/2025",
+      valor_pago: 350,
     },
     {
-      nome_cliente: "João da Silva", cpf_cnpj: "123.456.789-00",
-      telefone: "(73) 99999-0000", email: "joao@exemplo.com",
-      contrato_id: "CONT-001", valor_principal: 2000, taxa_juros: 5,
-      tipo_juros: "Simples", num_parcelas: 6, periodicidade: "Mensal",
-      data_inicio: "01/01/2025", num_parcela: 2, data_vencimento: "01/03/2025",
-      valor_parcela: 350, status_parcela: "Pendente",
-      data_pagamento: "", valor_pago: "",
+      nome_cliente: "João da Silva",
+      cpf_cnpj: "123.456.789-00",
+      telefone: "(73) 99999-0000",
+      email: "joao@exemplo.com",
+      contrato_id: "CONT-001",
+      valor_principal: 2000,
+      taxa_juros: 5,
+      tipo_juros: "Simples",
+      num_parcelas: 6,
+      periodicidade: "Mensal",
+      data_inicio: "01/01/2025",
+      num_parcela: 2,
+      data_vencimento: "01/03/2025",
+      valor_parcela: 350,
+      status_parcela: "Pendente",
+      data_pagamento: "",
+      valor_pago: "",
     },
   ];
-  const ws = XLSX.utils.json_to_sheet(exemplos, { header: headers });
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, "Importacao");
-  XLSX.writeFile(wb, "JuroPro_Modelo_Importacao.xlsx");
+  const rows = [
+    headers,
+    ...exemplos.map((row) =>
+      headers.map((header) => row[header as keyof (typeof exemplos)[number]]),
+    ),
+  ];
+  const csv = rows.map((row) => row.map(csvCell).join(",")).join("\n");
+  const blob = new Blob(["\ufeff", csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "JuroPro_Modelo_Importacao.csv";
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
 }
 
 // ─── Componente ───────────────────────────────────────────────
@@ -273,34 +340,37 @@ export function BulkImporter() {
   const lerArquivo = useCallback(async (file: File) => {
     setArquivo(file);
     const ext = file.name.toLowerCase().split(".").pop();
+    const erroArquivo = validarArquivoImportacao(file, ext);
+    if (erroArquivo) {
+      toast.error(erroArquivo);
+      return;
+    }
     try {
-      let raw: Record<string, unknown>[] = [];
-      if (ext === "csv") {
-        const text = await file.text();
-        const parsed = Papa.parse<Record<string, unknown>>(text, {
-          header: true,
-          skipEmptyLines: true,
-        });
-        raw = parsed.data;
-      } else if (ext === "xlsx" || ext === "xls") {
-        const buffer = await file.arrayBuffer();
-        const wb = XLSX.read(buffer, { type: "array", cellDates: true });
-        const ws = wb.Sheets[wb.SheetNames[0]];
-        raw = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { defval: "" });
-      } else {
-        toast.error("Formato inválido. Use .xlsx, .xls ou .csv");
-        return;
+      const text = await file.text();
+      const parsed = Papa.parse<Record<string, unknown>>(text, {
+        header: true,
+        skipEmptyLines: true,
+        preview: MAX_IMPORT_ROWS + 1,
+      });
+      if (parsed.errors.length > 0) {
+        throw new Error("INVALID_FILE");
       }
-      if (raw.length === 0) {
-        toast.error("Planilha vazia ou sem cabeçalhos válidos.");
-        return;
-      }
+      const raw = parsed.data;
+      validarQuantidadeLinhas(raw);
       const norm = normalizar(raw);
       setDados(norm);
       setFase("preview");
     } catch (err) {
-      console.error(err);
-      toast.error("Erro ao ler o arquivo: " + (err as Error).message);
+      const code = (err as Error).message;
+      if (code === "EMPTY_FILE") {
+        toast.error("Planilha vazia ou sem cabeçalhos válidos.");
+      } else if (code === "TOO_MANY_ROWS") {
+        toast.error(
+          `A importação aceita até ${MAX_IMPORT_ROWS.toLocaleString("pt-BR")} linhas por arquivo.`,
+        );
+      } else {
+        toast.error("Não foi possível ler a planilha. Verifique o modelo e tente novamente.");
+      }
     }
   }, []);
 
@@ -320,9 +390,7 @@ export function BulkImporter() {
     atrasados: dados.filter((r) => r._statusCalc === "atrasado").length,
   };
 
-  const filtrados = dados.filter(
-    (r) => filtroStatus === "todos" || r._statusCalc === filtroStatus,
-  );
+  const filtrados = dados.filter((r) => filtroStatus === "todos" || r._statusCalc === filtroStatus);
 
   const importar = async () => {
     const validos = dados.filter((r) => r._valido);
@@ -378,8 +446,7 @@ export function BulkImporter() {
           clientes_criados: agreg.clientes_criados + res.clientes_criados,
           clientes_existentes: agreg.clientes_existentes + res.clientes_existentes,
           emprestimos_criados: agreg.emprestimos_criados + res.emprestimos_criados,
-          emprestimos_existentes:
-            agreg.emprestimos_existentes + res.emprestimos_existentes,
+          emprestimos_existentes: agreg.emprestimos_existentes + res.emprestimos_existentes,
           parcelas_inseridas: agreg.parcelas_inseridas + res.parcelas_inseridas,
           warnings: [...agreg.warnings, ...res.warnings],
         };
@@ -393,9 +460,8 @@ export function BulkImporter() {
       toast.success(
         `Importação concluída: ${agreg.parcelas_inseridas} parcelas em ${agreg.emprestimos_criados} contratos.`,
       );
-    } catch (err) {
-      console.error(err);
-      toast.error("Erro durante a importação: " + (err as Error).message);
+    } catch {
+      toast.error("Erro durante a importação. Tente novamente em instantes.");
       setFase("preview");
     }
   };
@@ -418,11 +484,9 @@ export function BulkImporter() {
           <Upload className="h-5 w-5" />
         </div>
         <div className="min-w-0">
-          <h2 className="text-lg font-semibold text-foreground">
-            Importação em Massa
-          </h2>
+          <h2 className="text-lg font-semibold text-foreground">Importação em Massa</h2>
           <p className="text-sm text-muted-foreground">
-            Importe clientes, contratos e parcelas a partir de uma planilha Excel ou CSV.
+            Importe clientes, contratos e parcelas a partir de um CSV compatível com Excel.
           </p>
         </div>
       </div>
@@ -447,7 +511,7 @@ export function BulkImporter() {
             <input
               ref={fileRef}
               type="file"
-              accept=".xlsx,.xls,.csv"
+              accept=".csv"
               className="hidden"
               onChange={(e) => {
                 const f = e.target.files?.[0];
@@ -455,12 +519,8 @@ export function BulkImporter() {
               }}
             />
             <FileSpreadsheet className="mb-3 h-12 w-12 text-emerald-600" />
-            <p className="mb-1 font-semibold text-foreground">
-              Arraste sua planilha aqui
-            </p>
-            <p className="mb-4 text-sm text-muted-foreground">
-              ou clique para selecionar
-            </p>
+            <p className="mb-1 font-semibold text-foreground">Arraste sua planilha aqui</p>
+            <p className="mb-4 text-sm text-muted-foreground">ou clique para selecionar</p>
             <Button
               type="button"
               className="bg-emerald-600 text-white hover:bg-emerald-700"
@@ -473,13 +533,13 @@ export function BulkImporter() {
               Selecionar Arquivo
             </Button>
             <p className="mt-3 text-xs text-muted-foreground">
-              Formatos: .xlsx, .xls, .csv • até 5.000 linhas
+              Formato: .csv compatível com Excel • até 5.000 linhas • máximo {MAX_FILE_SIZE_MB} MB
             </p>
           </div>
 
           <Card className="flex flex-wrap items-center gap-4 p-4">
             <div className="flex-1 min-w-[200px]">
-              <p className="font-semibold text-foreground">📋 Modelo de Planilha</p>
+              <p className="font-semibold text-foreground">📋 Modelo CSV</p>
               <p className="text-sm text-muted-foreground">
                 Baixe o modelo oficial com cabeçalhos e exemplos.
               </p>
@@ -507,10 +567,7 @@ export function BulkImporter() {
                 ["✅", "Validação", "Linhas com erros são listadas e ignoradas"],
                 ["🛡️", "Multi-tenant", "Tudo é vinculado ao seu usuário"],
               ].map(([ic, t, s]) => (
-                <div
-                  key={t}
-                  className="flex gap-3 rounded-lg bg-muted/40 p-3"
-                >
+                <div key={t} className="flex gap-3 rounded-lg bg-muted/40 p-3">
                   <span className="text-xl">{ic}</span>
                   <div>
                     <p className="text-sm font-semibold text-foreground">{t}</p>
@@ -571,7 +628,17 @@ export function BulkImporter() {
               <table className="w-full min-w-[800px] text-xs">
                 <thead className="sticky top-0 bg-muted text-muted-foreground">
                   <tr>
-                    {["#", "Cliente", "CPF", "Contrato", "Parc.", "Vencimento", "Valor", "Status", "OK"].map((h) => (
+                    {[
+                      "#",
+                      "Cliente",
+                      "CPF",
+                      "Contrato",
+                      "Parc.",
+                      "Vencimento",
+                      "Valor",
+                      "Status",
+                      "OK",
+                    ].map((h) => (
                       <th key={h} className="px-3 py-2 text-left font-semibold">
                         {h}
                       </th>
@@ -583,14 +650,10 @@ export function BulkImporter() {
                     <tr key={i} className="border-t hover:bg-muted/40">
                       <td className="px-3 py-2 text-muted-foreground">{r._linha}</td>
                       <td className="px-3 py-2 font-medium text-foreground">
-                        {r.nome_cliente || (
-                          <span className="text-destructive">⚠️ vazio</span>
-                        )}
+                        {r.nome_cliente || <span className="text-destructive">⚠️ vazio</span>}
                       </td>
                       <td className="px-3 py-2 font-mono">{r.cpf_cnpj}</td>
-                      <td className="px-3 py-2 font-semibold text-emerald-600">
-                        {r.contrato_id}
-                      </td>
+                      <td className="px-3 py-2 font-semibold text-emerald-600">{r.contrato_id}</td>
                       <td className="px-3 py-2">
                         {r.num_parcela}/{r.num_parcelas}
                       </td>
@@ -608,9 +671,7 @@ export function BulkImporter() {
                       <td className="px-3 py-2">
                         <StatusBadge s={r._statusCalc} />
                       </td>
-                      <td className="px-3 py-2 text-center">
-                        {r._valido ? "✅" : "❌"}
-                      </td>
+                      <td className="px-3 py-2 text-center">{r._valido ? "✅" : "❌"}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -626,8 +687,8 @@ export function BulkImporter() {
               <div className="mt-3 flex items-start gap-2 rounded-md border-l-4 border-destructive bg-destructive/10 p-3 text-sm text-destructive">
                 <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0" />
                 <p>
-                  <strong>{stats.invalidos}</strong> linha(s) com campos obrigatórios
-                  ausentes serão ignoradas.
+                  <strong>{stats.invalidos}</strong> linha(s) com campos obrigatórios ausentes serão
+                  ignoradas.
                 </p>
               </div>
             )}
@@ -654,9 +715,7 @@ export function BulkImporter() {
       {fase === "processando" && (
         <Card className="space-y-4 p-8 text-center">
           <Loader2 className="mx-auto h-12 w-12 animate-spin text-emerald-600" />
-          <p className="text-lg font-semibold text-foreground">
-            Importando sua carteira...
-          </p>
+          <p className="text-lg font-semibold text-foreground">Importando sua carteira...</p>
           <p className="text-sm text-muted-foreground">
             Processando em blocos de {CHUNK_SIZE} linhas
           </p>
@@ -672,20 +731,41 @@ export function BulkImporter() {
         <Card className="space-y-4 p-6">
           <div className="text-center">
             <CheckCircle2 className="mx-auto mb-2 h-14 w-14 text-emerald-600" />
-            <p className="text-xl font-bold text-foreground">
-              Importação Concluída!
-            </p>
-            <p className="text-sm text-muted-foreground">
-              Sua carteira foi importada com sucesso.
-            </p>
+            <p className="text-xl font-bold text-foreground">Importação Concluída!</p>
+            <p className="text-sm text-muted-foreground">Sua carteira foi importada com sucesso.</p>
           </div>
 
           <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
-            <KpiMini label="Clientes novos" value={resultado.clientes_criados} icon="👥" color="blue" />
-            <KpiMini label="Clientes existentes" value={resultado.clientes_existentes} icon="🔄" color="amber" />
-            <KpiMini label="Contratos novos" value={resultado.emprestimos_criados} icon="📋" color="green" />
-            <KpiMini label="Contratos duplicados" value={resultado.emprestimos_existentes} icon="🔁" color="amber" />
-            <KpiMini label="Parcelas geradas" value={resultado.parcelas_inseridas} icon="💳" color="green" />
+            <KpiMini
+              label="Clientes novos"
+              value={resultado.clientes_criados}
+              icon="👥"
+              color="blue"
+            />
+            <KpiMini
+              label="Clientes existentes"
+              value={resultado.clientes_existentes}
+              icon="🔄"
+              color="amber"
+            />
+            <KpiMini
+              label="Contratos novos"
+              value={resultado.emprestimos_criados}
+              icon="📋"
+              color="green"
+            />
+            <KpiMini
+              label="Contratos duplicados"
+              value={resultado.emprestimos_existentes}
+              icon="🔁"
+              color="amber"
+            />
+            <KpiMini
+              label="Parcelas geradas"
+              value={resultado.parcelas_inseridas}
+              icon="💳"
+              color="green"
+            />
             <KpiMini label="Avisos" value={resultado.warnings.length} icon="⚠️" color="amber" />
           </div>
 

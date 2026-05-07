@@ -64,26 +64,27 @@ function ResetPasswordPage() {
 
     const checkAuth = async () => {
       // 1. Detecção imediata por URL (Hash ou Query)
-      const hasToken = 
-        window.location.hash.includes("access_token=") || 
+      const hasToken =
+        window.location.hash.includes("access_token=") ||
         window.location.search.includes("code=") ||
         window.location.hash.includes("type=recovery");
-      
+
       if (hasToken) {
-        console.log("Token ou indício de recovery detectado na URL");
         if (mounted) setRecoveryReady(true);
       }
 
       // 2. Tenta recuperar sessão existente (caso o Supabase já tenha processado)
-      const { data: { session } } = await supabase.auth.getSession();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
       if (session && mounted) {
-        console.log("Sessão ativa encontrada");
         setRecoveryReady(true);
       }
 
       // 3. Listener para eventos futuros
-      const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-        console.log("Evento de auth detectado:", event);
+      const {
+        data: { subscription },
+      } = supabase.auth.onAuthStateChange((event, session) => {
         if ((event === "PASSWORD_RECOVERY" || event === "SIGNED_IN" || session) && mounted) {
           setRecoveryReady(true);
         }
@@ -104,13 +105,12 @@ function ResetPasswordPage() {
 
     // Aumentamos o tempo para 5 segundos para dar tempo total ao processamento do Supabase
     const timer = setTimeout(() => {
-      const isRecoveryURL = 
-        window.location.hash.includes("access_token=") || 
+      const isRecoveryURL =
+        window.location.hash.includes("access_token=") ||
         window.location.search.includes("code=") ||
         window.location.hash.includes("type=recovery");
 
       if (!user && !recoveryReady && !isRecoveryURL) {
-        console.warn("Nenhuma sessão ou token detectado. Redirecionando para login.");
         navigate({ to: "/login", replace: true });
       }
     }, 5000);
@@ -161,20 +161,32 @@ function ResetPasswordPage() {
 
   return (
     <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-emerald-900/30 p-4">
-      <div aria-hidden className="pointer-events-none absolute -right-24 -top-24 h-96 w-96 rounded-full bg-emerald-500/10 blur-3xl" />
-      <div aria-hidden className="pointer-events-none absolute -bottom-20 -left-20 h-80 w-80 rounded-full bg-blue-500/10 blur-3xl" />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -right-24 -top-24 h-96 w-96 rounded-full bg-emerald-500/10 blur-3xl"
+      />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -bottom-20 -left-20 h-80 w-80 rounded-full bg-blue-500/10 blur-3xl"
+      />
 
       <div className="relative z-10 w-full max-w-md animate-in fade-in slide-in-from-bottom-4 duration-500">
         <div className="rounded-2xl bg-card p-7 shadow-2xl ring-1 ring-border sm:p-9">
           <div className="mb-6 text-center">
             <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-br from-primary to-success shadow-lg">
               {businessLogo ? (
-                <img src={businessLogo} alt={businessLabel} className="h-full w-full object-cover" />
+                <img
+                  src={businessLogo}
+                  alt={businessLabel}
+                  className="h-full w-full object-cover"
+                />
               ) : (
                 <Wallet className="h-7 w-7 text-primary-foreground" />
               )}
             </div>
-            <h1 className="text-2xl font-extrabold tracking-tight text-foreground">{businessLabel}</h1>
+            <h1 className="text-2xl font-extrabold tracking-tight text-foreground">
+              {businessLabel}
+            </h1>
           </div>
 
           {!ok ? (
@@ -301,9 +313,13 @@ function ResetPasswordPage() {
               </div>
               <h2 className="text-lg font-bold text-foreground">Senha redefinida!</h2>
               <p className="mb-5 text-sm text-muted-foreground">
-                Sua senha foi alterada com sucesso. Agora entre com a nova senha para confirmar o acesso.
+                Sua senha foi alterada com sucesso. Agora entre com a nova senha para confirmar o
+                acesso.
               </p>
-              <Button onClick={() => navigate({ to: "/login", replace: true })} className="h-11 w-full">
+              <Button
+                onClick={() => navigate({ to: "/login", replace: true })}
+                className="h-11 w-full"
+              >
                 Entrar com a nova senha
               </Button>
             </div>

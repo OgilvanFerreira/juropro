@@ -17,14 +17,37 @@ export async function lookupCep(cep: string): Promise<ViaCepResult | null> {
     const data = (await r.json()) as ViaCepResult;
     if (data.erro) return null;
     return data;
-  } catch (e) {
-    console.error("ViaCEP error:", e);
+  } catch {
     return null;
   }
 }
 
 export const BRAZIL_UFS = [
-  "AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA",
-  "MT", "MS", "MG", "PA", "PB", "PR", "PE", "PI", "RJ", "RN",
-  "RS", "RO", "RR", "SC", "SP", "SE", "TO",
+  "AC",
+  "AL",
+  "AP",
+  "AM",
+  "BA",
+  "CE",
+  "DF",
+  "ES",
+  "GO",
+  "MA",
+  "MT",
+  "MS",
+  "MG",
+  "PA",
+  "PB",
+  "PR",
+  "PE",
+  "PI",
+  "RJ",
+  "RN",
+  "RS",
+  "RO",
+  "RR",
+  "SC",
+  "SP",
+  "SE",
+  "TO",
 ] as const;
