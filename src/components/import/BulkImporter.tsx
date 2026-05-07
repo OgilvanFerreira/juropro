@@ -389,10 +389,18 @@ function validarQuantidadeLinhas(raw: Record<string, unknown>[]) {
   }
 }
 
-// ─── Geração do modelo .csv ──────────────────────────────────
-function csvCell(value: unknown) {
-  const s = String(value ?? "");
-  return `"${s.replace(/"/g, '""')}"`;
+function repararCsvLinhaEnvelopada(text: string) {
+  return text
+    .replace(/^\uFEFF/, "")
+    .split(/\r?\n/)
+    .map((line) => {
+      const trimmed = line.trim();
+      if (trimmed.startsWith('"') && trimmed.endsWith('"') && trimmed.includes('""')) {
+        return trimmed.slice(1, -1).replace(/""/g, '"');
+      }
+      return line;
+    })
+    .join("\n");
 }
 
 function baixarModelo() {
@@ -443,13 +451,10 @@ function baixarModelo() {
       contrato_id: "",
     },
   ];
-  const rows = [
-    headers,
-    ...exemplos.map((row) =>
-      headers.map((header) => row[header as keyof (typeof exemplos)[number]]),
-    ),
-  ];
-  const csv = rows.map((row) => row.map(csvCell).join(",")).join("\n");
+  const csv = Papa.unparse(exemplos, {
+    columns: headers,
+    quotes: false,
+  });
   const blob = new Blob(["\ufeff", csv], { type: "text/csv;charset=utf-8;" });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
@@ -486,13 +491,15 @@ export function BulkImporter() {
       return;
     }
     try {
-      const text = await file.text();
+      const text = repararCsvLinhaEnvelopada(await file.text());
       const parsed = Papa.parse<Record<string, unknown>>(text, {
         header: true,
         skipEmptyLines: true,
         preview: MAX_IMPORT_ROWS + 1,
+        delimitersToGuess: [",", ";", "\t", "|"],
       });
-      if (parsed.errors.length > 0) {
+      const errosCriticos = parsed.errors.filter((error) => error.code !== "UndetectableDelimiter");
+      if (errosCriticos.length > 0) {
         throw new Error("INVALID_FILE");
       }
       const raw = parsed.data;
