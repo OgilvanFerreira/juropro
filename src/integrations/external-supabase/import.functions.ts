@@ -8,9 +8,7 @@ function getServerClient(opts?: { admin?: boolean }) {
   const anonKey = process.env.EXTERNAL_SUPABASE_ANON_KEY;
   const serviceKey = process.env.EXTERNAL_SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !anonKey) {
-    throw new Error(
-      "EXTERNAL_SUPABASE_URL ou EXTERNAL_SUPABASE_ANON_KEY não configurados.",
-    );
+    throw new Error("EXTERNAL_SUPABASE_URL ou EXTERNAL_SUPABASE_ANON_KEY não configurados.");
   }
   const key = opts?.admin && serviceKey ? serviceKey : anonKey;
   return createClient(url, key, {
@@ -71,6 +69,9 @@ function normStatus(s: string): "pago" | "pendente" {
 function digits(s: string): string {
   return (s ?? "").replace(/\D/g, "");
 }
+function isAutoContratoId(s: string): boolean {
+  return s.toLowerCase().startsWith("__auto:");
+}
 
 export type BulkImportResult = {
   ok: boolean;
@@ -107,10 +108,20 @@ export const bulkImport = createServerFn({ method: "POST" })
       return {
         ok: false,
         error: `Falha ao ler clientes: ${errCli.message}`,
-        clientes_criados, clientes_existentes, emprestimos_criados,
-        emprestimos_existentes, parcelas_inseridas, warnings,
+        clientes_criados,
+        clientes_existentes,
+        emprestimos_criados,
+        emprestimos_existentes,
+        parcelas_inseridas,
+        warnings,
       };
     }
+
+    const { count: totalEmprestimos } = await supabase
+      .from("emprestimos")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId);
+    let proximoContratoAuto = (totalEmprestimos ?? 0) + 1;
     const cpfToClienteId = new Map<string, string | number>();
     for (const c of clientesExistentes ?? []) {
       const d = digits(String(c.cpf_cnpj ?? ""));
@@ -127,8 +138,12 @@ export const bulkImport = createServerFn({ method: "POST" })
       periodicidade: string;
       data_inicio: string;
       parcelas: Array<{
-        num: number; venc: string; valor: number; status: string;
-        data_pag?: string; valor_pago?: number | null;
+        num: number;
+        venc: string;
+        valor: number;
+        status: string;
+        data_pag?: string;
+        valor_pago?: number | null;
       }>;
     };
     type ClienteData = {
@@ -194,7 +209,9 @@ export const bulkImport = createServerFn({ method: "POST" })
           .select("id")
           .single();
         if (insErr || !created) {
-          warnings.push(`Cliente "${cli.nome}" (${cli.cpf_cnpj}): ${insErr?.message ?? "falha ao criar"}`);
+          warnings.push(
+            `Cliente "${cli.nome}" (${cli.cpf_cnpj}): ${insErr?.message ?? "falha ao criar"}`,
+          );
           continue;
         }
         clienteId = created.id as string | number;
@@ -215,21 +232,22 @@ export const bulkImport = createServerFn({ method: "POST" })
         .limit(500);
 
       for (const [contratoId, contrato] of cli.contratos.entries()) {
+        const contratoIdFinal = isAutoContratoId(contratoId)
+          ? `JP-${String(proximoContratoAuto++).padStart(5, "0")}`
+          : contratoId;
         // Detecta duplicata pelo contrato_id armazenado em observacoes
-        const tag = `[Contrato: ${contratoId}]`;
-        const dup = (empsExist ?? []).find((e) =>
-          String(e.observacoes ?? "").includes(tag),
-        );
+        const tag = `[Contrato: ${contratoIdFinal}]`;
+        const dup = (empsExist ?? []).find((e) => String(e.observacoes ?? "").includes(tag));
         if (dup) {
           emprestimos_existentes++;
-          warnings.push(`Contrato ${contratoId} de "${cli.nome}" já existe — ignorado.`);
+          warnings.push(`Contrato ${contratoIdFinal} de "${cli.nome}" já existe — ignorado.`);
           continue;
         }
 
         const tipoJuros = normTipoJuros(contrato.tipo_juros);
         const periodicidade = normPeriodicidade(contrato.periodicidade);
         const periodLabel = periodicidade.charAt(0).toUpperCase() + periodicidade.slice(1);
-        const observacoesFinal = `[Contrato: ${contratoId}] [Periodicidade: ${periodLabel} • ${PERIODICIDADE_DIAS[periodicidade]} dias]`;
+        const observacoesFinal = `[Contrato: ${contratoIdFinal}] [Periodicidade: ${periodLabel} • ${PERIODICIDADE_DIAS[periodicidade]} dias]`;
 
         const { data: empCriado, error: empErr } = await supabase
           .from("emprestimos")
@@ -247,7 +265,9 @@ export const bulkImport = createServerFn({ method: "POST" })
           .select("id")
           .single();
         if (empErr || !empCriado) {
-          warnings.push(`Contrato ${contratoId} de "${cli.nome}": ${empErr?.message ?? "falha ao criar"}`);
+          warnings.push(
+            `Contrato ${contratoIdFinal} de "${cli.nome}": ${empErr?.message ?? "falha ao criar"}`,
+          );
           continue;
         }
         emprestimos_criados++;
@@ -261,15 +281,13 @@ export const bulkImport = createServerFn({ method: "POST" })
             data_vencimento: p.venc,
             valor_parcela: p.valor,
             status,
-            data_pagamento: status === "pago" ? (p.data_pag || null) : null,
+            data_pagamento: status === "pago" ? p.data_pag || null : null,
             valor_pago: status === "pago" ? (p.valor_pago ?? p.valor) : null,
           };
         });
-        const { error: parErr } = await supabase
-          .from("parcelas")
-          .insert(parcelasPayload);
+        const { error: parErr } = await supabase.from("parcelas").insert(parcelasPayload);
         if (parErr) {
-          warnings.push(`Parcelas do contrato ${contratoId}: ${parErr.message}`);
+          warnings.push(`Parcelas do contrato ${contratoIdFinal}: ${parErr.message}`);
           await supabase.from("emprestimos").delete().eq("id", empCriado.id);
           emprestimos_criados--;
           continue;

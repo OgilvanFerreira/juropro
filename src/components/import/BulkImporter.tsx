@@ -63,6 +63,38 @@ const hojeMidnight = () => {
   return d;
 };
 
+const PERIODICIDADE_DIAS = {
+  mensal: 30,
+  quinzenal: 15,
+  semanal: 7,
+  diario: 1,
+} as const;
+
+type PeriodicidadeKey = keyof typeof PERIODICIDADE_DIAS;
+
+function normPeriodicidadeImportacao(s: unknown): PeriodicidadeKey {
+  const k = String(s ?? "mensal")
+    .toLowerCase()
+    .trim();
+  if (k.startsWith("quin")) return "quinzenal";
+  if (k.startsWith("sem")) return "semanal";
+  if (k.startsWith("dia")) return "diario";
+  return "mensal";
+}
+
+function normTipoJurosImportacao(s: unknown): string {
+  const k = String(s ?? "Simples").trim();
+  return k || "Simples";
+}
+
+function addDiasIso(dataIso: string, dias: number): string {
+  const d = new Date(dataIso + "T00:00:00");
+  d.setDate(d.getDate() + dias);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
+    d.getDate(),
+  ).padStart(2, "0")}`;
+}
+
 function parseDataBR(input: unknown): string {
   if (input === null || input === undefined || input === "") return "";
   // Excel pode entregar Date objects ou serial numbers
@@ -140,32 +172,110 @@ type LinhaNorm = {
   valor_pago: number | null;
 };
 
+function getCampo(r: Record<string, unknown>, k: string): unknown {
+  if (r[k] !== undefined) return r[k];
+  const lower = Object.keys(r).find((kk) => kk.toLowerCase().trim() === k.toLowerCase());
+  return lower ? r[lower] : undefined;
+}
+
+function temCampoPreenchido(r: Record<string, unknown>, k: string): boolean {
+  const v = getCampo(r, k);
+  return v !== null && v !== undefined && String(v).trim() !== "";
+}
+
+function calcularParcelasRapidas(input: {
+  valorPrincipal: number;
+  taxaJuros: number;
+  numParcelas: number;
+  tipoJuros: string;
+  periodicidade: PeriodicidadeKey;
+  dataInicio: string;
+  primeiroVencimento: string;
+  valorParcelaManual: number;
+}) {
+  const n = input.numParcelas;
+  const taxa = input.taxaJuros / 100;
+  const valor = input.valorPrincipal;
+  const tipo = input.tipoJuros.toLowerCase();
+  const dias = PERIODICIDADE_DIAS[input.periodicidade];
+  const primeiroVencimento = input.primeiroVencimento || addDiasIso(input.dataInicio, dias);
+
+  if (input.valorParcelaManual > 0) {
+    return Array.from({ length: n }, (_, i) => ({
+      num: i + 1,
+      venc: addDiasIso(primeiroVencimento, i * dias),
+      valor: input.valorParcelaManual,
+    }));
+  }
+
+  if (tipo.includes("compost")) {
+    const valorParcela =
+      taxa === 0
+        ? valor / n
+        : (valor * (taxa * Math.pow(1 + taxa, n))) / (Math.pow(1 + taxa, n) - 1);
+    return Array.from({ length: n }, (_, i) => ({
+      num: i + 1,
+      venc: addDiasIso(primeiroVencimento, i * dias),
+      valor: valorParcela,
+    }));
+  }
+
+  if (tipo.includes("só") || tipo.includes("so j") || tipo.includes("juros")) {
+    const juros = valor * taxa;
+    return Array.from({ length: n }, (_, i) => ({
+      num: i + 1,
+      venc: addDiasIso(primeiroVencimento, i * dias),
+      valor: i === n - 1 ? juros + valor : juros,
+    }));
+  }
+
+  const totalPagar = valor + valor * taxa * n;
+  const valorParcela = totalPagar / n;
+  return Array.from({ length: n }, (_, i) => ({
+    num: i + 1,
+    venc: addDiasIso(primeiroVencimento, i * dias),
+    valor: valorParcela,
+  }));
+}
+
 function normalizar(rawRows: Record<string, unknown>[]): LinhaNorm[] {
   const hoje = hojeMidnight();
-  return rawRows.map((r, i) => {
-    const get = (k: string): unknown => {
-      // tenta variações
-      if (r[k] !== undefined) return r[k];
-      const lower = Object.keys(r).find((kk) => kk.toLowerCase().trim() === k.toLowerCase());
-      return lower ? r[lower] : undefined;
-    };
+  const usaDetalhado = rawRows.some(
+    (r) =>
+      temCampoPreenchido(r, "num_parcela") ||
+      temCampoPreenchido(r, "data_vencimento") ||
+      temCampoPreenchido(r, "status_parcela"),
+  );
 
-    const nome_cliente = String(get("nome_cliente") ?? "").trim();
-    const cpf_cnpj = String(get("cpf_cnpj") ?? "").trim();
-    const contrato_id = String(get("contrato_id") ?? "").trim();
-    const valor_principal = parseNumber(get("valor_principal"));
-    const taxa_juros = parseNumber(get("taxa_juros"));
-    const tipo_juros = String(get("tipo_juros") ?? "").trim();
-    const numParcRaw = get("num_parcelas");
-    const num_parcela = parseInt2(get("num_parcela"));
+  const montarLinha = (
+    r: Record<string, unknown>,
+    i: number,
+    parcial?: {
+      contrato_id: string;
+      num_parcela: number;
+      data_vencimento: string;
+      valor_parcela: number;
+      status_parcela: string;
+    },
+  ): LinhaNorm => {
+    const nome_cliente = String(getCampo(r, "nome_cliente") ?? "").trim();
+    const cpf_cnpj = String(getCampo(r, "cpf_cnpj") ?? "").trim();
+    const contrato_id =
+      parcial?.contrato_id || String(getCampo(r, "contrato_id") ?? "").trim() || `__auto:${i + 2}`;
+    const valor_principal = parseNumber(getCampo(r, "valor_principal"));
+    const taxa_juros = parseNumber(getCampo(r, "taxa_juros"));
+    const tipo_juros = normTipoJurosImportacao(getCampo(r, "tipo_juros"));
+    const numParcRaw = getCampo(r, "num_parcelas");
+    const num_parcela = parcial?.num_parcela ?? parseInt2(getCampo(r, "num_parcela"));
     const num_parcelas = parseTotalParcelas(numParcRaw, num_parcela);
-    const periodicidade = String(get("periodicidade") ?? "").trim();
-    const data_inicio = parseDataBR(get("data_inicio"));
-    const data_vencimento = parseDataBR(get("data_vencimento"));
-    const valor_parcela = parseNumber(get("valor_parcela"));
-    const status_parcela = String(get("status_parcela") ?? "Pendente").trim();
-    const data_pagamento = parseDataBR(get("data_pagamento"));
-    const valor_pago_raw = get("valor_pago");
+    const periodicidade = String(getCampo(r, "periodicidade") ?? "Mensal").trim() || "Mensal";
+    const data_inicio = parseDataBR(getCampo(r, "data_inicio"));
+    const data_vencimento = parcial?.data_vencimento ?? parseDataBR(getCampo(r, "data_vencimento"));
+    const valor_parcela = parcial?.valor_parcela ?? parseNumber(getCampo(r, "valor_parcela"));
+    const status_parcela =
+      parcial?.status_parcela ?? String(getCampo(r, "status_parcela") ?? "Pendente").trim();
+    const data_pagamento = parseDataBR(getCampo(r, "data_pagamento"));
+    const valor_pago_raw = getCampo(r, "valor_pago");
     const valor_pago =
       valor_pago_raw === "" || valor_pago_raw === null || valor_pago_raw === undefined
         ? null
@@ -215,6 +325,48 @@ function normalizar(rawRows: Record<string, unknown>[]): LinhaNorm[] {
       data_pagamento,
       valor_pago,
     };
+  };
+
+  if (usaDetalhado) {
+    return rawRows.map((r, i) => montarLinha(r, i));
+  }
+
+  return rawRows.flatMap((r, i) => {
+    const data_inicio = parseDataBR(getCampo(r, "data_inicio"));
+    const valorPrincipal = parseNumber(getCampo(r, "valor_principal"));
+    const taxaJuros = parseNumber(getCampo(r, "taxa_juros"));
+    const numParcelas = parseTotalParcelas(getCampo(r, "num_parcelas"));
+    const periodicidade = normPeriodicidadeImportacao(getCampo(r, "periodicidade"));
+    const parcelas =
+      data_inicio && valorPrincipal > 0 && numParcelas > 0
+        ? calcularParcelasRapidas({
+            valorPrincipal,
+            taxaJuros,
+            numParcelas,
+            tipoJuros: normTipoJurosImportacao(getCampo(r, "tipo_juros")),
+            periodicidade,
+            dataInicio: data_inicio,
+            primeiroVencimento: parseDataBR(getCampo(r, "primeiro_vencimento")),
+            valorParcelaManual: parseNumber(getCampo(r, "valor_parcela")),
+          })
+        : [
+            {
+              num: 0,
+              venc: "",
+              valor: 0,
+            },
+          ];
+    const contratoId = String(getCampo(r, "contrato_id") ?? "").trim() || `__auto:${i + 2}`;
+
+    return parcelas.map((p) =>
+      montarLinha(r, i, {
+        contrato_id: contratoId,
+        num_parcela: p.num,
+        data_vencimento: p.venc,
+        valor_parcela: p.valor,
+        status_parcela: String(getCampo(r, "status_parcela") ?? "Pendente").trim() || "Pendente",
+      }),
+    );
   });
 }
 
@@ -249,19 +401,15 @@ function baixarModelo() {
     "cpf_cnpj",
     "telefone",
     "email",
-    "contrato_id",
     "valor_principal",
     "taxa_juros",
     "tipo_juros",
     "num_parcelas",
     "periodicidade",
     "data_inicio",
-    "num_parcela",
-    "data_vencimento",
+    "primeiro_vencimento",
     "valor_parcela",
-    "status_parcela",
-    "data_pagamento",
-    "valor_pago",
+    "contrato_id",
   ];
   const exemplos = [
     {
@@ -269,38 +417,30 @@ function baixarModelo() {
       cpf_cnpj: "123.456.789-00",
       telefone: "(73) 99999-0000",
       email: "joao@exemplo.com",
-      contrato_id: "CONT-001",
       valor_principal: 2000,
       taxa_juros: 5,
       tipo_juros: "Simples",
       num_parcelas: 6,
       periodicidade: "Mensal",
       data_inicio: "01/01/2025",
-      num_parcela: 1,
-      data_vencimento: "01/02/2025",
-      valor_parcela: 350,
-      status_parcela: "Pago",
-      data_pagamento: "01/02/2025",
-      valor_pago: 350,
+      primeiro_vencimento: "01/02/2025",
+      valor_parcela: "",
+      contrato_id: "",
     },
     {
-      nome_cliente: "João da Silva",
-      cpf_cnpj: "123.456.789-00",
-      telefone: "(73) 99999-0000",
-      email: "joao@exemplo.com",
-      contrato_id: "CONT-001",
-      valor_principal: 2000,
-      taxa_juros: 5,
-      tipo_juros: "Simples",
-      num_parcelas: 6,
+      nome_cliente: "Maria Souza",
+      cpf_cnpj: "987.654.321-00",
+      telefone: "(73) 98888-0000",
+      email: "maria@exemplo.com",
+      valor_principal: 5000,
+      taxa_juros: 4,
+      tipo_juros: "Composto",
+      num_parcelas: 10,
       periodicidade: "Mensal",
-      data_inicio: "01/01/2025",
-      num_parcela: 2,
-      data_vencimento: "01/03/2025",
-      valor_parcela: 350,
-      status_parcela: "Pendente",
-      data_pagamento: "",
-      valor_pago: "",
+      data_inicio: "10/01/2025",
+      primeiro_vencimento: "10/02/2025",
+      valor_parcela: "",
+      contrato_id: "",
     },
   ];
   const rows = [
@@ -314,7 +454,7 @@ function baixarModelo() {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
-  link.download = "JuroPro_Modelo_Importacao.csv";
+  link.download = "JuroPro_Modelo_Rapido_Importacao.csv";
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
@@ -486,7 +626,8 @@ export function BulkImporter() {
         <div className="min-w-0">
           <h2 className="text-lg font-semibold text-foreground">Importação em Massa</h2>
           <p className="text-sm text-muted-foreground">
-            Importe clientes, contratos e parcelas a partir de um CSV compatível com Excel.
+            Importe uma carteira inteira com uma linha por contrato. As parcelas são geradas
+            automaticamente.
           </p>
         </div>
       </div>
@@ -539,9 +680,10 @@ export function BulkImporter() {
 
           <Card className="flex flex-wrap items-center gap-4 p-4">
             <div className="flex-1 min-w-[200px]">
-              <p className="font-semibold text-foreground">📋 Modelo CSV</p>
+              <p className="font-semibold text-foreground">📋 Modelo rápido CSV</p>
               <p className="text-sm text-muted-foreground">
-                Baixe o modelo oficial com cabeçalhos e exemplos.
+                Preencha um contrato por linha. Se deixar contrato_id vazio, o JuroPro cria a
+                numeração automaticamente.
               </p>
             </div>
             <Button
@@ -561,11 +703,11 @@ export function BulkImporter() {
             <div className="grid gap-3 sm:grid-cols-2">
               {[
                 ["🔗", "Relacionamento", "Cria Cliente → Contrato → Parcelas em uma linha"],
+                ["#️⃣", "Contrato automático", "Campo contrato_id pode ficar vazio"],
                 ["🔄", "Detecção de duplicatas", "CPF existente reutiliza o cliente"],
                 ["🔴", "Status automático", "Vencidas pendentes viram Atrasadas"],
                 ["⚡", "Em lotes", "Processa em chunks para máxima performance"],
                 ["✅", "Validação", "Linhas com erros são listadas e ignoradas"],
-                ["🛡️", "Multi-tenant", "Tudo é vinculado ao seu usuário"],
               ].map(([ic, t, s]) => (
                 <div key={t} className="flex gap-3 rounded-lg bg-muted/40 p-3">
                   <span className="text-xl">{ic}</span>
