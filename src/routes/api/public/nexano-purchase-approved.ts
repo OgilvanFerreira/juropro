@@ -11,7 +11,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { createClient } from "@supabase/supabase-js";
 import nodemailer from "nodemailer";
-import { randomBytes } from "node:crypto";
+import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 
 const APP_BASE_URL = process.env.APP_BASE_URL || "https://www.juropro.com.br";
 const LOGIN_URL = `${APP_BASE_URL.replace(/\/$/, "")}/login`;
@@ -38,6 +38,9 @@ function extractToken(req: Request, body: Record<string, unknown>): string | nul
     req.headers.get("authorization")?.replace(/^Bearer\s+/i, "").trim() ||
     req.headers.get("x-webhook-token") ||
     req.headers.get("x-nexano-token") ||
+    req.headers.get("x-webhook-secret") ||
+    req.headers.get("x-token") ||
+    req.headers.get("token") ||
     req.headers.get("x-api-key") ||
     (body.token as string) ||
     (body.secret as string) ||
@@ -46,7 +49,26 @@ function extractToken(req: Request, body: Record<string, unknown>): string | nul
   );
 }
 
-function validateToken(token: string | null): boolean {
+function safeCompare(a: string, b: string): boolean {
+  const left = Buffer.from(a);
+  const right = Buffer.from(b);
+  return left.length === right.length && timingSafeEqual(left, right);
+}
+
+function validateSignature(req: Request, rawBody: string, secret: string): boolean {
+  const signature =
+    req.headers.get("x-webhook-signature") ||
+    req.headers.get("x-nexano-signature") ||
+    req.headers.get("x-signature");
+
+  if (!signature) return false;
+
+  const normalized = signature.replace(/^sha256=/i, "").trim();
+  const expected = createHmac("sha256", secret).update(rawBody).digest("hex");
+  return safeCompare(normalized, expected);
+}
+
+function validateWebhook(req: Request, body: Record<string, unknown>, rawBody: string): boolean {
   const secret = process.env.NEXANO_WEBHOOK_SECRET;
 
   if (!secret) {
@@ -54,12 +76,17 @@ function validateToken(token: string | null): boolean {
     return false;
   }
 
+  const token = extractToken(req, body);
   if (!token) {
-    console.error("[webhook-approved] Token ausente no payload");
-    return false;
+    const validSignature = validateSignature(req, rawBody, secret);
+    if (!validSignature) {
+      console.error("[webhook-approved] Token/assinatura ausente ou invalida");
+      return false;
+    }
+    return true;
   }
 
-  return token === secret;
+  return safeCompare(token, secret);
 }
 
 function findStringByKeys(value: unknown, keys: string[], depth = 0): string | null {
@@ -127,6 +154,15 @@ function extractBuyerData(body: Record<string, unknown>) {
     findStringByKeys(body, ["transaction_id", "order_id", "sale_id", "purchase_id"]);
 
   return { email, name, document, phone, externalId };
+}
+
+function isWebhookTest(body: Record<string, unknown>) {
+  const event =
+    (body.event as string | undefined) ??
+    (body.type as string | undefined) ??
+    (body.status as string | undefined);
+
+  return event?.toLowerCase().includes("webhook.test") === true;
 }
 
 function generateTemporaryPassword(): string {
@@ -263,16 +299,22 @@ export const Route = createFileRoute("/api/public/nexano-purchase-approved")({
       POST: async ({ request }: { request: Request }) => {
         console.log("[webhook-approved] Request recebido");
 
+        let rawBody: string;
         let body: Record<string, unknown>;
         try {
-          body = await request.json();
+          rawBody = await request.text();
+          body = JSON.parse(rawBody || "{}");
         } catch {
           return Response.json({ error: "Payload JSON invalido" }, { status: 400 });
         }
 
-        const token = extractToken(request, body);
-        if (!validateToken(token)) {
+        if (!validateWebhook(request, body, rawBody)) {
           return Response.json({ error: "Token invalido" }, { status: 401 });
+        }
+
+        if (isWebhookTest(body)) {
+          console.log("[webhook-approved] Teste de webhook recebido");
+          return Response.json({ ok: true, message: "Webhook de teste recebido" });
         }
 
         const { email, name, document, phone, externalId } = extractBuyerData(body);
