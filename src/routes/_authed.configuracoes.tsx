@@ -1132,11 +1132,10 @@ function TabBackup() {
     <div className="space-y-4 md:space-y-6">
       <section className="rounded-xl border bg-card p-4 shadow-sm md:p-6">
         <SectionHeader
-          icon={Database}
+          icon={<Database className="h-5 w-5" />}
           title="Backup dos Dados"
-          desc="Área reservada para segurança e exportação das informações da sua operação."
-          iconBg="bg-primary/10"
-          iconColor="text-primary"
+          description="Área reservada para segurança e exportação das informações da sua operação."
+          iconBg="bg-primary/10 text-primary"
         />
         <Separator className="my-4" />
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
@@ -1159,11 +1158,10 @@ function TabBackup() {
       <section className="rounded-xl border border-primary/20 bg-card p-4 shadow-sm md:p-6">
         <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
           <SectionHeader
-            icon={Lock}
+            icon={<Lock className="h-5 w-5" />}
             title="Importação Expressa"
-            desc="Serviço opcional para migrar carteiras prontas com clientes, contratos e parcelas."
-            iconBg="bg-primary/10"
-            iconColor="text-primary"
+            description="Serviço opcional para migrar carteiras prontas com clientes, contratos e parcelas."
+            iconBg="bg-primary/10 text-primary"
           />
           <span className="inline-flex w-fit items-center rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
             Order bump
