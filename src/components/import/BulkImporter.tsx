@@ -451,6 +451,7 @@ function validarQuantidadeLinhas(raw: Record<string, unknown>[]) {
 function repararCsvLinhaEnvelopada(text: string) {
   return text
     .replace(/^\uFEFF/, "")
+    .replace(/^sep=;\s*\r?\n/i, "")
     .split(/\r?\n/)
     .map((line) => {
       const trimmed = line.trim();
@@ -473,15 +474,21 @@ function baixarArquivo(blob: Blob, nome: string) {
   URL.revokeObjectURL(url);
 }
 
+function csvCell(value: unknown) {
+  const text = String(value ?? "");
+  return /[;"\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+}
+
 function baixarModeloCsv() {
-  const csv = Papa.unparse(MODELO_EXEMPLOS, {
-    columns: [...MODELO_HEADERS],
-    delimiter: ";",
-    quotes: false,
-  });
+  const linhas = [
+    "sep=;",
+    MODELO_HEADERS.join(";"),
+    ...MODELO_EXEMPLOS.map((row) => MODELO_HEADERS.map((header) => csvCell(row[header])).join(";")),
+  ];
+  const csv = linhas.join("\r\n");
   baixarArquivo(
     new Blob(["\ufeff", csv], { type: "text/csv;charset=utf-8;" }),
-    "JuroPro_Modelo_Rapido_Importacao.csv",
+    "JuroPro_Modelo_Rapido_Importacao_v2.csv",
   );
 }
 
