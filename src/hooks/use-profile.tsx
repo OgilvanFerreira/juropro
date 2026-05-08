@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 
@@ -30,6 +30,7 @@ export function useProfile() {
       .from("profiles" as never)
       .select("*")
       .eq("user_id", user.id)
+      .limit(1)
       .maybeSingle();
     setProfile((data as Profile | null) ?? null);
     setLoading(false);
@@ -40,11 +41,32 @@ export function useProfile() {
   }, [reload]);
 
   const update = async (patch: Partial<Profile>) => {
-    if (!user) return { error: "Não autenticado" };
-    const { error } = await supabase
+    if (!user) return { error: "Nao autenticado" };
+
+    const payload = {
+      ...patch,
+      user_id: user.id,
+      email: patch.email ?? user.email ?? null,
+      updated_at: new Date().toISOString(),
+    };
+
+    const { data: existing, error: findError } = await supabase
       .from("profiles" as never)
-      .update(patch as never)
-      .eq("user_id", user.id);
+      .select("id")
+      .eq("user_id", user.id)
+      .limit(1)
+      .maybeSingle();
+
+    if (findError) return { error: findError.message };
+
+    const query = existing
+      ? supabase
+          .from("profiles" as never)
+          .update(payload as never)
+          .eq("id", (existing as { id: string }).id)
+      : supabase.from("profiles" as never).insert(payload as never);
+
+    const { error } = await query;
     if (error) return { error: error.message };
     await reload();
     return { error: null };

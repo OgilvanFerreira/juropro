@@ -51,8 +51,11 @@ import { lookupCep, BRAZIL_UFS } from "@/lib/cep";
 import { useBusinessName, useBusinessLogo, useBusinessDetails } from "@/hooks/use-business-info";
 import { useDarkMode } from "@/hooks/use-dark-mode";
 import { useAuth } from "@/hooks/use-auth";
+import { useProfile } from "@/hooks/use-profile";
 import { supabase } from "@/integrations/supabase/client";
 import {
+  type BackupContratosPayload,
+  type BackupPayload,
   gerarBackupCompleto,
   gerarBackupContratos,
 } from "@/integrations/external-supabase/backup.functions";
@@ -222,6 +225,7 @@ function TabPerfil() {
   const { name, setName, defaultName } = useAdminName();
   const { avatar, setAvatar } = useAdminAvatar();
   const { user, updatePassword } = useAuth();
+  const { profile, update: updateProfile } = useProfile();
 
   const [form, setForm] = useState({
     nome: "",
@@ -252,6 +256,21 @@ function TabPerfil() {
       nome: name === defaultName ? "" : name,
     }));
   }, [name, defaultName]);
+
+  useEffect(() => {
+    if (!profile) return;
+    setForm((p) => ({
+      ...p,
+      nome: profile.nome ?? p.nome,
+      email: profile.email ?? p.email,
+      telefone: profile.telefone ?? "",
+      cpf: profile.cpf ?? "",
+      cargo: profile.cargo ?? p.cargo,
+      cidade: profile.cidade ?? "",
+      uf: profile.uf ?? p.uf,
+    }));
+    if (profile.avatar_url) setAvatar(profile.avatar_url);
+  }, [profile, setAvatar]);
 
   const set = (field: keyof typeof form) => (e: ChangeEvent<HTMLInputElement>) =>
     setForm((p) => ({ ...p, [field]: e.target.value }));
@@ -327,6 +346,24 @@ function TabPerfil() {
       setNovaSenha("");
       setConfSenha("");
       toast.success("Senha alterada com sucesso! Use a nova senha no próximo login.");
+    }
+
+    const profilePayload = {
+      nome: form.nome.trim(),
+      email: form.email.trim(),
+      telefone: form.telefone,
+      cpf: form.cpf,
+      cargo: form.cargo,
+      cidade: form.cidade,
+      uf: form.uf,
+      avatar_url: avatar,
+    };
+
+    const { error: profileError } = await updateProfile(profilePayload);
+    if (profileError) {
+      toast.error(`Não foi possível salvar o perfil: ${profileError}`);
+      setSaving(false);
+      return;
     }
 
     setName(form.nome.trim());
@@ -588,6 +625,22 @@ function TabNegocio() {
     setForm((p) => (p.nome === businessName ? p : { ...p, nome: businessName }));
   }, [businessName]);
 
+  useEffect(() => {
+    setForm((p) => ({
+      ...p,
+      cnpj: details.cnpj,
+      telefone: details.telefone,
+      email: details.email,
+      cep: details.cep,
+      endereco: details.endereco,
+      numero: details.numero,
+      complemento: details.complemento,
+      bairro: details.bairro,
+      cidade: details.cidade,
+      uf: details.uf || p.uf,
+    }));
+  }, [details]);
+
   const set = (field: keyof typeof form) => (e: ChangeEvent<HTMLInputElement>) =>
     setForm((p) => ({ ...p, [field]: e.target.value }));
 
@@ -598,7 +651,7 @@ function TabNegocio() {
       return;
     }
     const reader = new FileReader();
-    reader.onload = (ev) => setLogo(String(ev.target?.result ?? ""));
+    reader.onload = (ev) => void setLogo(String(ev.target?.result ?? ""));
     reader.readAsDataURL(file);
   };
 
@@ -630,22 +683,32 @@ function TabNegocio() {
 
   const salvar = async () => {
     setSaving(true);
-    await new Promise((r) => setTimeout(r, 700));
-    setBusinessName(form.nome.trim());
-    setDetails({
-      cnpj: form.cnpj,
-      telefone: form.telefone,
-      email: form.email,
-      cep: form.cep,
-      endereco: form.endereco,
-      numero: form.numero,
-      complemento: form.complemento,
-      bairro: form.bairro,
-      cidade: form.cidade,
-      uf: form.uf,
-    });
-    setSaving(false);
-    toast.success("Dados do negócio salvos com sucesso!");
+    try {
+      await Promise.all([
+        setBusinessName(form.nome.trim()),
+        setDetails({
+          cnpj: form.cnpj,
+          telefone: form.telefone,
+          email: form.email,
+          cep: form.cep,
+          endereco: form.endereco,
+          numero: form.numero,
+          complemento: form.complemento,
+          bairro: form.bairro,
+          cidade: form.cidade,
+          uf: form.uf,
+        }),
+      ]);
+      toast.success("Dados do negócio salvos com sucesso!");
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? `Não foi possível salvar os dados do negócio: ${error.message}`
+          : "Não foi possível salvar os dados do negócio.",
+      );
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -1177,7 +1240,10 @@ function TabBackup() {
   const baixarContratos = async () => {
     try {
       setLoading("contratos");
-      const result = await gerarBackupContratosFn();
+      const result = (await gerarBackupContratosFn()) as {
+        data: BackupContratosPayload | null;
+        error: string | null;
+      };
       if (result.error || !result.data) {
         toast.error(result.error ?? "Não foi possível gerar o backup de contratos.");
         return;
@@ -1206,7 +1272,10 @@ function TabBackup() {
   const baixarCompleto = async () => {
     try {
       setLoading("completo");
-      const result = await gerarBackupCompletoFn();
+      const result = (await gerarBackupCompletoFn()) as {
+        data: BackupPayload | null;
+        error: string | null;
+      };
       if (result.error || !result.data) {
         toast.error(result.error ?? "Não foi possível gerar o backup completo.");
         return;

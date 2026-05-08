@@ -13,11 +13,24 @@ function getServerClient() {
   });
 }
 
-type BackupPayload = {
+export type BackupValue = string | number | boolean | null;
+export type BackupRow = Record<string, BackupValue>;
+
+export type BackupPayload = {
   generatedAt: string;
-  clientes: Record<string, unknown>[];
-  contratos: Record<string, unknown>[];
-  parcelas: Record<string, unknown>[];
+  clientes: BackupRow[];
+  contratos: BackupRow[];
+  parcelas: BackupRow[];
+};
+
+export type BackupContratosPayload = {
+  contratos: BackupRow[];
+  parcelas: BackupRow[];
+};
+
+type BackupResult<T> = {
+  data: T | null;
+  error: string | null;
 };
 
 const CLIENTES_COLUMNS =
@@ -31,7 +44,7 @@ const PARCELAS_COLUMNS =
 
 export const gerarBackupCompleto = createServerFn({ method: "GET" })
   .middleware([requireAuthForExternal])
-  .handler(async ({ context }): Promise<{ data: BackupPayload | null; error: string | null }> => {
+  .handler(async ({ context }): Promise<BackupResult<BackupPayload>> => {
     const supabase = getServerClient();
 
     const [clientesRes, contratosRes, parcelasRes] = await Promise.all([
@@ -61,9 +74,9 @@ export const gerarBackupCompleto = createServerFn({ method: "GET" })
     return {
       data: {
         generatedAt: new Date().toISOString(),
-        clientes: (clientesRes.data ?? []) as Record<string, unknown>[],
-        contratos: (contratosRes.data ?? []) as Record<string, unknown>[],
-        parcelas: (parcelasRes.data ?? []) as Record<string, unknown>[],
+        clientes: (clientesRes.data ?? []) as BackupRow[],
+        contratos: (contratosRes.data ?? []) as BackupRow[],
+        parcelas: (parcelasRes.data ?? []) as BackupRow[],
       },
       error: null,
     };
@@ -71,40 +84,33 @@ export const gerarBackupCompleto = createServerFn({ method: "GET" })
 
 export const gerarBackupContratos = createServerFn({ method: "GET" })
   .middleware([requireAuthForExternal])
-  .handler(
-    async ({
-      context,
-    }): Promise<{
-      data: { contratos: Record<string, unknown>[]; parcelas: Record<string, unknown>[] } | null;
-      error: string | null;
-    }> => {
-      const supabase = getServerClient();
+  .handler(async ({ context }): Promise<BackupResult<BackupContratosPayload>> => {
+    const supabase = getServerClient();
 
-      const [contratosRes, parcelasRes] = await Promise.all([
-        supabase
-          .from("emprestimos")
-          .select(CONTRATOS_COLUMNS)
-          .eq("user_id", context.userId)
-          .order("created_at", { ascending: true }),
-        supabase
-          .from("parcelas")
-          .select(PARCELAS_COLUMNS)
-          .eq("user_id", context.userId)
-          .order("data_vencimento", { ascending: true }),
-      ]);
+    const [contratosRes, parcelasRes] = await Promise.all([
+      supabase
+        .from("emprestimos")
+        .select(CONTRATOS_COLUMNS)
+        .eq("user_id", context.userId)
+        .order("created_at", { ascending: true }),
+      supabase
+        .from("parcelas")
+        .select(PARCELAS_COLUMNS)
+        .eq("user_id", context.userId)
+        .order("data_vencimento", { ascending: true }),
+    ]);
 
-      const firstError = contratosRes.error ?? parcelasRes.error;
-      if (firstError) {
-        console.error("gerarBackupContratos error:", firstError);
-        return { data: null, error: firstError.message };
-      }
+    const firstError = contratosRes.error ?? parcelasRes.error;
+    if (firstError) {
+      console.error("gerarBackupContratos error:", firstError);
+      return { data: null, error: firstError.message };
+    }
 
-      return {
-        data: {
-          contratos: (contratosRes.data ?? []) as Record<string, unknown>[],
-          parcelas: (parcelasRes.data ?? []) as Record<string, unknown>[],
-        },
-        error: null,
-      };
-    },
-  );
+    return {
+      data: {
+        contratos: (contratosRes.data ?? []) as BackupRow[],
+        parcelas: (parcelasRes.data ?? []) as BackupRow[],
+      },
+      error: null,
+    };
+  });
