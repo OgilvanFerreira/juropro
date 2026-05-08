@@ -24,7 +24,6 @@ import {
   Database,
 } from "lucide-react";
 import { toast } from "sonner";
-import { BulkImporter } from "@/components/import/BulkImporter";
 
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/dashboard/AppSidebar";
@@ -45,18 +44,9 @@ import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import { useAdminName } from "@/hooks/use-admin-name";
 import { useAdminAvatar } from "@/hooks/use-admin-avatar";
-import {
-  maskCpfCnpj,
-  maskTelefone,
-  maskCep,
-  maskTaxa,
-} from "@/lib/masks";
+import { maskCpfCnpj, maskTelefone, maskCep, maskTaxa } from "@/lib/masks";
 import { lookupCep, BRAZIL_UFS } from "@/lib/cep";
-import {
-  useBusinessName,
-  useBusinessLogo,
-  useBusinessDetails,
-} from "@/hooks/use-business-info";
+import { useBusinessName, useBusinessLogo, useBusinessDetails } from "@/hooks/use-business-info";
 import { useDarkMode } from "@/hooks/use-dark-mode";
 import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
@@ -134,18 +124,11 @@ function SectionHeader({
 }) {
   return (
     <div className="flex items-start gap-3">
-      <div
-        className={cn(
-          "flex h-10 w-10 shrink-0 items-center justify-center rounded-lg",
-          iconBg,
-        )}
-      >
+      <div className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-lg", iconBg)}>
         {icon}
       </div>
       <div className="min-w-0">
-        <h3 className="text-sm font-semibold text-foreground sm:text-base">
-          {title}
-        </h3>
+        <h3 className="text-sm font-semibold text-foreground sm:text-base">{title}</h3>
         <p className="text-xs text-muted-foreground sm:text-sm">{description}</p>
       </div>
     </div>
@@ -228,9 +211,8 @@ function TabPerfil() {
     }));
   }, [name, defaultName]);
 
-  const set =
-    (field: keyof typeof form) => (e: ChangeEvent<HTMLInputElement>) =>
-      setForm((p) => ({ ...p, [field]: e.target.value }));
+  const set = (field: keyof typeof form) => (e: ChangeEvent<HTMLInputElement>) =>
+    setForm((p) => ({ ...p, [field]: e.target.value }));
 
   const onPickFile = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -391,9 +373,7 @@ function TabPerfil() {
             <Input
               id="perfil-cpf"
               value={form.cpf}
-              onChange={(e) =>
-                setForm((p) => ({ ...p, cpf: maskCpf(e.target.value) }))
-              }
+              onChange={(e) => setForm((p) => ({ ...p, cpf: maskCpf(e.target.value) }))}
               placeholder="000.000.000-00"
               maxLength={14}
             />
@@ -402,12 +382,7 @@ function TabPerfil() {
             <Label htmlFor="perfil-email">
               E-mail <span className="text-destructive">*</span>
             </Label>
-            <Input
-              id="perfil-email"
-              type="email"
-              value={form.email}
-              onChange={set("email")}
-            />
+            <Input id="perfil-email" type="email" value={form.email} onChange={set("email")} />
           </div>
           <div className="space-y-2">
             <Label htmlFor="perfil-tel">Telefone</Label>
@@ -431,18 +406,11 @@ function TabPerfil() {
           <div className="grid grid-cols-[1fr_80px] gap-2">
             <div className="space-y-2">
               <Label htmlFor="perfil-cidade">Cidade</Label>
-              <Input
-                id="perfil-cidade"
-                value={form.cidade}
-                onChange={set("cidade")}
-              />
+              <Input id="perfil-cidade" value={form.cidade} onChange={set("cidade")} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="perfil-uf">UF</Label>
-              <Select
-                value={form.uf}
-                onValueChange={(v) => setForm((p) => ({ ...p, uf: v }))}
-              >
+              <Select value={form.uf} onValueChange={(v) => setForm((p) => ({ ...p, uf: v }))}>
                 <SelectTrigger id="perfil-uf">
                   <SelectValue />
                 </SelectTrigger>
@@ -487,16 +455,11 @@ function TabPerfil() {
               <div className="space-y-1">
                 <div className="h-1 w-full rounded bg-muted">
                   <div
-                    className={cn(
-                      "h-full rounded transition-all",
-                      forca.className,
-                    )}
+                    className={cn("h-full rounded transition-all", forca.className)}
                     style={{ width: `${forca.pct}%` }}
                   />
                 </div>
-                <p className="text-xs font-medium text-muted-foreground">
-                  {forca.label}
-                </p>
+                <p className="text-xs font-medium text-muted-foreground">{forca.label}</p>
               </div>
             )}
           </div>
@@ -531,19 +494,14 @@ function TabPerfil() {
         </div>
         <div className="mt-4 rounded-lg bg-muted/60 p-3">
           <p className="text-xs text-muted-foreground">
-            🔐 Requisitos: mínimo 8 caracteres, letras maiúsculas, números e
-            caracteres especiais.
+            🔐 Requisitos: mínimo 8 caracteres, letras maiúsculas, números e caracteres especiais.
           </p>
         </div>
       </section>
 
       <div className="flex justify-end">
         <Button onClick={salvar} disabled={saving} className="gap-2">
-          {saving ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <Save className="h-4 w-4" />
-          )}
+          {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
           Salvar Perfil
         </Button>
       </div>
@@ -588,9 +546,8 @@ function TabNegocio() {
     setForm((p) => (p.nome === businessName ? p : { ...p, nome: businessName }));
   }, [businessName]);
 
-  const set =
-    (field: keyof typeof form) => (e: ChangeEvent<HTMLInputElement>) =>
-      setForm((p) => ({ ...p, [field]: e.target.value }));
+  const set = (field: keyof typeof form) => (e: ChangeEvent<HTMLInputElement>) =>
+    setForm((p) => ({ ...p, [field]: e.target.value }));
 
   const handleLogo = (file?: File) => {
     if (!file || !file.type.startsWith("image/")) return;
@@ -688,11 +645,7 @@ function TabNegocio() {
               onChange={(e) => handleLogo(e.target.files?.[0])}
             />
             {logo ? (
-              <img
-                src={logo}
-                alt="Logo"
-                className="max-h-20 max-w-full rounded"
-              />
+              <img src={logo} alt="Logo" className="max-h-20 max-w-full rounded" />
             ) : (
               <>
                 <ImageIcon className="mb-2 h-8 w-8 text-muted-foreground" />
@@ -751,15 +704,11 @@ function TabNegocio() {
             <Input
               id="neg-cnpj"
               value={form.cnpj}
-              onChange={(e) =>
-                setForm((p) => ({ ...p, cnpj: maskCpfCnpj(e.target.value) }))
-              }
+              onChange={(e) => setForm((p) => ({ ...p, cnpj: maskCpfCnpj(e.target.value) }))}
               placeholder="00.000.000/0001-00 ou 000.000.000-00"
               maxLength={18}
             />
-            <p className="text-xs text-muted-foreground">
-              Máscara automática — CPF ou CNPJ
-            </p>
+            <p className="text-xs text-muted-foreground">Máscara automática — CPF ou CNPJ</p>
           </div>
           <div className="space-y-2">
             <Label htmlFor="neg-tel">Telefone</Label>
@@ -778,18 +727,11 @@ function TabNegocio() {
           </div>
           <div className="space-y-2">
             <Label htmlFor="neg-email">E-mail</Label>
-            <Input
-              id="neg-email"
-              type="email"
-              value={form.email}
-              onChange={set("email")}
-            />
+            <Input id="neg-email" type="email" value={form.email} onChange={set("email")} />
           </div>
         </div>
 
-        <p className="mb-3 mt-6 text-sm font-semibold text-foreground">
-          📍 Endereço
-        </p>
+        <p className="mb-3 mt-6 text-sm font-semibold text-foreground">📍 Endereço</p>
         <div className="space-y-2">
           <Label htmlFor="neg-cep">CEP</Label>
           <div className="flex gap-2">
@@ -822,8 +764,7 @@ function TabNegocio() {
           </div>
           {cepOk && (
             <p className="flex items-center gap-1 text-xs font-medium text-success">
-              <CheckCircle2 className="h-3.5 w-3.5" /> Endereço preenchido
-              automaticamente!
+              <CheckCircle2 className="h-3.5 w-3.5" /> Endereço preenchido automaticamente!
             </p>
           )}
           {cepErro && (
@@ -836,20 +777,12 @@ function TabNegocio() {
         <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
           <div className="space-y-2">
             <Label htmlFor="neg-end">Endereço</Label>
-            <Input
-              id="neg-end"
-              value={form.endereco}
-              onChange={set("endereco")}
-            />
+            <Input id="neg-end" value={form.endereco} onChange={set("endereco")} />
           </div>
           <div className="grid grid-cols-[90px_1fr] gap-2">
             <div className="space-y-2">
               <Label htmlFor="neg-num">Nº</Label>
-              <Input
-                id="neg-num"
-                value={form.numero}
-                onChange={set("numero")}
-              />
+              <Input id="neg-num" value={form.numero} onChange={set("numero")} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="neg-comp">Complemento</Label>
@@ -863,27 +796,16 @@ function TabNegocio() {
           </div>
           <div className="space-y-2">
             <Label htmlFor="neg-bairro">Bairro</Label>
-            <Input
-              id="neg-bairro"
-              value={form.bairro}
-              onChange={set("bairro")}
-            />
+            <Input id="neg-bairro" value={form.bairro} onChange={set("bairro")} />
           </div>
           <div className="grid grid-cols-[1fr_80px] gap-2">
             <div className="space-y-2">
               <Label htmlFor="neg-cid">Cidade</Label>
-              <Input
-                id="neg-cid"
-                value={form.cidade}
-                onChange={set("cidade")}
-              />
+              <Input id="neg-cid" value={form.cidade} onChange={set("cidade")} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="neg-uf">UF</Label>
-              <Select
-                value={form.uf}
-                onValueChange={(v) => setForm((p) => ({ ...p, uf: v }))}
-              >
+              <Select value={form.uf} onValueChange={(v) => setForm((p) => ({ ...p, uf: v }))}>
                 <SelectTrigger id="neg-uf">
                   <SelectValue />
                 </SelectTrigger>
@@ -916,9 +838,7 @@ function TabNegocio() {
               id="neg-taxa"
               inputMode="decimal"
               value={form.taxaPadrao}
-              onChange={(e) =>
-                setForm((p) => ({ ...p, taxaPadrao: maskTaxa(e.target.value) }))
-              }
+              onChange={(e) => setForm((p) => ({ ...p, taxaPadrao: maskTaxa(e.target.value) }))}
               placeholder="0,00"
             />
           </div>
@@ -926,9 +846,7 @@ function TabNegocio() {
             <Label htmlFor="neg-tipo">Tipo de Juros Padrão</Label>
             <Select
               value={form.tipoJurosPadrao}
-              onValueChange={(v) =>
-                setForm((p) => ({ ...p, tipoJurosPadrao: v }))
-              }
+              onValueChange={(v) => setForm((p) => ({ ...p, tipoJurosPadrao: v }))}
             >
               <SelectTrigger id="neg-tipo">
                 <SelectValue />
@@ -946,9 +864,7 @@ function TabNegocio() {
               id="neg-multa"
               inputMode="decimal"
               value={form.multaAtraso}
-              onChange={(e) =>
-                setForm((p) => ({ ...p, multaAtraso: maskTaxa(e.target.value) }))
-              }
+              onChange={(e) => setForm((p) => ({ ...p, multaAtraso: maskTaxa(e.target.value) }))}
               placeholder="0,00"
             />
             <p className="text-xs text-muted-foreground">
@@ -960,11 +876,7 @@ function TabNegocio() {
 
       <div className="flex justify-end">
         <Button onClick={salvar} disabled={saving} className="gap-2">
-          {saving ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <Save className="h-4 w-4" />
-          )}
+          {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
           Salvar Dados do Negócio
         </Button>
       </div>
@@ -1112,28 +1024,17 @@ function TabPreferencias() {
             onClick={() => setPreview((p) => !p)}
             className="gap-2"
           >
-            {preview ? (
-              <EyeOff className="h-4 w-4" />
-            ) : (
-              <Eye className="h-4 w-4" />
-            )}
+            {preview ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
             {preview ? "Ocultar Preview" : "Ver Preview"}
           </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setMsg(MSG_PADRAO)}
-            className="gap-2"
-          >
+          <Button variant="outline" size="sm" onClick={() => setMsg(MSG_PADRAO)} className="gap-2">
             <RefreshCw className="h-4 w-4" />
             Restaurar padrão
           </Button>
         </div>
         {preview && (
           <div className="mt-4">
-            <p className="mb-2 text-sm font-medium text-foreground">
-              📱 Preview com dados reais:
-            </p>
+            <p className="mb-2 text-sm font-medium text-foreground">📱 Preview com dados reais:</p>
             <div className="whitespace-pre-wrap break-words rounded-lg border-l-4 border-success bg-success/10 p-4 text-sm leading-relaxed text-foreground">
               {previewMsg}
             </div>
@@ -1152,20 +1053,12 @@ function TabPreferencias() {
         <Separator className="my-4" />
         <div className="divide-y">
           {notificacoes.map((t) => (
-            <div
-              key={t.key}
-              className="flex items-center justify-between gap-4 py-3"
-            >
+            <div key={t.key} className="flex items-center justify-between gap-4 py-3">
               <div className="min-w-0">
-                <p className="text-sm font-semibold text-foreground">
-                  {t.label}
-                </p>
+                <p className="text-sm font-semibold text-foreground">{t.label}</p>
                 <p className="text-xs text-muted-foreground">{t.sub}</p>
               </div>
-              <Switch
-                checked={prefs[t.key]}
-                onCheckedChange={setP(t.key)}
-              />
+              <Switch checked={prefs[t.key]} onCheckedChange={setP(t.key)} />
             </div>
           ))}
         </div>
@@ -1182,14 +1075,9 @@ function TabPreferencias() {
         <Separator className="my-4" />
         <div className="divide-y">
           {interfaceItems.map((t) => (
-            <div
-              key={t.key}
-              className="flex items-center justify-between gap-4 py-3"
-            >
+            <div key={t.key} className="flex items-center justify-between gap-4 py-3">
               <div className="min-w-0">
-                <p className="text-sm font-semibold text-foreground">
-                  {t.label}
-                </p>
+                <p className="text-sm font-semibold text-foreground">{t.label}</p>
                 <p className="text-xs text-muted-foreground">{t.sub}</p>
               </div>
               <Switch checked={t.checked} onCheckedChange={t.onChange} />
@@ -1200,10 +1088,7 @@ function TabPreferencias() {
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <div className="space-y-2">
             <Label htmlFor="pref-itens">Itens por página (padrão)</Label>
-            <Select
-              value={prefs.itensPorPagina}
-              onValueChange={setP("itensPorPagina")}
-            >
+            <Select value={prefs.itensPorPagina} onValueChange={setP("itensPorPagina")}>
               <SelectTrigger id="pref-itens">
                 <SelectValue />
               </SelectTrigger>
@@ -1234,14 +1119,90 @@ function TabPreferencias() {
 
       <div className="flex justify-end">
         <Button onClick={salvar} disabled={saving} className="gap-2">
-          {saving ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <Save className="h-4 w-4" />
-          )}
+          {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
           Salvar Preferências
         </Button>
       </div>
+    </div>
+  );
+}
+
+function TabBackup() {
+  return (
+    <div className="space-y-4 md:space-y-6">
+      <section className="rounded-xl border bg-card p-4 shadow-sm md:p-6">
+        <SectionHeader
+          icon={Database}
+          title="Backup dos Dados"
+          desc="Área reservada para segurança e exportação das informações da sua operação."
+          iconBg="bg-primary/10"
+          iconColor="text-primary"
+        />
+        <Separator className="my-4" />
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+          <div className="rounded-lg border bg-muted/30 p-4">
+            <p className="text-sm font-semibold text-foreground">Backup da carteira</p>
+            <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+              Em breve você poderá exportar clientes, contratos e parcelas para guardar uma cópia
+              fora do JuroPro.
+            </p>
+          </div>
+          <div className="rounded-lg border bg-muted/30 p-4">
+            <p className="text-sm font-semibold text-foreground">Histórico protegido</p>
+            <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+              Os dados seguem vinculados ao seu usuário e às regras de acesso da conta.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section className="rounded-xl border border-primary/20 bg-card p-4 shadow-sm md:p-6">
+        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+          <SectionHeader
+            icon={Lock}
+            title="Importação Expressa"
+            desc="Serviço opcional para migrar carteiras prontas com clientes, contratos e parcelas."
+            iconBg="bg-primary/10"
+            iconColor="text-primary"
+          />
+          <span className="inline-flex w-fit items-center rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
+            Order bump
+          </span>
+        </div>
+        <Separator className="my-4" />
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+          <div className="rounded-lg bg-muted/40 p-4">
+            <p className="text-sm font-semibold text-foreground">Menos digitação</p>
+            <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+              Ideal para quem já tem uma carteira grande em planilha.
+            </p>
+          </div>
+          <div className="rounded-lg bg-muted/40 p-4">
+            <p className="text-sm font-semibold text-foreground">Implantação guiada</p>
+            <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+              A importação entra como etapa extra, separada do plano padrão.
+            </p>
+          </div>
+          <div className="rounded-lg bg-muted/40 p-4">
+            <p className="text-sm font-semibold text-foreground">Revisão antes de subir</p>
+            <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+              Evita cadastro errado quando há muitos clientes e datas.
+            </p>
+          </div>
+        </div>
+        <div className="mt-4 flex flex-col gap-3 rounded-lg border bg-background p-4 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm text-muted-foreground">
+            A importação não faz parte do plano atual. Contrate como serviço de implantação para
+            começar mais rápido.
+          </p>
+          <Button asChild variant="outline" className="shrink-0">
+            <a href="mailto:suporte@juropro.com.br?subject=Importa%C3%A7%C3%A3o%20Expressa%20JuroPro">
+              <MessageCircle className="h-4 w-4" />
+              Solicitar importação
+            </a>
+          </Button>
+        </div>
+      </section>
     </div>
   );
 }
@@ -1260,9 +1221,7 @@ function ConfiguracoesPage() {
             <SidebarTrigger className="text-foreground" />
             <div className="flex items-center gap-2">
               <SettingsIcon className="h-5 w-5 text-primary" />
-              <h2 className="text-sm font-medium text-muted-foreground">
-                Configurações
-              </h2>
+              <h2 className="text-sm font-medium text-muted-foreground">Configurações</h2>
             </div>
           </header>
 
@@ -1313,8 +1272,7 @@ function ConfiguracoesPage() {
                     className="flex items-center gap-2 py-2 text-xs sm:text-sm"
                   >
                     <Database className="h-4 w-4" />
-                    <span className="hidden sm:inline">Dados e Backup</span>
-                    <span className="sm:hidden">Dados</span>
+                    <span>Backup</span>
                   </TabsTrigger>
                 </TabsList>
 
@@ -1328,7 +1286,7 @@ function ConfiguracoesPage() {
                   <TabPreferencias />
                 </TabsContent>
                 <TabsContent value="dados" className="mt-4 md:mt-6">
-                  <BulkImporter />
+                  <TabBackup />
                 </TabsContent>
               </Tabs>
             </div>
