@@ -118,6 +118,10 @@ _{{negocio}} - Gestão de Empréstimos_`;
 
 const backupDateStamp = () => new Date().toISOString().slice(0, 10);
 
+const IMPORTACAO_WHATSAPP_URL = `https://wa.me/5573981444091?text=${encodeURIComponent(
+  "Olá, tenho interesse na Importação Expressa do JuroPro.",
+)}`;
+
 const downloadTextFile = (filename: string, content: string, type: string) => {
   if (typeof window === "undefined") return;
   const blob = new Blob([content], { type });
@@ -1319,7 +1323,7 @@ function TabImportacao() {
           começar mais rápido.
         </p>
         <Button asChild variant="outline" className="shrink-0">
-          <a href="mailto:suporte@juropro.com.br?subject=Importa%C3%A7%C3%A3o%20Expressa%20JuroPro">
+          <a href={IMPORTACAO_WHATSAPP_URL} target="_blank" rel="noreferrer">
             <MessageCircle className="h-4 w-4" />
             Solicitar importação
           </a>
