@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import { createFileRoute } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
 import {
   Settings as SettingsIcon,
   Save,
+  Download,
   User,
   Building2,
   SlidersHorizontal,
@@ -50,6 +52,10 @@ import { useBusinessName, useBusinessLogo, useBusinessDetails } from "@/hooks/us
 import { useDarkMode } from "@/hooks/use-dark-mode";
 import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  gerarBackupCompleto,
+  gerarBackupContratos,
+} from "@/integrations/external-supabase/backup.functions";
 
 export const Route = createFileRoute("/_authed/configuracoes")({
   head: () => ({
@@ -109,6 +115,38 @@ Passando para lembrar que sua parcela *{{parcela}}* do contrato *{{contrato}}* n
 Qualquer dúvida, estamos à disposição! 🙏
 
 _{{negocio}} - Gestão de Empréstimos_`;
+
+const backupDateStamp = () => new Date().toISOString().slice(0, 10);
+
+const downloadTextFile = (filename: string, content: string, type: string) => {
+  if (typeof window === "undefined") return;
+  const blob = new Blob([content], { type });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+};
+
+const csvValue = (value: unknown) => {
+  if (value === null || value === undefined) return "";
+  const text = value instanceof Date ? value.toISOString() : String(value);
+  return `"${text.replace(/"/g, '""')}"`;
+};
+
+const toCsv = (rows: Record<string, unknown>[]) => {
+  if (rows.length === 0) return "sep=;\r\n";
+  const headers = Object.keys(rows[0]);
+  const lines = [
+    "sep=;",
+    headers.join(";"),
+    ...rows.map((row) => headers.map((header) => csvValue(row[header])).join(";")),
+  ];
+  return `${lines.join("\r\n")}\r\n`;
+};
 
 // Reusable "section" header inside cards
 function SectionHeader({
@@ -1128,6 +1166,62 @@ function TabPreferencias() {
 }
 
 function TabBackup() {
+  const [loading, setLoading] = useState<"contratos" | "completo" | null>(null);
+  const gerarBackupContratosFn = useServerFn(gerarBackupContratos);
+  const gerarBackupCompletoFn = useServerFn(gerarBackupCompleto);
+
+  const baixarContratos = async () => {
+    try {
+      setLoading("contratos");
+      const result = await gerarBackupContratosFn();
+      if (result.error || !result.data) {
+        toast.error(result.error ?? "Não foi possível gerar o backup de contratos.");
+        return;
+      }
+
+      const stamp = backupDateStamp();
+      downloadTextFile(
+        `JuroPro_Backup_Contratos_${stamp}.csv`,
+        toCsv(result.data.contratos),
+        "text/csv;charset=utf-8",
+      );
+      downloadTextFile(
+        `JuroPro_Backup_Parcelas_${stamp}.csv`,
+        toCsv(result.data.parcelas),
+        "text/csv;charset=utf-8",
+      );
+      toast.success("Backup de contratos baixado com sucesso.");
+    } catch (error) {
+      console.error("baixarContratos error:", error);
+      toast.error("Não foi possível gerar o backup de contratos.");
+    } finally {
+      setLoading(null);
+    }
+  };
+
+  const baixarCompleto = async () => {
+    try {
+      setLoading("completo");
+      const result = await gerarBackupCompletoFn();
+      if (result.error || !result.data) {
+        toast.error(result.error ?? "Não foi possível gerar o backup completo.");
+        return;
+      }
+
+      downloadTextFile(
+        `JuroPro_Backup_Completo_${backupDateStamp()}.json`,
+        JSON.stringify(result.data, null, 2),
+        "application/json;charset=utf-8",
+      );
+      toast.success("Backup completo baixado com sucesso.");
+    } catch (error) {
+      console.error("baixarCompleto error:", error);
+      toast.error("Não foi possível gerar o backup completo.");
+    } finally {
+      setLoading(null);
+    }
+  };
+
   return (
     <div className="space-y-4 md:space-y-6">
       <section className="rounded-xl border bg-card p-4 shadow-sm md:p-6">
@@ -1142,66 +1236,96 @@ function TabBackup() {
           <div className="rounded-lg border bg-muted/30 p-4">
             <p className="text-sm font-semibold text-foreground">Backup da carteira</p>
             <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-              Em breve você poderá exportar clientes, contratos e parcelas para guardar uma cópia
-              fora do JuroPro.
+              Baixe contratos e parcelas em CSV compatível com Excel.
             </p>
+            <Button
+              type="button"
+              className="mt-4 w-full gap-2 sm:w-auto"
+              onClick={baixarContratos}
+              disabled={loading !== null}
+            >
+              {loading === "contratos" ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Download className="h-4 w-4" />
+              )}
+              Baixar contratos
+            </Button>
           </div>
           <div className="rounded-lg border bg-muted/30 p-4">
-            <p className="text-sm font-semibold text-foreground">Histórico protegido</p>
+            <p className="text-sm font-semibold text-foreground">Backup completo</p>
             <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-              Os dados seguem vinculados ao seu usuário e às regras de acesso da conta.
+              Guarde um arquivo JSON com clientes, contratos e parcelas da sua conta.
             </p>
+            <Button
+              type="button"
+              variant="outline"
+              className="mt-4 w-full gap-2 sm:w-auto"
+              onClick={baixarCompleto}
+              disabled={loading !== null}
+            >
+              {loading === "completo" ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Download className="h-4 w-4" />
+              )}
+              Baixar tudo
+            </Button>
           </div>
-        </div>
-      </section>
-
-      <section className="rounded-xl border border-primary/20 bg-card p-4 shadow-sm md:p-6">
-        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-          <SectionHeader
-            icon={<Lock className="h-5 w-5" />}
-            title="Importação Expressa"
-            description="Serviço opcional para migrar carteiras prontas com clientes, contratos e parcelas."
-            iconBg="bg-primary/10 text-primary"
-          />
-          <span className="inline-flex w-fit items-center rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
-            Order bump
-          </span>
-        </div>
-        <Separator className="my-4" />
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-          <div className="rounded-lg bg-muted/40 p-4">
-            <p className="text-sm font-semibold text-foreground">Menos digitação</p>
-            <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-              Ideal para quem já tem uma carteira grande em planilha.
-            </p>
-          </div>
-          <div className="rounded-lg bg-muted/40 p-4">
-            <p className="text-sm font-semibold text-foreground">Implantação guiada</p>
-            <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-              A importação entra como etapa extra, separada do plano padrão.
-            </p>
-          </div>
-          <div className="rounded-lg bg-muted/40 p-4">
-            <p className="text-sm font-semibold text-foreground">Revisão antes de subir</p>
-            <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-              Evita cadastro errado quando há muitos clientes e datas.
-            </p>
-          </div>
-        </div>
-        <div className="mt-4 flex flex-col gap-3 rounded-lg border bg-background p-4 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-sm text-muted-foreground">
-            A importação não faz parte do plano atual. Contrate como serviço de implantação para
-            começar mais rápido.
-          </p>
-          <Button asChild variant="outline" className="shrink-0">
-            <a href="mailto:suporte@juropro.com.br?subject=Importa%C3%A7%C3%A3o%20Expressa%20JuroPro">
-              <MessageCircle className="h-4 w-4" />
-              Solicitar importação
-            </a>
-          </Button>
         </div>
       </section>
     </div>
+  );
+}
+
+function TabImportacao() {
+  return (
+    <section className="rounded-xl border border-primary/20 bg-card p-4 shadow-sm md:p-6">
+      <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+        <SectionHeader
+          icon={<Lock className="h-5 w-5" />}
+          title="Importação Expressa"
+          description="Serviço opcional para migrar carteiras prontas com clientes, contratos e parcelas."
+          iconBg="bg-primary/10 text-primary"
+        />
+        <span className="inline-flex w-fit items-center rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
+          Order bump
+        </span>
+      </div>
+      <Separator className="my-4" />
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+        <div className="rounded-lg bg-muted/40 p-4">
+          <p className="text-sm font-semibold text-foreground">Menos digitação</p>
+          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+            Ideal para quem já tem uma carteira grande em planilha.
+          </p>
+        </div>
+        <div className="rounded-lg bg-muted/40 p-4">
+          <p className="text-sm font-semibold text-foreground">Implantação guiada</p>
+          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+            A importação entra como etapa extra, separada do plano padrão.
+          </p>
+        </div>
+        <div className="rounded-lg bg-muted/40 p-4">
+          <p className="text-sm font-semibold text-foreground">Revisão antes de subir</p>
+          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+            Evita cadastro errado quando há muitos clientes e datas.
+          </p>
+        </div>
+      </div>
+      <div className="mt-4 flex flex-col gap-3 rounded-lg border bg-background p-4 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-sm text-muted-foreground">
+          A importação não faz parte do plano atual. Contrate como serviço de implantação para
+          começar mais rápido.
+        </p>
+        <Button asChild variant="outline" className="shrink-0">
+          <a href="mailto:suporte@juropro.com.br?subject=Importa%C3%A7%C3%A3o%20Expressa%20JuroPro">
+            <MessageCircle className="h-4 w-4" />
+            Solicitar importação
+          </a>
+        </Button>
+      </div>
+    </section>
   );
 }
 
@@ -1240,7 +1364,7 @@ function ConfiguracoesPage() {
 
             <div className="mx-auto w-full max-w-4xl">
               <Tabs defaultValue="perfil" className="w-full">
-                <TabsList className="grid h-auto w-full grid-cols-2 gap-1 bg-muted p-1 sm:grid-cols-4">
+                <TabsList className="grid h-auto w-full grid-cols-2 gap-1 bg-muted p-1 sm:grid-cols-5">
                   <TabsTrigger
                     value="perfil"
                     className="flex items-center gap-2 py-2 text-xs sm:text-sm"
@@ -1272,6 +1396,14 @@ function ConfiguracoesPage() {
                     <Database className="h-4 w-4" />
                     <span>Backup</span>
                   </TabsTrigger>
+                  <TabsTrigger
+                    value="importacao"
+                    className="flex items-center gap-2 py-2 text-xs sm:text-sm"
+                  >
+                    <Upload className="h-4 w-4" />
+                    <span className="hidden sm:inline">Importação</span>
+                    <span className="sm:hidden">Importar</span>
+                  </TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="perfil" className="mt-4 md:mt-6">
@@ -1285,6 +1417,9 @@ function ConfiguracoesPage() {
                 </TabsContent>
                 <TabsContent value="dados" className="mt-4 md:mt-6">
                   <TabBackup />
+                </TabsContent>
+                <TabsContent value="importacao" className="mt-4 md:mt-6">
+                  <TabImportacao />
                 </TabsContent>
               </Tabs>
             </div>
