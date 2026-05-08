@@ -1,5 +1,4 @@
 import { useCallback, useRef, useState } from "react";
-import type { CellValue } from "exceljs";
 import Papa from "papaparse";
 import {
   Upload,
@@ -55,7 +54,6 @@ const CHUNK_SIZE = 100;
 const MAX_IMPORT_ROWS = 5_000;
 const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024;
 const MAX_FILE_SIZE_MB = MAX_FILE_SIZE_BYTES / 1024 / 1024;
-const MODELO_LINHAS_EXCEL = 5_000;
 
 const MODELO_HEADERS = [
   "nome_cliente",
@@ -106,22 +104,6 @@ const MODELO_EXEMPLOS: Array<Record<ModeloHeader, string | number>> = [
     valor_parcela: "",
     contrato_id: "",
   },
-];
-
-const MODELO_COLUNAS = [
-  { header: "nome_cliente", key: "nome_cliente", width: 28 },
-  { header: "cpf_cnpj", key: "cpf_cnpj", width: 18 },
-  { header: "telefone", key: "telefone", width: 18 },
-  { header: "email", key: "email", width: 28 },
-  { header: "valor_principal", key: "valor_principal", width: 16 },
-  { header: "taxa_juros", key: "taxa_juros", width: 12 },
-  { header: "tipo_juros", key: "tipo_juros", width: 16 },
-  { header: "num_parcelas", key: "num_parcelas", width: 14 },
-  { header: "periodicidade", key: "periodicidade", width: 16 },
-  { header: "data_inicio", key: "data_inicio", width: 16 },
-  { header: "primeiro_vencimento", key: "primeiro_vencimento", width: 20 },
-  { header: "valor_parcela", key: "valor_parcela", width: 16 },
-  { header: "contrato_id", key: "contrato_id", width: 18 },
 ];
 
 const fmtBRL = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -448,8 +430,8 @@ function normalizar(rawRows: Record<string, unknown>[]): LinhaNorm[] {
 }
 
 function validarArquivoImportacao(file: File, ext: string | undefined): string | null {
-  if (ext !== "csv" && ext !== "xlsx") {
-    return "Formato invalido. Use .xlsx ou .csv compativel com Excel.";
+  if (ext !== "csv") {
+    return "Formato invalido. Use .csv compativel com Excel.";
   }
   if (file.size > MAX_FILE_SIZE_BYTES) {
     return `Arquivo muito grande. Envie uma planilha de até ${MAX_FILE_SIZE_MB} MB.`;
@@ -503,91 +485,6 @@ function baixarModeloCsv() {
   );
 }
 
-async function baixarModeloExcel() {
-  try {
-    const { Workbook } = await import("exceljs");
-    const workbook = new Workbook();
-    workbook.creator = "JuroPro";
-    workbook.created = new Date();
-
-    const worksheet = workbook.addWorksheet("Importacao", {
-      views: [{ state: "frozen", ySplit: 1 }],
-    });
-    worksheet.columns = MODELO_COLUNAS;
-    worksheet.addRows(MODELO_EXEMPLOS);
-
-    const listas = workbook.addWorksheet("Listas");
-    listas.addRows([
-      ["Simples", "Mensal"],
-      ["Composto", "Quinzenal"],
-      ["So juros", "Semanal"],
-      ["", "Diario"],
-    ]);
-    listas.state = "veryHidden";
-
-    const header = worksheet.getRow(1);
-    header.height = 22;
-    header.eachCell((cell) => {
-      cell.font = { bold: true, color: { argb: "FFFFFFFF" } };
-      cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF123A5A" } };
-      cell.alignment = { vertical: "middle", horizontal: "center" };
-    });
-
-    worksheet.getColumn("E").numFmt = '"R$" #,##0.00';
-    worksheet.getColumn("F").numFmt = '0.00"%"';
-    worksheet.getColumn("H").numFmt = "0";
-    worksheet.getColumn("J").numFmt = "dd/mm/yyyy";
-    worksheet.getColumn("K").numFmt = "dd/mm/yyyy";
-    worksheet.getColumn("L").numFmt = '"R$" #,##0.00';
-
-    for (let row = 2; row <= MODELO_LINHAS_EXCEL + 1; row++) {
-      worksheet.getCell(`G${row}`).dataValidation = {
-        type: "list",
-        allowBlank: false,
-        formulae: ["'Listas'!$A$1:$A$3"],
-        showErrorMessage: true,
-        errorTitle: "Opcao invalida",
-        error: "Escolha uma opcao da lista.",
-      };
-      worksheet.getCell(`I${row}`).dataValidation = {
-        type: "list",
-        allowBlank: false,
-        formulae: ["'Listas'!$B$1:$B$4"],
-        showErrorMessage: true,
-        errorTitle: "Opcao invalida",
-        error: "Escolha uma opcao da lista.",
-      };
-    }
-
-    worksheet.autoFilter = {
-      from: "A1",
-      to: "M1",
-    };
-
-    const buffer = await workbook.xlsx.writeBuffer();
-    baixarArquivo(
-      new Blob([buffer as BlobPart], {
-        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      }),
-      "JuroPro_Modelo_Rapido_Importacao.xlsx",
-    );
-  } catch {
-    toast.error("Nao foi possivel gerar o modelo Excel. Tente baixar o CSV.");
-  }
-}
-
-function valorCelulaExcel(value: CellValue): unknown {
-  if (value === null || value === undefined) return "";
-  if (value instanceof Date) return value;
-  if (typeof value !== "object") return value;
-  if ("text" in value) return value.text ?? "";
-  if ("result" in value) return value.result ?? "";
-  if ("richText" in value && Array.isArray(value.richText)) {
-    return value.richText.map((part) => String(part.text ?? "")).join("");
-  }
-  return String(value);
-}
-
 function lerLinhasCsv(text: string) {
   const parsed = Papa.parse<Record<string, unknown>>(repararCsvLinhaEnvelopada(text), {
     header: true,
@@ -600,41 +497,6 @@ function lerLinhasCsv(text: string) {
     throw new Error("INVALID_FILE");
   }
   return parsed.data;
-}
-
-async function lerLinhasExcel(file: File) {
-  const { Workbook } = await import("exceljs");
-  const workbook = new Workbook();
-  await workbook.xlsx.load(await file.arrayBuffer());
-  const worksheet = workbook.worksheets[0];
-  if (!worksheet) return [];
-
-  const headers: string[] = [];
-  worksheet.getRow(1).eachCell({ includeEmpty: false }, (cell, colNumber) => {
-    headers[colNumber] = String(valorCelulaExcel(cell.value))
-      .replace(/^\uFEFF/, "")
-      .trim();
-  });
-
-  const rows: Record<string, unknown>[] = [];
-  worksheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
-    if (rowNumber === 1) return;
-    const item: Record<string, unknown> = {};
-    let preenchida = false;
-
-    headers.forEach((header, colNumber) => {
-      if (!header) return;
-      const value = valorCelulaExcel(row.getCell(colNumber).value);
-      item[header] = value;
-      if (value !== null && value !== undefined && String(value).trim() !== "") {
-        preenchida = true;
-      }
-    });
-
-    if (preenchida) rows.push(item);
-  });
-
-  return rows;
 }
 
 // ─── Componente ───────────────────────────────────────────────
@@ -662,7 +524,7 @@ export function BulkImporter() {
       return;
     }
     try {
-      const raw = ext === "xlsx" ? await lerLinhasExcel(file) : lerLinhasCsv(await file.text());
+      const raw = lerLinhasCsv(await file.text());
       validarQuantidadeLinhas(raw);
       const norm = normalizar(raw);
       setDados(norm);
@@ -819,7 +681,7 @@ export function BulkImporter() {
             <input
               ref={fileRef}
               type="file"
-              accept=".xlsx,.csv"
+              accept=".csv"
               className="hidden"
               onChange={(e) => {
                 const f = e.target.files?.[0];
@@ -841,36 +703,27 @@ export function BulkImporter() {
               Selecionar Arquivo
             </Button>
             <p className="mt-3 text-xs text-muted-foreground">
-              Formatos: .xlsx ou .csv compatível com Excel • até 5.000 linhas • máximo{" "}
-              {MAX_FILE_SIZE_MB} MB
+              Formato: .csv compatível com Excel • até 5.000 linhas • máximo {MAX_FILE_SIZE_MB} MB
             </p>
           </div>
 
           <Card className="flex flex-wrap items-center gap-4 p-4">
             <div className="flex-1 min-w-[200px]">
-              <p className="font-semibold text-foreground">📋 Modelo rápido Excel</p>
+              <p className="font-semibold text-foreground">📋 Modelo rápido CSV</p>
               <p className="text-sm text-muted-foreground">
-                Preencha um contrato por linha. O Excel vem com dropdowns para juros e
-                periodicidade; o CSV continua disponível como alternativa.
+                Preencha um contrato por linha. Se deixar contrato_id vazio, o JuroPro cria a
+                numeração automaticamente. O arquivo usa ponto e vírgula para abrir em colunas no
+                Excel.
               </p>
             </div>
-            <div className="flex flex-wrap gap-2">
-              <Button
-                onClick={() => void baixarModeloExcel()}
-                className="bg-[#1e3a5f] text-white hover:bg-[#142a45]"
-              >
-                <Download className="mr-2 h-4 w-4" />
-                Baixar Excel
-              </Button>
-              <Button
-                variant="outline"
-                onClick={baixarModeloCsv}
-                className="border-[#1e3a5f] text-[#1e3a5f] hover:bg-[#1e3a5f] hover:text-white"
-              >
-                <Download className="mr-2 h-4 w-4" />
-                CSV
-              </Button>
-            </div>
+            <Button
+              variant="outline"
+              onClick={baixarModeloCsv}
+              className="border-[#1e3a5f] text-[#1e3a5f] hover:bg-[#1e3a5f] hover:text-white"
+            >
+              <Download className="mr-2 h-4 w-4" />
+              Baixar Modelo CSV
+            </Button>
           </Card>
 
           <Card className="p-4">
