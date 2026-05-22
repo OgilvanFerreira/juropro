@@ -339,13 +339,14 @@ footer{background:var(--navy);border-top:1px solid var(--border);padding:36px 5%
 .reveal.on{opacity:1;transform:none}
 
 @media(max-width:900px){
-  nav{flex-wrap:wrap;gap:12px;padding:12px 4% 10px}
-  .nav-links{order:3;width:100%;gap:8px;overflow-x:auto;padding:2px 0 4px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+  nav{flex-wrap:wrap;gap:12px;padding:12px 4% 10px;overflow:hidden}
+  .nav-links{order:3;width:100%;gap:8px;overflow-x:auto;overflow-y:hidden;padding:2px max(4%,14px) 4px;scrollbar-width:none;-webkit-overflow-scrolling:touch;scroll-snap-type:x proximity;mask-image:linear-gradient(90deg,transparent 0,#000 18px,#000 calc(100% - 18px),transparent 100%)}
   .nav-links::-webkit-scrollbar{display:none}
-  .nav-links li{flex:0 0 auto}
+  .nav-links li{flex:0 0 auto;scroll-snap-align:center}
   .nav-links a{display:block;padding:8px 12px;border:1px solid rgba(255,255,255,.12);border-radius:999px;background:rgba(255,255,255,.03);font-size:.78rem;white-space:nowrap}
   .nav-links a:hover{border-color:var(--green);background:rgba(34,197,94,.08)}
   .nav-login{padding:8px 15px;font-size:.8rem}
+  section{scroll-margin-top:148px}
   .prob-grid,.feat-grid,.diffs,.test-grid{grid-template-columns:1fr}
   .price-wrapper{grid-template-columns:1fr;gap:20px}
   .price-card.feat{margin:0}
@@ -700,6 +701,11 @@ const ro = new IntersectionObserver(entries => {
 document.querySelectorAll('.reveal').forEach((el,i) => {
   el.style.transitionDelay = (i%4)*0.07+'s';
   ro.observe(el);
+});
+document.querySelectorAll('.nav-links a').forEach(link => {
+  link.addEventListener('click', () => {
+    link.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+  });
 });
 </script>
 </body>
