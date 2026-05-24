@@ -48,29 +48,38 @@ nav{position:sticky;top:0;z-index:200;padding:14px 5%;display:flex;justify-conte
 .nav-login:hover{border-color:var(--green);color:var(--green)}
 
 /* HERO */
-.hero{padding:80px 5% 72px;text-align:center;position:relative;overflow:hidden}
+.hero{min-height:calc(100svh - 72px);padding:30px 5% 28px;text-align:center;position:relative;overflow:hidden;display:flex;flex-direction:column;justify-content:center}
 .hero::before{content:'';position:absolute;inset:0;background:repeating-linear-gradient(-55deg,transparent,transparent 60px,rgba(34,197,94,.012) 60px,rgba(34,197,94,.012) 61px);pointer-events:none}
 .hero-orb{position:absolute;width:700px;height:700px;border-radius:50%;background:radial-gradient(circle,rgba(34,197,94,.07) 0%,transparent 65%);top:0;left:50%;transform:translateX(-50%);pointer-events:none}
-.hero-tag{display:inline-flex;align-items:center;gap:8px;background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.25);padding:7px 18px;border-radius:100px;font-size:.73rem;font-weight:700;color:var(--green);letter-spacing:.1em;text-transform:uppercase;margin-bottom:28px;animation:up .5s ease both}
+.hero-tag{display:inline-flex;align-items:center;gap:8px;background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.25);padding:7px 18px;border-radius:100px;font-size:.73rem;font-weight:700;color:var(--green);letter-spacing:.1em;text-transform:uppercase;margin-bottom:18px;animation:up .5s ease both;align-self:center}
 .pulse{width:7px;height:7px;border-radius:50%;background:var(--green);animation:blink 2s infinite}
 @keyframes blink{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(1.6)}}
-h1{font-family:'Bebas Neue',sans-serif;font-size:clamp(3rem,7.5vw,6.5rem);line-height:.95;letter-spacing:.02em;margin-bottom:24px;animation:up .5s .08s ease both}
+h1{font-family:'Bebas Neue',sans-serif;font-size:clamp(2.55rem,5vw,4.8rem);line-height:.95;letter-spacing:.02em;margin-bottom:14px;animation:up .5s .08s ease both}
 h1 .gr{color:var(--green)}
-.hero-sub{font-size:clamp(.95rem,1.8vw,1.12rem);color:var(--muted);max-width:560px;margin:0 auto 36px;font-weight:400;line-height:1.7;animation:up .5s .16s ease both}
-.hero-ctas{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin-bottom:52px;animation:up .5s .22s ease both}
+.hero-sub{font-size:clamp(.88rem,1.25vw,1rem);color:var(--muted);max-width:560px;margin:0 auto 18px;font-weight:400;line-height:1.5;animation:up .5s .16s ease both}
+.hero-ctas{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-bottom:22px;animation:up .5s .22s ease both}
 .btn-main{background:var(--green);color:#fff;padding:16px 44px;border-radius:9px;font-size:1rem;font-weight:800;text-decoration:none;letter-spacing:.02em;box-shadow:0 4px 28px rgba(34,197,94,.35);transition:all .25s;border:none;cursor:pointer;display:inline-block}
 .btn-main:hover{background:var(--green2);box-shadow:0 8px 44px rgba(34,197,94,.5);transform:translateY(-2px)}
 .btn-ghost-sm{background:transparent;color:var(--muted);padding:15px 32px;border-radius:9px;font-size:.93rem;font-weight:600;text-decoration:none;border:1.5px solid rgba(255,255,255,.12);transition:all .25s}
 .btn-ghost-sm:hover{border-color:var(--green);color:var(--green)}
 
 /* VIDEO */
-.video-wrap{width:100%;max-width:900px;margin:0 auto;animation:up .7s .2s ease both}
+.video-wrap{width:100%;max-width:min(660px,82vw);margin:0 auto;animation:up .7s .2s ease both}
 .video-frame{width:100%;border-radius:16px;overflow:hidden;border:1px solid var(--border);box-shadow:0 20px 80px rgba(0,0,0,.5),0 0 60px rgba(34,197,94,.06);background:var(--navy2);aspect-ratio:16/9;display:flex;align-items:center;justify-content:center;position:relative}
+#juroproVideo,#juroproVideo iframe{width:100%;height:100%}
 .video-placeholder{width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;cursor:pointer;background:linear-gradient(135deg,var(--navy2),var(--navy3));position:relative}
 .video-placeholder::before{content:'';position:absolute;inset:0;background:radial-gradient(circle at center,rgba(34,197,94,.06),transparent 65%)}
 .play-ring{width:80px;height:80px;border-radius:50%;background:var(--green);display:flex;align-items:center;justify-content:center;font-size:2rem;box-shadow:0 0 40px rgba(34,197,94,.4),0 0 0 16px rgba(34,197,94,.08);transition:transform .2s;position:relative;z-index:1}
 .video-placeholder:hover .play-ring{transform:scale(1.08)}
 .video-lbl{color:var(--muted);font-size:.85rem;font-weight:500;position:relative;z-index:1}
+.video-click-layer{position:absolute;inset:0;z-index:3;cursor:pointer;background:transparent}
+.video-sound-btn{position:absolute;top:14px;right:14px;z-index:5;width:42px;height:42px;border-radius:999px;border:1px solid rgba(255,255,255,.18);background:rgba(13,27,42,.72);backdrop-filter:blur(10px);color:#fff;font-size:1.05rem;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .2s}
+.video-sound-btn:hover{border-color:var(--green);background:rgba(34,197,94,.18)}
+.video-center-indicator{position:absolute;left:50%;top:50%;z-index:4;width:70px;height:70px;border-radius:999px;transform:translate(-50%,-50%);background:rgba(13,27,42,.56);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.18);color:#fff;font-size:1.65rem;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s}
+.video-frame.paused .video-center-indicator{opacity:1;transform:translate(-50%,-50%) scale(1)}
+.video-progress{position:absolute;left:16px;right:16px;bottom:14px;z-index:5;height:9px;border-radius:999px;background:rgba(255,255,255,.16);overflow:hidden;border:1px solid rgba(255,255,255,.1);pointer-events:none}
+.video-progress-fill{position:absolute;inset:0 auto 0 0;width:0;background:linear-gradient(90deg,var(--green),var(--teal));border-radius:inherit;transition:width .15s linear}
+.video-progress::after{content:'';position:absolute;inset:3px;border-radius:inherit;background:rgba(255,255,255,.08);pointer-events:none}
 
 /* METRICS */
 .metrics{display:grid;grid-template-columns:repeat(4,1fr);background:var(--navy2);border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
@@ -346,6 +355,14 @@ footer{background:var(--navy);border-top:1px solid var(--border);padding:36px 5%
   .nav-links a{display:block;padding:8px 12px;border:1px solid rgba(255,255,255,.12);border-radius:999px;background:rgba(255,255,255,.03);font-size:.78rem;white-space:nowrap}
   .nav-links a:hover{border-color:var(--green);background:rgba(34,197,94,.08)}
   .nav-login{padding:8px 15px;font-size:.8rem}
+  .hero{min-height:calc(100svh - 124px);padding:24px 4% 24px}
+  .hero-tag{margin-bottom:12px;padding:6px 13px;font-size:.64rem}
+  h1{font-size:clamp(2.35rem,10.2vw,3.7rem);margin-bottom:12px}
+  .hero-sub{font-size:.9rem;line-height:1.5;margin-bottom:16px;max-width:34rem}
+  .hero-ctas{gap:10px;margin-bottom:18px}
+  .btn-main{padding:13px 30px;font-size:.9rem}
+  .btn-ghost-sm{padding:12px 24px;font-size:.86rem}
+  .video-wrap{max-width:min(680px,92vw)}
   section{scroll-margin-top:148px}
   .prob-grid,.feat-grid,.diffs,.test-grid{grid-template-columns:1fr}
   .price-wrapper{grid-template-columns:1fr;gap:20px}
@@ -360,6 +377,13 @@ footer{background:var(--navy);border-top:1px solid var(--border);padding:36px 5%
   .nav-logo span{font-size:1.02rem}
   .nav-links a{padding:7px 10px;font-size:.74rem}
   .nav-login{padding:8px 12px}
+  .hero{min-height:calc(100svh - 124px);padding:18px 4% 20px}
+  .hero-tag{font-size:.58rem;margin-bottom:10px}
+  h1{font-size:clamp(2.05rem,9.4vw,3rem);margin-bottom:10px}
+  .hero-sub{font-size:.82rem;line-height:1.42;margin-bottom:13px}
+  .hero-ctas{margin-bottom:14px}
+  .btn-main,.btn-ghost-sm{width:100%;max-width:280px;text-align:center;padding:11px 18px}
+  .video-wrap{max-width:92vw}
 }
 </style>
 </head>
@@ -394,10 +418,13 @@ footer{background:var(--navy);border-top:1px solid var(--border);padding:36px 5%
     <a href="https://wa.me/5573981444091" class="btn-ghost-sm" target="_blank">💬 Falar com Suporte</a>
   </div>
   <div class="video-wrap">
-    <div class="video-frame" id="videoFrame">
-      <div class="video-placeholder" onclick="loadVideo()">
-        <div class="play-ring">▶</div>
-        <span class="video-lbl">▶ &nbsp;Assista: veja o JuroPro funcionando de verdade</span>
+    <div class="video-frame paused" id="videoFrame">
+      <div id="juroproVideo"></div>
+      <button class="video-sound-btn" id="videoMute" type="button" aria-label="Ativar áudio">🔇</button>
+      <div class="video-click-layer" id="videoClickLayer" aria-label="Reproduzir ou pausar vídeo"></div>
+      <div class="video-center-indicator" id="videoCenterIndicator">▶</div>
+      <div class="video-progress" id="videoProgress" role="progressbar" aria-label="Progresso do vídeo" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+        <span class="video-progress-fill" id="videoProgressFill"></span>
       </div>
     </div>
   </div>
@@ -684,11 +711,77 @@ function updateCountdown() {
 }
 updateCountdown(); setInterval(updateCountdown, 1000);
 
-function loadVideo() {
-  const frame = document.getElementById('videoFrame');
-  frame.innerHTML = '<iframe width="100%" height="100%" src="https://www.youtube.com/embed/SEU_VIDEO_ID?autoplay=1" allow="autoplay; fullscreen" allowfullscreen style="border:none"></iframe>';
+let juroproPlayer;
+let videoProgressTimer;
+
+window.onYouTubeIframeAPIReady = function () {
+  juroproPlayer = new YT.Player('juroproVideo', {
+    videoId: 'fJ4SPqCvSvE',
+    width: '100%',
+    height: '100%',
+    playerVars: {
+      autoplay: 1,
+      controls: 0,
+      disablekb: 1,
+      fs: 0,
+      modestbranding: 1,
+      playsinline: 1,
+      rel: 0,
+      iv_load_policy: 3,
+      origin: window.location.origin
+    },
+    events: {
+      onReady: onJuroproVideoReady,
+      onStateChange: updateVideoButtons
+    }
+  });
+  window.juroproPlayer = juroproPlayer;
+};
+
+function onJuroproVideoReady(event) {
+  event.target.mute();
+  event.target.playVideo();
+  updateVideoButtons();
+  startVideoProgress();
 }
 
+function updateVideoButtons() {
+  if (!juroproPlayer || typeof juroproPlayer.getPlayerState !== 'function') return;
+  const frame = document.getElementById('videoFrame');
+  const muteBtn = document.getElementById('videoMute');
+  const center = document.getElementById('videoCenterIndicator');
+  const state = juroproPlayer.getPlayerState();
+  const playing = state === YT.PlayerState.PLAYING || state === YT.PlayerState.BUFFERING;
+  if (frame) frame.classList.toggle('paused', !playing);
+  if (center) center.textContent = playing ? '' : '▶';
+  if (muteBtn && typeof juroproPlayer.isMuted === 'function') {
+    const muted = juroproPlayer.isMuted();
+    muteBtn.textContent = muted ? '🔇' : '🔊';
+    muteBtn.setAttribute('aria-label', muted ? 'Ativar áudio' : 'Desativar áudio');
+  }
+}
+
+function toggleVideoPlayback() {
+  if (!juroproPlayer || typeof juroproPlayer.getPlayerState !== 'function') return;
+  const state = juroproPlayer.getPlayerState();
+  if (state === YT.PlayerState.PLAYING || state === YT.PlayerState.BUFFERING) juroproPlayer.pauseVideo();
+  else juroproPlayer.playVideo();
+  updateVideoButtons();
+}
+
+function startVideoProgress() {
+  clearInterval(videoProgressTimer);
+  videoProgressTimer = setInterval(() => {
+    if (!juroproPlayer || typeof juroproPlayer.getDuration !== 'function') return;
+    const duration = juroproPlayer.getDuration() || 0;
+    const current = juroproPlayer.getCurrentTime() || 0;
+    const progress = duration ? Math.min(100, (current / duration) * 100) : 0;
+    const fill = document.getElementById('videoProgressFill');
+    const bar = document.getElementById('videoProgress');
+    if (fill) fill.style.width = progress + '%';
+    if (bar) bar.setAttribute('aria-valuenow', String(Math.round(progress)));
+  }, 250);
+}
 function faq(el) {
   const item = el.parentElement;
   document.querySelectorAll('.faq-item.open').forEach(i => { if(i!==item) i.classList.remove('open'); });
@@ -707,6 +800,27 @@ document.querySelectorAll('.nav-links a').forEach(link => {
     link.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
   });
 });
+document.getElementById('videoClickLayer')?.addEventListener('click', toggleVideoPlayback);
+
+document.getElementById('videoMute')?.addEventListener('click', event => {
+  event.stopPropagation();
+  if (!juroproPlayer || typeof juroproPlayer.isMuted !== 'function') return;
+  const muteBtn = event.currentTarget;
+  const wasMuted = juroproPlayer.isMuted();
+  if (wasMuted) {
+    juroproPlayer.unMute();
+    muteBtn.textContent = '🔊';
+    muteBtn.setAttribute('aria-label', 'Desativar áudio');
+  } else {
+    juroproPlayer.mute();
+    muteBtn.textContent = '🔇';
+    muteBtn.setAttribute('aria-label', 'Ativar áudio');
+  }
+  setTimeout(updateVideoButtons, 120);
+});
+const youtubeApi = document.createElement('script');
+youtubeApi.src = 'https://www.youtube.com/iframe_api';
+document.head.appendChild(youtubeApi);
 </script>
 </body>
 </html>
