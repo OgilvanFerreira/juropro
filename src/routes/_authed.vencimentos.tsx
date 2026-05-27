@@ -47,10 +47,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import {
-  TablePagination,
-  type PageSize,
-} from "@/components/ui/table-pagination";
+import { TablePagination, type PageSize } from "@/components/ui/table-pagination";
 import { useAdminName } from "@/hooks/use-admin-name";
 import {
   baixaParcela,
@@ -63,6 +60,7 @@ import { useAuth } from "@/hooks/use-auth";
 
 type VencimentosSearch = {
   status?: StatusCalc | "todos";
+  contrato?: string;
 };
 
 const ALLOWED_STATUS: ReadonlyArray<StatusCalc | "todos"> = [
@@ -79,10 +77,14 @@ export const Route = createFileRoute("/_authed/vencimentos")({
   }),
   validateSearch: (search: Record<string, unknown>): VencimentosSearch => {
     const raw = search.status;
+    const out: VencimentosSearch = {};
     if (typeof raw === "string" && (ALLOWED_STATUS as readonly string[]).includes(raw)) {
-      return { status: raw as StatusCalc | "todos" };
+      out.status = raw as StatusCalc | "todos";
     }
-    return {};
+    if (typeof search.contrato === "string" && search.contrato.trim()) {
+      out.contrato = search.contrato.trim();
+    }
+    return out;
   },
   component: VencimentosPage,
 });
@@ -172,7 +174,7 @@ function VencimentosPage() {
 
   const { name: adminName } = useAdminName();
 
-  const [busca, setBusca] = useState("");
+  const [busca, setBusca] = useState(searchParams.contrato ?? "");
   const [filtroStatus, setFiltroStatus] = useState<StatusCalc | "todos">(
     searchParams.status ?? "todos",
   );
@@ -181,8 +183,7 @@ function VencimentosPage() {
   const [pagina, setPagina] = useState(1);
   const [porPagina, setPorPagina] = useState<PageSize>(10);
   const [modalParcela, setModalParcela] = useState<ParcelaProcessada | null>(null);
-  const [estornoParcelaState, setEstornoParcelaState] =
-    useState<ParcelaProcessada | null>(null);
+  const [estornoParcelaState, setEstornoParcelaState] = useState<ParcelaProcessada | null>(null);
 
   // Sincroniza filtro quando o search param muda (ex: vindo do KPI Dashboard)
   useEffect(() => {
@@ -191,6 +192,13 @@ function VencimentosPage() {
       setPagina(1);
     }
   }, [searchParams.status]);
+
+  useEffect(() => {
+    if (searchParams.contrato) {
+      setBusca(searchParams.contrato);
+      setPagina(1);
+    }
+  }, [searchParams.contrato]);
 
   const processadas: ParcelaProcessada[] = useMemo(() => {
     return (data?.data ?? []).map((p) => ({ ...p, statusCalc: computeStatus(p) }));
@@ -263,8 +271,7 @@ function VencimentosPage() {
     const today = todayISO();
     const ano = today.slice(0, 4);
     const mes = today.slice(5, 7);
-    const noMes = (iso: string | null) =>
-      iso != null && iso.startsWith(`${ano}-${mes}`);
+    const noMes = (iso: string | null) => iso != null && iso.startsWith(`${ano}-${mes}`);
 
     const aReceber = processadas
       .filter((p) => p.statusCalc !== "pago" && noMes(p.data_vencimento))
@@ -458,31 +465,76 @@ function VencimentosPage() {
                     <table className="w-full text-sm">
                       <thead className="bg-muted/40">
                         <tr className="border-b border-border">
-                          <Th sortKey="cliente_nome" current={sortKey} dir={sortDir} onSort={handleSort}>
+                          <Th
+                            sortKey="cliente_nome"
+                            current={sortKey}
+                            dir={sortDir}
+                            onSort={handleSort}
+                          >
                             Cliente
                           </Th>
-                          <Th sortKey="contrato_codigo" current={sortKey} dir={sortDir} onSort={handleSort}>
+                          <Th
+                            sortKey="contrato_codigo"
+                            current={sortKey}
+                            dir={sortDir}
+                            onSort={handleSort}
+                          >
                             Contrato
                           </Th>
-                          <Th sortKey="numero_parcela" current={sortKey} dir={sortDir} onSort={handleSort}>
+                          <Th
+                            sortKey="numero_parcela"
+                            current={sortKey}
+                            dir={sortDir}
+                            onSort={handleSort}
+                          >
                             Parcela
                           </Th>
-                          <Th sortKey="data_vencimento" current={sortKey} dir={sortDir} onSort={handleSort}>
+                          <Th
+                            sortKey="data_vencimento"
+                            current={sortKey}
+                            dir={sortDir}
+                            onSort={handleSort}
+                          >
                             Vencimento
                           </Th>
-                          <Th sortKey="valor_parcela" current={sortKey} dir={sortDir} onSort={handleSort}>
+                          <Th
+                            sortKey="valor_parcela"
+                            current={sortKey}
+                            dir={sortDir}
+                            onSort={handleSort}
+                          >
                             Valor
                           </Th>
-                          <Th sortKey="valor_minimo" current={sortKey} dir={sortDir} onSort={handleSort}>
+                          <Th
+                            sortKey="valor_minimo"
+                            current={sortKey}
+                            dir={sortDir}
+                            onSort={handleSort}
+                          >
                             Mínimo
                           </Th>
-                          <Th sortKey="statusCalc" current={sortKey} dir={sortDir} onSort={handleSort}>
+                          <Th
+                            sortKey="statusCalc"
+                            current={sortKey}
+                            dir={sortDir}
+                            onSort={handleSort}
+                          >
                             Status
                           </Th>
-                          <Th sortKey="data_pagamento" current={sortKey} dir={sortDir} onSort={handleSort}>
+                          <Th
+                            sortKey="data_pagamento"
+                            current={sortKey}
+                            dir={sortDir}
+                            onSort={handleSort}
+                          >
                             Pagamento
                           </Th>
-                          <Th sortKey="valor_pago" current={sortKey} dir={sortDir} onSort={handleSort}>
+                          <Th
+                            sortKey="valor_pago"
+                            current={sortKey}
+                            dir={sortDir}
+                            onSort={handleSort}
+                          >
                             Valor Pago
                           </Th>
                           <th className="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -536,7 +588,11 @@ function VencimentosPage() {
             {/* Footer KPIs */}
             <section className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <FooterBox label="Em Aberto" value={fmtBRL(footer.emAberto)} tone="info" />
-              <FooterBox label="Mínimo Total (Juros)" value={fmtBRL(footer.minimoTotal)} tone="warning" />
+              <FooterBox
+                label="Mínimo Total (Juros)"
+                value={fmtBRL(footer.minimoTotal)}
+                tone="warning"
+              />
               <FooterBox label="Total Pago" value={fmtBRL(footer.totalPago)} tone="success" />
             </section>
           </div>
@@ -572,8 +628,8 @@ function VencimentosPage() {
               Estornar Pagamento
             </AlertDialogTitle>
             <AlertDialogDescription>
-              Deseja estornar este pagamento? A parcela voltará ao status{" "}
-              <strong>Pendente</strong> e o valor pago será zerado.
+              Deseja estornar este pagamento? A parcela voltará ao status <strong>Pendente</strong>{" "}
+              e o valor pago será zerado.
               {estornoParcelaState && (
                 <span className="mt-3 block rounded-md bg-muted/50 p-2 text-xs">
                   <strong>{estornoParcelaState.cliente_nome ?? "Cliente"}</strong> •{" "}
@@ -587,9 +643,7 @@ function VencimentosPage() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={estornoMutation.isPending}>
-              Cancelar
-            </AlertDialogCancel>
+            <AlertDialogCancel disabled={estornoMutation.isPending}>Cancelar</AlertDialogCancel>
             <AlertDialogAction
               disabled={estornoMutation.isPending}
               onClick={(e) => {
@@ -656,7 +710,12 @@ function Th({
 function StatusBadge({ status }: { status: StatusCalc }) {
   const s = STATUS_STYLES[status];
   return (
-    <span className={cn("inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold", s.cls)}>
+    <span
+      className={cn(
+        "inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold",
+        s.cls,
+      )}
+    >
       <span className={cn("h-1.5 w-1.5 rounded-full", s.dot)} />
       {s.label}
     </span>
@@ -703,12 +762,7 @@ function RowActions({
             WhatsApp
           </a>
         ) : (
-          <Button
-            variant="outline"
-            size="sm"
-            disabled
-            className="h-9 gap-1.5 opacity-40"
-          >
+          <Button variant="outline" size="sm" disabled className="h-9 gap-1.5 opacity-40">
             <WhatsAppIcon className="h-4 w-4" />
             Sem telefone
           </Button>
@@ -903,7 +957,12 @@ function KpiBox({
     success: "border-t-emerald-500 text-emerald-600",
   };
   return (
-    <div className={cn("rounded-xl border border-border border-t-4 bg-card p-4 shadow-sm", accentStyles[accent])}>
+    <div
+      className={cn(
+        "rounded-xl border border-border border-t-4 bg-card p-4 shadow-sm",
+        accentStyles[accent],
+      )}
+    >
       <div className="mb-2 flex items-start justify-between">
         <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
           {label}
@@ -1070,9 +1129,7 @@ function BaixaDialog({
 function Info({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
-        {label}
-      </p>
+      <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">{label}</p>
       <p className="text-sm font-semibold text-foreground">{value}</p>
     </div>
   );

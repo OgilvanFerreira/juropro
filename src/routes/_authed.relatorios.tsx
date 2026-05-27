@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -29,12 +29,9 @@ import { AppSidebar } from "@/components/dashboard/AppSidebar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Command,
   CommandEmpty,
@@ -43,10 +40,7 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
-import {
-  TablePagination,
-  type PageSize,
-} from "@/components/ui/table-pagination";
+import { TablePagination, type PageSize } from "@/components/ui/table-pagination";
 import { listEmprestimos } from "@/integrations/external-supabase/emprestimos.functions";
 import {
   listParcelas,
@@ -59,13 +53,40 @@ import { useAdminName } from "@/hooks/use-admin-name";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
 
+type RelatoriosSearch = {
+  tab?: "financeiro" | "contratos" | "inadimplencia";
+  contrato?: string;
+};
+
 export const Route = createFileRoute("/_authed/relatorios")({
   head: () => ({
-    meta: [{ title: "Relatórios — JuroPro" }],
+    meta: [{ title: "Relatorios - JuroPro" }],
   }),
+  validateSearch: (search: Record<string, unknown>): RelatoriosSearch => {
+    const out: RelatoriosSearch = {};
+    if (
+      search.tab === "financeiro" ||
+      search.tab === "contratos" ||
+      search.tab === "inadimplencia"
+    ) {
+      out.tab = search.tab;
+    }
+    if (typeof search.contrato === "string" && search.contrato.trim()) {
+      out.contrato = search.contrato.trim();
+    }
+    return out;
+  },
   component: RelatoriosPage,
 });
 
+function ActionTooltip({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>{children}</TooltipTrigger>
+      <TooltipContent side="top">{label}</TooltipContent>
+    </Tooltip>
+  );
+}
 const fmtBRL = (v: number) =>
   Number(v || 0).toLocaleString("pt-BR", {
     style: "currency",
@@ -81,15 +102,17 @@ const fmtDate = (iso: string | null) => {
 
 const todayIso = () => new Date().toISOString().slice(0, 10);
 
-const MESES = [
-  "Jan", "Fev", "Mar", "Abr", "Mai", "Jun",
-  "Jul", "Ago", "Set", "Out", "Nov", "Dez",
-];
+const MESES = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
 
 function RelatoriosPage() {
+  const searchParams = Route.useSearch();
   const [tab, setTab] = useState<"financeiro" | "contratos" | "inadimplencia">(
-    "financeiro",
+    searchParams.tab ?? "financeiro",
   );
+
+  useEffect(() => {
+    if (searchParams.tab) setTab(searchParams.tab);
+  }, [searchParams.tab]);
 
   return (
     <SidebarProvider>
@@ -103,9 +126,7 @@ function RelatoriosPage() {
                 <BarChart3 className="h-5 w-5" />
               </div>
               <div className="min-w-0">
-                <h1 className="text-base font-semibold truncate">
-                  Relatórios e Documentos
-                </h1>
+                <h1 className="text-base font-semibold truncate">Relatórios e Documentos</h1>
                 <p className="text-[11px] text-muted-foreground truncate">
                   Análises financeiras e geração de contratos
                 </p>
@@ -178,25 +199,16 @@ function KpiBox({
     destructive: "text-destructive",
   };
   return (
-    <div
-      className={cn(
-        "rounded-xl border border-t-4 bg-card p-3 sm:p-4 shadow-sm",
-        toneMap[tone],
-      )}
-    >
+    <div className={cn("rounded-xl border border-t-4 bg-card p-3 sm:p-4 shadow-sm", toneMap[tone])}>
       <div className="flex items-start justify-between gap-2">
         <p className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wide text-muted-foreground leading-tight">
           {label}
         </p>
         <span className={cn("shrink-0", iconToneMap[tone])}>{icon}</span>
       </div>
-      <p className="mt-1.5 text-lg sm:text-xl font-bold text-foreground truncate">
-        {value}
-      </p>
+      <p className="mt-1.5 text-lg sm:text-xl font-bold text-foreground truncate">{value}</p>
       {sub ? (
-        <p className="text-[10px] sm:text-[11px] text-muted-foreground truncate">
-          {sub}
-        </p>
+        <p className="text-[10px] sm:text-[11px] text-muted-foreground truncate">{sub}</p>
       ) : null}
     </div>
   );
@@ -269,9 +281,7 @@ function ClienteFilter({
           className="h-9 w-full sm:w-[220px] justify-between font-normal"
         >
           <span className="truncate">
-            {value === "todos"
-              ? "Todos os clientes"
-              : (selected?.nome ?? "Selecionar...")}
+            {value === "todos" ? "Todos os clientes" : (selected?.nome ?? "Selecionar...")}
           </span>
           <ChevronsUpDown className="h-4 w-4 opacity-50 shrink-0" />
         </Button>
@@ -290,10 +300,7 @@ function ClienteFilter({
                 }}
               >
                 <Check
-                  className={cn(
-                    "h-4 w-4 mr-2",
-                    value === "todos" ? "opacity-100" : "opacity-0",
-                  )}
+                  className={cn("h-4 w-4 mr-2", value === "todos" ? "opacity-100" : "opacity-0")}
                 />
                 Todos os clientes
               </CommandItem>
@@ -367,12 +374,8 @@ function FinanceiroTab() {
 
   // KPIs
   const kpis = useMemo(() => {
-    const totalPrevisto = parcelasPeriodo.reduce(
-      (s, p) => s + p.valor_parcela,
-      0,
-    );
-    const isPaga = (p: ParcelaListItem) =>
-      p.status === "pago" || p.status === "paga";
+    const totalPrevisto = parcelasPeriodo.reduce((s, p) => s + p.valor_parcela, 0);
+    const isPaga = (p: ParcelaListItem) => p.status === "pago" || p.status === "paga";
     const totalRealizado = parcelasPeriodo
       .filter(isPaga)
       .reduce((s, p) => s + (p.valor_pago ?? p.valor_parcela), 0);
@@ -387,8 +390,7 @@ function FinanceiroTab() {
   // Gráfico mensal (últimos 6 meses): previsto vs realizado
   const dadosMensais = useMemo(() => {
     const now = new Date();
-    const buckets: { key: string; label: string; previsto: number; realizado: number }[] =
-      [];
+    const buckets: { key: string; label: string; previsto: number; realizado: number }[] = [];
     for (let i = 5; i >= 0; i--) {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
       const yy = String(d.getFullYear()).slice(-2);
@@ -634,9 +636,7 @@ function FinanceiroTab() {
           <div className="flex flex-col items-center justify-center py-12 text-center px-4">
             <Receipt className="h-10 w-10 text-muted-foreground mb-2" />
             <p className="text-sm font-medium">Nenhuma parcela encontrada</p>
-            <p className="text-xs text-muted-foreground">
-              Ajuste o período ou a busca.
-            </p>
+            <p className="text-xs text-muted-foreground">Ajuste o período ou a busca.</p>
           </div>
         ) : (
           <>
@@ -692,10 +692,7 @@ function FinanceiroTab() {
                 <tbody>
                   {paginadas.map((p) => {
                     const paga = p.status === "pago" || p.status === "paga";
-                    const atrasada =
-                      !paga &&
-                      p.data_vencimento &&
-                      p.data_vencimento < todayIso();
+                    const atrasada = !paga && p.data_vencimento && p.data_vencimento < todayIso();
                     return (
                       <tr
                         key={String(p.id)}
@@ -708,16 +705,12 @@ function FinanceiroTab() {
                         <td
                           className={cn(
                             "px-3 py-2.5 whitespace-nowrap",
-                            atrasada
-                              ? "text-destructive font-medium"
-                              : "text-muted-foreground",
+                            atrasada ? "text-destructive font-medium" : "text-muted-foreground",
                           )}
                         >
                           {fmtDate(p.data_vencimento)}
                         </td>
-                        <td className="px-3 py-2.5 font-medium">
-                          {fmtBRL(p.valor_parcela)}
-                        </td>
+                        <td className="px-3 py-2.5 font-medium">{fmtBRL(p.valor_parcela)}</td>
                         <td
                           className={cn(
                             "px-3 py-2.5",
@@ -752,16 +745,11 @@ function FinanceiroTab() {
             <div className="md:hidden divide-y">
               {paginadas.map((p) => {
                 const paga = p.status === "pago" || p.status === "paga";
-                const atrasada =
-                  !paga &&
-                  p.data_vencimento &&
-                  p.data_vencimento < todayIso();
+                const atrasada = !paga && p.data_vencimento && p.data_vencimento < todayIso();
                 return (
                   <div key={String(p.id)} className="p-3 space-y-1.5">
                     <div className="flex items-center justify-between gap-2">
-                      <p className="font-medium text-sm truncate">
-                        {p.cliente_nome ?? "—"}
-                      </p>
+                      <p className="font-medium text-sm truncate">{p.cliente_nome ?? "—"}</p>
                       <Badge
                         variant="outline"
                         className={cn(
@@ -790,9 +778,7 @@ function FinanceiroTab() {
                       </span>
                     </div>
                     <div className="flex items-center justify-between text-sm">
-                      <span className="font-semibold">
-                        {fmtBRL(p.valor_parcela)}
-                      </span>
+                      <span className="font-semibold">{fmtBRL(p.valor_parcela)}</span>
                       {paga ? (
                         <span className="text-success font-medium text-xs">
                           Pago: {fmtBRL(p.valor_pago ?? p.valor_parcela)}
@@ -822,11 +808,7 @@ function FinanceiroTab() {
   );
 }
 
-function BarChart({
-  dados,
-}: {
-  dados: { label: string; previsto: number; realizado: number }[];
-}) {
+function BarChart({ dados }: { dados: { label: string; previsto: number; realizado: number }[] }) {
   const max = Math.max(...dados.flatMap((d) => [d.previsto, d.realizado]), 1);
   return (
     <div className="flex items-end gap-2 sm:gap-3 h-44 px-1 sm:px-2">
@@ -834,10 +816,7 @@ function BarChart({
         const hp = (d.previsto / max) * 140;
         const hr = (d.realizado / max) * 140;
         return (
-          <div
-            key={i}
-            className="flex-1 flex flex-col items-center gap-1.5 min-w-0"
-          >
+          <div key={i} className="flex-1 flex flex-col items-center gap-1.5 min-w-0">
             <div className="flex gap-0.5 sm:gap-1 items-end h-36 w-full justify-center">
               <div
                 className="w-3 sm:w-4 rounded-t bg-info hover:opacity-80 transition-opacity"
@@ -850,9 +829,7 @@ function BarChart({
                 title={`Realizado: ${fmtBRL(d.realizado)}`}
               />
             </div>
-            <span className="text-[11px] font-medium text-muted-foreground">
-              {d.label}
-            </span>
+            <span className="text-[11px] font-medium text-muted-foreground">{d.label}</span>
           </div>
         );
       })}
@@ -874,7 +851,8 @@ type ContratoSortKey =
   | "status";
 
 function ContratosTab() {
-  const [busca, setBusca] = useState("");
+  const searchParams = Route.useSearch();
+  const [busca, setBusca] = useState(searchParams.contrato ?? "");
   const [clienteFiltro, setClienteFiltro] = useState("todos");
   const [pagina, setPagina] = useState(1);
   const [porPagina, setPorPagina] = useState<PageSize>(5);
@@ -884,6 +862,13 @@ function ContratosTab() {
     id: string | number;
     codigo: string;
   } | null>(null);
+
+  useEffect(() => {
+    if (searchParams.contrato) {
+      setBusca(searchParams.contrato);
+      setPagina(1);
+    }
+  }, [searchParams.contrato]);
 
   const { user, loading: authLoading } = useAuth();
   const authReady = !authLoading && !!user;
@@ -928,8 +913,7 @@ function ContratosTab() {
   const kpis = useMemo(() => {
     const totalContratos = emprestimos.filter((e) => e.status === "ativo").length;
     const volumeTotal = emprestimos.reduce((s, e) => s + e.valor_principal, 0);
-    const ticketMedio =
-      emprestimos.length > 0 ? volumeTotal / emprestimos.length : 0;
+    const ticketMedio = emprestimos.length > 0 ? volumeTotal / emprestimos.length : 0;
     const parcelasAtivas = parcelas.filter(
       (p) => p.status !== "pago" && p.status !== "paga",
     ).length;
@@ -939,8 +923,7 @@ function ContratosTab() {
   const filtrados = useMemo(() => {
     const q = busca.trim().toLowerCase();
     let arr = emprestimos.filter((e) => {
-      if (clienteFiltro !== "todos" && String(e.cliente_id) !== clienteFiltro)
-        return false;
+      if (clienteFiltro !== "todos" && String(e.cliente_id) !== clienteFiltro) return false;
       if (q) {
         const codigo = codigoOf(e.id).toLowerCase();
         const nome = (e.cliente_nome ?? "").toLowerCase();
@@ -1138,9 +1121,7 @@ function ContratosTab() {
           <div className="flex flex-col items-center justify-center py-12 text-center px-4">
             <FileText className="h-10 w-10 text-muted-foreground mb-2" />
             <p className="text-sm font-medium">Nenhum contrato encontrado</p>
-            <p className="text-xs text-muted-foreground">
-              Ajuste os filtros e tente novamente.
-            </p>
+            <p className="text-xs text-muted-foreground">Ajuste os filtros e tente novamente.</p>
           </div>
         ) : (
           <>
@@ -1221,15 +1202,9 @@ function ContratosTab() {
                           {codigoOf(e.id)}
                         </td>
                         <td className="px-3 py-2.5">{e.cliente_nome ?? "—"}</td>
-                        <td className="px-3 py-2.5 font-medium">
-                          {fmtBRL(e.valor_principal)}
-                        </td>
-                        <td className="px-3 py-2.5 text-muted-foreground">
-                          {e.taxa_juros}% a.m.
-                        </td>
-                        <td className="px-3 py-2.5 text-muted-foreground">
-                          {e.numero_parcelas}x
-                        </td>
+                        <td className="px-3 py-2.5 font-medium">{fmtBRL(e.valor_principal)}</td>
+                        <td className="px-3 py-2.5 text-muted-foreground">{e.taxa_juros}% a.m.</td>
+                        <td className="px-3 py-2.5 text-muted-foreground">{e.numero_parcelas}x</td>
                         <td className="px-3 py-2.5">
                           <Badge
                             variant="outline"
@@ -1250,36 +1225,42 @@ function ContratosTab() {
                           </Badge>
                         </td>
                         <td className="px-3 py-2.5 text-right">
-                          <div className="flex items-center justify-end gap-1.5">
-                            <Button
-                              size="icon"
-                              variant="outline"
-                              className="h-8 w-8 bg-info/10 hover:bg-info/20 border-info/30 text-info"
-                              onClick={() =>
-                                setContratoPdf({
-                                  id: e.id,
-                                  codigo: codigoOf(e.id),
-                                })
-                              }
-                              title="Visualizar"
-                            >
-                              <Eye className="h-3.5 w-3.5" />
-                            </Button>
-                            <Button
-                              size="icon"
-                              variant="outline"
-                              className="h-8 w-8 bg-success/10 hover:bg-success/20 border-success/30 text-success"
-                              onClick={() =>
-                                setContratoPdf({
-                                  id: e.id,
-                                  codigo: codigoOf(e.id),
-                                })
-                              }
-                              title="Gerar PDF"
-                            >
-                              <FileText className="h-3.5 w-3.5" />
-                            </Button>
-                          </div>
+                          <TooltipProvider delayDuration={250}>
+                            <div className="flex items-center justify-end gap-1.5">
+                              <ActionTooltip label="Visualizar contrato">
+                                <Button
+                                  size="icon"
+                                  variant="outline"
+                                  className="h-8 w-8 bg-info/10 hover:bg-info/20 border-info/30 text-info"
+                                  onClick={() =>
+                                    setContratoPdf({
+                                      id: e.id,
+                                      codigo: codigoOf(e.id),
+                                    })
+                                  }
+                                  aria-label="Visualizar contrato"
+                                >
+                                  <Eye className="h-3.5 w-3.5" />
+                                </Button>
+                              </ActionTooltip>
+                              <ActionTooltip label="Gerar PDF">
+                                <Button
+                                  size="icon"
+                                  variant="outline"
+                                  className="h-8 w-8 bg-success/10 hover:bg-success/20 border-success/30 text-success"
+                                  onClick={() =>
+                                    setContratoPdf({
+                                      id: e.id,
+                                      codigo: codigoOf(e.id),
+                                    })
+                                  }
+                                  aria-label="Gerar PDF"
+                                >
+                                  <FileText className="h-3.5 w-3.5" />
+                                </Button>
+                              </ActionTooltip>
+                            </div>
+                          </TooltipProvider>
                         </td>
                       </tr>
                     );
@@ -1343,9 +1324,7 @@ function ContratosTab() {
                         size="sm"
                         variant="outline"
                         className="flex-1 bg-info/10 hover:bg-info/20 border-info/30 text-info h-8"
-                        onClick={() =>
-                          setContratoPdf({ id: e.id, codigo: codigoOf(e.id) })
-                        }
+                        onClick={() => setContratoPdf({ id: e.id, codigo: codigoOf(e.id) })}
                       >
                         <Eye className="h-3.5 w-3.5" />
                         Visualizar
@@ -1354,9 +1333,7 @@ function ContratosTab() {
                         size="sm"
                         variant="outline"
                         className="flex-1 bg-success/10 hover:bg-success/20 border-success/30 text-success h-8"
-                        onClick={() =>
-                          setContratoPdf({ id: e.id, codigo: codigoOf(e.id) })
-                        }
+                        onClick={() => setContratoPdf({ id: e.id, codigo: codigoOf(e.id) })}
                       >
                         <FileText className="h-3.5 w-3.5" />
                         PDF
@@ -1533,10 +1510,7 @@ function InadimplenciaTab() {
   const kpis = useMemo(() => {
     const inadimplentes = agrupados.length;
     const totalEmAtraso = agrupados.reduce((s, c) => s + c.totalDivida, 0);
-    const maiorAtraso = agrupados.reduce(
-      (m, c) => Math.max(m, c.diasAtrasoMax),
-      0,
-    );
+    const maiorAtraso = agrupados.reduce((m, c) => Math.max(m, c.diasAtrasoMax), 0);
     const parcelasAtras = atrasadas.length;
     return { inadimplentes, totalEmAtraso, maiorAtraso, parcelasAtras };
   }, [agrupados, atrasadas]);
@@ -1580,7 +1554,10 @@ function InadimplenciaTab() {
 
   const riscoBadge = (dias: number) => {
     if (dias > 60)
-      return { label: "Alto Risco", cls: "bg-destructive/15 text-destructive border-destructive/30" };
+      return {
+        label: "Alto Risco",
+        cls: "bg-destructive/15 text-destructive border-destructive/30",
+      };
     if (dias > 30)
       return { label: "Médio Risco", cls: "bg-warning/15 text-warning border-warning/30" };
     return { label: "Baixo Risco", cls: "bg-info/15 text-info border-info/30" };
@@ -1663,9 +1640,7 @@ function InadimplenciaTab() {
           <div className="flex flex-col items-center justify-center py-12 text-center px-4">
             <Check className="h-10 w-10 text-success mb-2" />
             <p className="text-sm font-medium">Nenhum cliente inadimplente 🎉</p>
-            <p className="text-xs text-muted-foreground">
-              Tudo em dia neste filtro.
-            </p>
+            <p className="text-xs text-muted-foreground">Tudo em dia neste filtro.</p>
           </div>
         ) : (
           <>
@@ -1787,7 +1762,10 @@ function InadimplenciaTab() {
                   <div key={c.cliente_id} className="p-3 space-y-2">
                     <div className="flex items-center justify-between gap-2">
                       <p className="font-medium text-sm truncate">{c.cliente_nome}</p>
-                      <Badge variant="outline" className={cn("border shrink-0 text-[10px]", risco.cls)}>
+                      <Badge
+                        variant="outline"
+                        className={cn("border shrink-0 text-[10px]", risco.cls)}
+                      >
                         {risco.label}
                       </Badge>
                     </div>
@@ -1802,20 +1780,12 @@ function InadimplenciaTab() {
                     </div>
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-[10px] text-muted-foreground uppercase">
-                          Total dívida
-                        </p>
-                        <p className="font-bold text-destructive">
-                          {fmtBRL(c.totalDivida)}
-                        </p>
+                        <p className="text-[10px] text-muted-foreground uppercase">Total dívida</p>
+                        <p className="font-bold text-destructive">{fmtBRL(c.totalDivida)}</p>
                       </div>
                       <div className="text-right">
-                        <p className="text-[10px] text-muted-foreground uppercase">
-                          Dias atraso
-                        </p>
-                        <p className="font-bold text-warning">
-                          {c.diasAtrasoMax} dias
-                        </p>
+                        <p className="text-[10px] text-muted-foreground uppercase">Dias atraso</p>
+                        <p className="font-bold text-warning">{c.diasAtrasoMax} dias</p>
                       </div>
                     </div>
                     <div className="flex gap-2 pt-1">
@@ -1868,12 +1838,7 @@ function InadimplenciaTab() {
 
 function WhatsAppIcon({ className }: { className?: string }) {
   return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="currentColor"
-      className={className}
-      aria-hidden
-    >
+    <svg viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden>
       <path d="M.057 24l1.687-6.163a11.867 11.867 0 0 1-1.587-5.946C.16 5.335 5.495 0 12.05 0a11.817 11.817 0 0 1 8.413 3.488 11.824 11.824 0 0 1 3.48 8.414c-.003 6.557-5.338 11.892-11.893 11.892a11.9 11.9 0 0 1-5.688-1.448L.057 24zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413z" />
     </svg>
   );

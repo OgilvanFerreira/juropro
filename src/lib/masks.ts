@@ -21,14 +21,10 @@ export function maskTelefone(value: string): string {
   const digits = value.replace(/\D/g, "").slice(0, 11);
   if (digits.length <= 10) {
     // (00) 0000-0000
-    return digits
-      .replace(/^(\d{2})(\d)/, "($1) $2")
-      .replace(/(\d{4})(\d)/, "$1-$2");
+    return digits.replace(/^(\d{2})(\d)/, "($1) $2").replace(/(\d{4})(\d)/, "$1-$2");
   }
   // (00) 00000-0000
-  return digits
-    .replace(/^(\d{2})(\d)/, "($1) $2")
-    .replace(/(\d{5})(\d)/, "$1-$2");
+  return digits.replace(/^(\d{2})(\d)/, "($1) $2").replace(/(\d{5})(\d)/, "$1-$2");
 }
 
 export function maskCep(value: string): string {
@@ -75,18 +71,18 @@ export function isValidCep(value: string): boolean {
 export function maskTaxa(value: string): string {
   if (value == null) return "";
   // troca ponto por vírgula e remove tudo que não for dígito ou vírgula
-  let v = String(value).replace(/\./g, ",").replace(/[^\d,]/g, "");
+  let v = String(value)
+    .replace(/\./g, ",")
+    .replace(/[^\d,]/g, "");
   // mantém apenas a primeira vírgula
   const firstComma = v.indexOf(",");
   if (firstComma !== -1) {
-    v =
-      v.slice(0, firstComma + 1) +
-      v.slice(firstComma + 1).replace(/,/g, "");
+    v = v.slice(0, firstComma + 1) + v.slice(firstComma + 1).replace(/,/g, "");
   }
   const [intPart = "", decPart] = v.split(",");
   const intClean = intPart.replace(/^0+(?=\d)/, "").slice(0, 4);
   if (decPart === undefined) return intClean;
-  return `${intClean || "0"},${decPart.slice(0, 2)}`;
+  return `${intClean || "0"},${decPart.slice(0, 4)}`;
 }
 
 /** Converte string com vírgula em number ("5,5" → 5.5). */

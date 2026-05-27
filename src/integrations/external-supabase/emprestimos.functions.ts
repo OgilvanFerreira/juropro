@@ -8,9 +8,7 @@ function getServerClient(opts?: { admin?: boolean }) {
   const anonKey = process.env.EXTERNAL_SUPABASE_ANON_KEY;
   const serviceKey = process.env.EXTERNAL_SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !anonKey) {
-    throw new Error(
-      "EXTERNAL_SUPABASE_URL ou EXTERNAL_SUPABASE_ANON_KEY não configurados.",
-    );
+    throw new Error("EXTERNAL_SUPABASE_URL ou EXTERNAL_SUPABASE_ANON_KEY não configurados.");
   }
   const key = opts?.admin && serviceKey ? serviceKey : anonKey;
   return createClient(url, key, {
@@ -65,8 +63,7 @@ export type EmprestimoListItem = {
 
 export const listEmprestimos = createServerFn({ method: "GET" })
   .middleware([requireAuthForExternal])
-  .handler(
-  async ({ context }): Promise<{ data: EmprestimoListItem[]; error: string | null }> => {
+  .handler(async ({ context }): Promise<{ data: EmprestimoListItem[]; error: string | null }> => {
     const supabase = getServerClient();
 
     const { data: emps, error: empErr } = await supabase
@@ -154,14 +151,11 @@ export const listEmprestimos = createServerFn({ method: "GET" })
     });
 
     return { data: out, error: null };
-  },
-);
+  });
 
 export const createEmprestimo = createServerFn({ method: "POST" })
   .middleware([requireAuthForExternal])
-  .inputValidator((input: CreateEmprestimoInput) =>
-    createEmprestimoSchema.parse(input),
-  )
+  .inputValidator((input: CreateEmprestimoInput) => createEmprestimoSchema.parse(input))
   .handler(
     async ({
       data,
@@ -224,9 +218,7 @@ export const createEmprestimo = createServerFn({ method: "POST" })
         status: "pendente",
       }));
 
-      const { error: parErr } = await supabase
-        .from("parcelas")
-        .insert(parcelasPayload);
+      const { error: parErr } = await supabase.from("parcelas").insert(parcelasPayload);
 
       if (parErr) {
         console.error("createEmprestimo parcelas error:", parErr);
@@ -260,16 +252,14 @@ export type EmprestimoFull = {
   data_inicio: string | null;
   status: string | null;
   observacoes: string | null;
+  valor_parcela?: number | null;
 };
 
 export const getEmprestimo = createServerFn({ method: "GET" })
   .middleware([requireAuthForExternal])
   .inputValidator((input: { id: string | number }) => idSchema.parse(input))
   .handler(
-    async ({
-      data,
-      context,
-    }): Promise<{ data: EmprestimoFull | null; error: string | null }> => {
+    async ({ data, context }): Promise<{ data: EmprestimoFull | null; error: string | null }> => {
       const supabase = getServerClient();
       const { data: row, error } = await supabase
         .from("emprestimos")
@@ -284,6 +274,15 @@ export const getEmprestimo = createServerFn({ method: "GET" })
         return { data: null, error: error.message };
       }
       if (!row) return { data: null, error: "Empréstimo não encontrado." };
+      const { data: primeiraParcela } = await supabase
+        .from("parcelas")
+        .select("valor_parcela")
+        .eq("emprestimo_id", data.id)
+        .eq("user_id", context.userId)
+        .order("numero_parcela", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+
       return {
         data: {
           id: row.id,
@@ -295,6 +294,8 @@ export const getEmprestimo = createServerFn({ method: "GET" })
           data_inicio: row.data_inicio ?? null,
           status: row.status ?? null,
           observacoes: row.observacoes ?? null,
+          valor_parcela:
+            primeiraParcela?.valor_parcela != null ? Number(primeiraParcela.valor_parcela) : null,
         },
         error: null,
       };
@@ -319,9 +320,7 @@ export type UpdateEmprestimoInput = z.infer<typeof updateEmprestimoSchema>;
 
 export const updateEmprestimo = createServerFn({ method: "POST" })
   .middleware([requireAuthForExternal])
-  .inputValidator((input: UpdateEmprestimoInput) =>
-    updateEmprestimoSchema.parse(input),
-  )
+  .inputValidator((input: UpdateEmprestimoInput) => updateEmprestimoSchema.parse(input))
   .handler(async ({ data, context }): Promise<{ ok: boolean; error: string | null }> => {
     const supabase = getServerClient({ admin: true });
 
@@ -385,9 +384,7 @@ export const updateEmprestimo = createServerFn({ method: "POST" })
       status: "pendente",
     }));
 
-    const { error: insErr } = await supabase
-      .from("parcelas")
-      .insert(parcelasPayload);
+    const { error: insErr } = await supabase.from("parcelas").insert(parcelasPayload);
 
     if (insErr) {
       console.error("updateEmprestimo insert parcelas error:", insErr);

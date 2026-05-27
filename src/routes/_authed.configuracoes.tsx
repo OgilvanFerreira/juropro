@@ -283,7 +283,12 @@ function TabPerfil() {
       return;
     }
     const reader = new FileReader();
-    reader.onload = (ev) => setAvatar(String(ev.target?.result ?? ""));
+    reader.onload = async (ev) => {
+      const nextAvatar = String(ev.target?.result ?? "");
+      setAvatar(nextAvatar);
+      const { error } = await updateProfile({ avatar_url: nextAvatar });
+      if (error) toast.error(`Nao foi possivel sincronizar a foto: ${error}`);
+    };
     reader.readAsDataURL(file);
     e.target.value = "";
   };

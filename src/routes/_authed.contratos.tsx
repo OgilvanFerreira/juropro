@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
-import { createFileRoute } from "@tanstack/react-router";
+import { type ReactNode, useMemo, useState } from "react";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
@@ -16,6 +16,8 @@ import {
   CheckCircle2,
   TrendingUp,
   Clock,
+  CalendarClock,
+  BarChart3,
 } from "lucide-react";
 import { toast } from "sonner";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
@@ -23,6 +25,7 @@ import { AppSidebar } from "@/components/dashboard/AppSidebar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -33,10 +36,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import {
-  TablePagination,
-  type PageSize,
-} from "@/components/ui/table-pagination";
+import { TablePagination, type PageSize } from "@/components/ui/table-pagination";
 import { NovoEmprestimoDialog } from "@/components/emprestimos/NovoEmprestimoDialog";
 import {
   deleteEmprestimo,
@@ -55,8 +55,22 @@ export const Route = createFileRoute("/_authed/contratos")({
   component: ContratosPage,
 });
 
-const fmtBRL = (v: number) =>
-  v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+const tipoJurosLabel = (tipo: string | null) => {
+  if (tipo === "composto") return "Composto";
+  if (tipo === "so_juros") return "So Juros";
+  return "Simples";
+};
+
+const tipoJurosBadgeClass =
+  "border-blue-300 bg-blue-100 text-blue-700 dark:border-blue-800 dark:bg-blue-950 dark:text-blue-300";
+
+const fmtTaxa = (v: number) =>
+  Number(v).toLocaleString("pt-BR", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 4,
+  });
+
+const fmtBRL = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
 const fmtDate = (iso: string | null) => {
   if (!iso) return "—";
@@ -78,15 +92,16 @@ function statusBadgeClass(status: string | null) {
       return "bg-muted text-muted-foreground border-border";
   }
 }
+function ActionTooltip({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>{children}</TooltipTrigger>
+      <TooltipContent side="top">{label}</TooltipContent>
+    </Tooltip>
+  );
+}
 
-type SortKey =
-  | "id"
-  | "cliente"
-  | "principal"
-  | "taxa"
-  | "parcelas"
-  | "data_inicio"
-  | "status";
+type SortKey = "id" | "cliente" | "principal" | "taxa" | "parcelas" | "data_inicio" | "status";
 type SortDir = "asc" | "desc";
 
 function ContratosPage() {
@@ -96,14 +111,13 @@ function ContratosPage() {
   const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [pagina, setPagina] = useState(1);
   const [porPagina, setPorPagina] = useState<PageSize>(10);
-  const [emprestimoEditando, setEmprestimoEditando] =
-    useState<EmprestimoFull | null>(null);
-  const [loadingEditId, setLoadingEditId] = useState<string | number | null>(
+  const [emprestimoEditando, setEmprestimoEditando] = useState<EmprestimoFull | null>(null);
+  const [loadingEditId, setLoadingEditId] = useState<string | number | null>(null);
+  const [emprestimoParaExcluir, setEmprestimoParaExcluir] = useState<EmprestimoListItem | null>(
     null,
   );
-  const [emprestimoParaExcluir, setEmprestimoParaExcluir] =
-    useState<EmprestimoListItem | null>(null);
 
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const listFn = useServerFn(listEmprestimos);
   const getFn = useServerFn(getEmprestimo);
@@ -156,9 +170,10 @@ function ContratosPage() {
         return;
       }
       toast.success("Empréstimo excluído com sucesso!");
-      queryClient.invalidateQueries({ queryKey: ["emprestimos", "list"] });
-      queryClient.invalidateQueries({ queryKey: ["dashboard", "kpis"] });
-      queryClient.invalidateQueries({ queryKey: ["dashboard", "charts"] });
+      queryClient.invalidateQueries({ queryKey: ["emprestimos"] });
+      queryClient.invalidateQueries({ queryKey: ["parcelas"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      queryClient.invalidateQueries({ queryKey: ["clientes"] });
       setEmprestimoParaExcluir(null);
     },
     onError: (error) => {
@@ -230,10 +245,7 @@ function ContratosPage() {
   // Paginação
   const totalPaginas = Math.max(1, Math.ceil(filtrados.length / porPagina));
   const paginaAtual = Math.min(pagina, totalPaginas);
-  const paginados = filtrados.slice(
-    (paginaAtual - 1) * porPagina,
-    paginaAtual * porPagina,
-  );
+  const paginados = filtrados.slice((paginaAtual - 1) * porPagina, paginaAtual * porPagina);
 
   const totais = useMemo(() => {
     return lista.reduce(
@@ -249,8 +261,7 @@ function ContratosPage() {
   }, [lista]);
 
   const SortIcon = ({ column }: { column: SortKey }) => {
-    if (sortKey !== column)
-      return <ArrowUpDown className="h-3.5 w-3.5 opacity-50" />;
+    if (sortKey !== column) return <ArrowUpDown className="h-3.5 w-3.5 opacity-50" />;
     return sortDir === "asc" ? (
       <ArrowUp className="h-3.5 w-3.5" />
     ) : (
@@ -270,9 +281,7 @@ function ContratosPage() {
                 <FileText className="h-5 w-5" />
               </div>
               <div className="min-w-0">
-                <h1 className="text-base font-semibold text-foreground truncate">
-                  Contratos
-                </h1>
+                <h1 className="text-base font-semibold text-foreground truncate">Contratos</h1>
                 <p className="text-[11px] text-muted-foreground truncate">
                   Acompanhe todos os empréstimos cadastrados
                 </p>
@@ -422,6 +431,21 @@ function ContratosPage() {
                             item={e}
                             seqId={e.seqId}
                             onEdit={() => handleEditar(e.id)}
+                            onVencimentos={() =>
+                              navigate({
+                                to: "/vencimentos",
+                                search: { contrato: `#${String(e.seqId).padStart(3, "0")}` },
+                              })
+                            }
+                            onRelatorio={() =>
+                              navigate({
+                                to: "/relatorios",
+                                search: {
+                                  tab: "contratos",
+                                  contrato: `#${String(e.seqId).padStart(3, "0")}`,
+                                },
+                              })
+                            }
                             onDelete={() => setEmprestimoParaExcluir(e)}
                             isLoadingEdit={loadingEditId === e.id}
                           />
@@ -438,6 +462,21 @@ function ContratosPage() {
                         item={e}
                         seqId={e.seqId}
                         onEdit={() => handleEditar(e.id)}
+                        onVencimentos={() =>
+                          navigate({
+                            to: "/vencimentos",
+                            search: { contrato: `#${String(e.seqId).padStart(3, "0")}` },
+                          })
+                        }
+                        onRelatorio={() =>
+                          navigate({
+                            to: "/relatorios",
+                            search: {
+                              tab: "contratos",
+                              contrato: `#${String(e.seqId).padStart(3, "0")}`,
+                            },
+                          })
+                        }
                         onDelete={() => setEmprestimoParaExcluir(e)}
                         isLoadingEdit={loadingEditId === e.id}
                       />
@@ -483,9 +522,7 @@ function ContratosPage() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleteMutation.isPending}>
-              Cancelar
-            </AlertDialogCancel>
+            <AlertDialogCancel disabled={deleteMutation.isPending}>Cancelar</AlertDialogCancel>
             <AlertDialogAction
               disabled={deleteMutation.isPending}
               onClick={(e) => {
@@ -541,9 +578,7 @@ function KpiBox({
         </p>
         <Icon className="h-4 w-4" />
       </div>
-      <p className="truncate text-lg sm:text-xl font-extrabold text-foreground">
-        {value}
-      </p>
+      <p className="truncate text-lg sm:text-xl font-extrabold text-foreground">{value}</p>
     </div>
   );
 }
@@ -552,75 +587,105 @@ function RowDesktop({
   item,
   seqId,
   onEdit,
+  onVencimentos,
+  onRelatorio,
   onDelete,
   isLoadingEdit,
 }: {
   item: EmprestimoListItem;
   seqId: number;
   onEdit: () => void;
+  onVencimentos: () => void;
+  onRelatorio: () => void;
   onDelete: () => void;
   isLoadingEdit: boolean;
 }) {
   const progresso =
-    item.parcelas_total > 0
-      ? Math.round((item.parcelas_pagas / item.parcelas_total) * 100)
-      : 0;
+    item.parcelas_total > 0 ? Math.round((item.parcelas_pagas / item.parcelas_total) * 100) : 0;
   return (
     <tr className="border-t hover:bg-muted/30">
       <td className="px-3 py-3 font-mono text-xs text-muted-foreground">
         #{String(seqId).padStart(3, "0")}
       </td>
-      <td className="px-3 py-3 font-medium text-foreground">
-        {item.cliente_nome ?? "—"}
-      </td>
+      <td className="px-3 py-3 font-medium text-foreground">{item.cliente_nome ?? "—"}</td>
       <td className="px-3 py-3 text-right">{fmtBRL(item.valor_principal)}</td>
-      <td className="px-3 py-3 text-right text-muted-foreground">
-        {item.taxa_juros}% {item.tipo_juros === "composto" ? "comp." : "simp."}
+      <td className="px-3 py-3 text-right">
+        <div className="flex items-center justify-end gap-2">
+          <span className="text-muted-foreground">{fmtTaxa(item.taxa_juros)}%</span>
+          <Badge variant="outline" className={tipoJurosBadgeClass}>
+            {tipoJurosLabel(item.tipo_juros)}
+          </Badge>
+        </div>
       </td>
       <td className="px-3 py-3 text-center">
         <span className="font-medium">{item.parcelas_pagas}</span>
         <span className="text-muted-foreground">/{item.parcelas_total}</span>
         <span className="ml-1 text-xs text-muted-foreground">({progresso}%)</span>
       </td>
-      <td className="px-3 py-3 text-left text-muted-foreground">
-        {fmtDate(item.data_inicio)}
-      </td>
+      <td className="px-3 py-3 text-left text-muted-foreground">{fmtDate(item.data_inicio)}</td>
       <td className="px-3 py-3 text-center">
-        <Badge
-          variant="outline"
-          className={cn("capitalize", statusBadgeClass(item.status))}
-        >
+        <Badge variant="outline" className={cn("capitalize", statusBadgeClass(item.status))}>
           {item.status ?? "—"}
         </Badge>
       </td>
       <td className="px-3 py-3 text-right">
-        <div className="flex items-center justify-end gap-1">
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 text-muted-foreground hover:text-foreground"
-            onClick={onEdit}
-            disabled={isLoadingEdit}
-            aria-label="Editar empréstimo"
-          >
-            {isLoadingEdit ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Pencil className="h-4 w-4" />
-            )}
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 text-muted-foreground hover:text-destructive"
-            onClick={onDelete}
-            aria-label="Excluir empréstimo"
-          >
-            <Trash2 className="h-4 w-4" />
-          </Button>
-        </div>
+        <TooltipProvider delayDuration={250}>
+          <div className="flex items-center justify-end gap-1">
+            <ActionTooltip label="Ver vencimentos">
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-muted-foreground hover:text-warning"
+                onClick={onVencimentos}
+                aria-label="Ver vencimentos do contrato"
+              >
+                <CalendarClock className="h-4 w-4" />
+              </Button>
+            </ActionTooltip>
+            <ActionTooltip label="Ver relatorio">
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-muted-foreground hover:text-info"
+                onClick={onRelatorio}
+                aria-label="Ver relatorio do contrato"
+              >
+                <BarChart3 className="h-4 w-4" />
+              </Button>
+            </ActionTooltip>
+            <ActionTooltip label="Editar emprestimo">
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                onClick={onEdit}
+                disabled={isLoadingEdit}
+                aria-label="Editar emprestimo"
+              >
+                {isLoadingEdit ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Pencil className="h-4 w-4" />
+                )}
+              </Button>
+            </ActionTooltip>
+            <ActionTooltip label="Excluir emprestimo">
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                onClick={onDelete}
+                aria-label="Excluir emprestimo"
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </ActionTooltip>
+          </div>
+        </TooltipProvider>
       </td>
     </tr>
   );
@@ -630,19 +695,21 @@ function CardMobile({
   item,
   seqId,
   onEdit,
+  onVencimentos,
+  onRelatorio,
   onDelete,
   isLoadingEdit,
 }: {
   item: EmprestimoListItem;
   seqId: number;
   onEdit: () => void;
+  onVencimentos: () => void;
+  onRelatorio: () => void;
   onDelete: () => void;
   isLoadingEdit: boolean;
 }) {
   const progresso =
-    item.parcelas_total > 0
-      ? Math.round((item.parcelas_pagas / item.parcelas_total) * 100)
-      : 0;
+    item.parcelas_total > 0 ? Math.round((item.parcelas_pagas / item.parcelas_total) * 100) : 0;
   return (
     <div className="rounded-lg border bg-background p-4 shadow-sm">
       <div className="mb-2 flex items-start justify-between gap-2">
@@ -654,10 +721,7 @@ function CardMobile({
             #{String(seqId).padStart(3, "0")}
           </p>
         </div>
-        <Badge
-          variant="outline"
-          className={cn("capitalize", statusBadgeClass(item.status))}
-        >
+        <Badge variant="outline" className={cn("capitalize", statusBadgeClass(item.status))}>
           {item.status ?? "—"}
         </Badge>
       </div>
@@ -677,11 +741,40 @@ function CardMobile({
           </p>
         </div>
         <div>
-          <p className="text-muted-foreground">Início</p>
+          <p className="text-muted-foreground">Juros</p>
+          <div className="mt-1 flex flex-wrap items-center gap-1.5">
+            <span className="font-semibold text-foreground">{fmtTaxa(item.taxa_juros)}%</span>
+            <Badge variant="outline" className={tipoJurosBadgeClass}>
+              {tipoJurosLabel(item.tipo_juros)}
+            </Badge>
+          </div>
+        </div>
+        <div>
+          <p className="text-muted-foreground">Inicio</p>
           <p className="font-semibold text-foreground">{fmtDate(item.data_inicio)}</p>
         </div>
       </div>
-      <div className="mt-3 flex justify-end gap-2 border-t pt-3">
+      <div className="mt-3 flex flex-wrap justify-end gap-2 border-t pt-3">
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="h-8 gap-1"
+          onClick={onVencimentos}
+        >
+          <CalendarClock className="h-3.5 w-3.5" />
+          Vencimentos
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="h-8 gap-1"
+          onClick={onRelatorio}
+        >
+          <BarChart3 className="h-3.5 w-3.5" />
+          Relatorio
+        </Button>
         <Button
           type="button"
           variant="outline"
@@ -729,10 +822,7 @@ function EmptyState({ onNovo, hasFilter }: { onNovo: () => void; hasFilter: bool
         </p>
       </div>
       {!hasFilter && (
-        <Button
-          onClick={onNovo}
-          className="bg-success text-success-foreground hover:bg-success/90"
-        >
+        <Button onClick={onNovo} className="bg-success text-success-foreground hover:bg-success/90">
           <Plus className="h-4 w-4" />
           Novo Empréstimo
         </Button>

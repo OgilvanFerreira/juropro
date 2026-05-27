@@ -33,8 +33,62 @@ const PERIODICIDADES: { value: Periodicidade; label: string; dias: number }[] = 
   { value: "diario", label: "Diário", dias: 1 },
 ];
 
-const fmtBRL = (v: number) =>
-  v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+const fmtBRL = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
+const parseMoney = (value: string): number => {
+  if (!value) return 0;
+  return Number(String(value).replace(/\./g, "").replace(",", "."));
+};
+
+const formatMoneyInput = (value: number): string => {
+  if (!Number.isFinite(value)) return "";
+  return value.toFixed(2).replace(".", ",");
+};
+
+const formatTaxaInput = (value: number): string => {
+  if (!Number.isFinite(value)) return "";
+  return Number(value.toFixed(4)).toString().replace(".", ",");
+};
+
+type CalculoDriver = "taxa" | "parcela";
+
+function calcularParcelaPorTaxa(valor: number, taxa: number, n: number, tipo: TipoJuros): number {
+  if (tipo === "simples") return (valor + valor * taxa * n) / n;
+  if (tipo === "composto") {
+    if (taxa === 0) return valor / n;
+    return (valor * (taxa * Math.pow(1 + taxa, n))) / (Math.pow(1 + taxa, n) - 1);
+  }
+  return valor * taxa;
+}
+
+function calcularTaxaPorParcela(
+  valor: number,
+  parcela: number,
+  n: number,
+  tipo: TipoJuros,
+): number | null {
+  if (!valor || !parcela || !n) return null;
+  if (tipo === "simples") return Math.max((parcela * n - valor) / (valor * n), 0);
+  if (tipo === "so_juros") return Math.max(parcela / valor, 0);
+
+  const parcelaMinima = valor / n;
+  if (parcela <= parcelaMinima) return 0;
+
+  let low = 0;
+  let high = 1;
+  while (calcularParcelaPorTaxa(valor, high, n, "composto") < parcela && high < 100) {
+    high *= 2;
+  }
+
+  for (let i = 0; i < 80; i += 1) {
+    const mid = (low + high) / 2;
+    const atual = calcularParcelaPorTaxa(valor, mid, n, "composto");
+    if (atual < parcela) low = mid;
+    else high = mid;
+  }
+
+  return high;
+}
 
 type Parcela = {
   numero: number;
@@ -50,20 +104,31 @@ type Resultado = {
   valorParcela: number;
 };
 
-function calcular(form: {
-  valorPrincipal: string;
-  taxaJuros: string;
-  numParcelas: string;
-  tipoJuros: TipoJuros;
-  periodicidade: Periodicidade;
-  dataInicio: string;
-}): Resultado | null {
+function calcular(
+  form: {
+    valorPrincipal: string;
+    valorParcelaManual: string;
+    taxaJuros: string;
+    numParcelas: string;
+    tipoJuros: TipoJuros;
+    periodicidade: Periodicidade;
+    dataInicio: string;
+  },
+  driver: CalculoDriver = "taxa",
+): Resultado | null {
   const valor = parseFloat(form.valorPrincipal);
+  const valorParcelaManual = parseMoney(form.valorParcelaManual);
   const taxa = parseTaxa(form.taxaJuros) / 100;
   const n = parseInt(form.numParcelas);
   const per = PERIODICIDADES.find((p) => p.value === form.periodicidade);
   if (!valor || taxa < 0 || !n || !form.dataInicio || !per) return null;
-  if (Number.isNaN(valor) || Number.isNaN(taxa) || Number.isNaN(n)) return null;
+  if (
+    Number.isNaN(valor) ||
+    Number.isNaN(taxa) ||
+    Number.isNaN(n) ||
+    Number.isNaN(valorParcelaManual)
+  )
+    return null;
 
   const inicio = new Date(form.dataInicio + "T00:00:00");
   const buildData = (i: number) => {
@@ -77,7 +142,28 @@ function calcular(form: {
   let totalPagar: number;
   let parcelas: Parcela[];
 
-  if (form.tipoJuros === "simples") {
+  if (driver === "parcela" && valorParcelaManual > 0) {
+    valorParcela = valorParcelaManual;
+    if (form.tipoJuros === "so_juros") {
+      totalPagar = valorParcela * n + valor;
+      parcelas = Array.from({ length: n }, (_, i) => {
+        const ultima = i === n - 1;
+        return {
+          numero: i + 1,
+          ...buildData(i),
+          valor: ultima ? valorParcela + valor : valorParcela,
+          ultima,
+        };
+      });
+    } else {
+      totalPagar = valorParcela * n;
+      parcelas = Array.from({ length: n }, (_, i) => ({
+        numero: i + 1,
+        ...buildData(i),
+        valor: valorParcela,
+      }));
+    }
+  } else if (form.tipoJuros === "simples") {
     totalPagar = valor + valor * taxa * n;
     valorParcela = totalPagar / n;
     parcelas = Array.from({ length: n }, (_, i) => ({
@@ -90,8 +176,7 @@ function calcular(form: {
       valorParcela = valor / n;
       totalPagar = valor;
     } else {
-      valorParcela =
-        (valor * (taxa * Math.pow(1 + taxa, n))) / (Math.pow(1 + taxa, n) - 1);
+      valorParcela = (valor * (taxa * Math.pow(1 + taxa, n))) / (Math.pow(1 + taxa, n) - 1);
       totalPagar = valorParcela * n;
     }
     parcelas = Array.from({ length: n }, (_, i) => ({
@@ -282,9 +367,7 @@ function ClienteCombobox({ value, onChange, clientes, loading }: ClienteCombobox
                     </div>
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-medium text-foreground">
-                        <span className="mr-1.5 font-bold text-success">
-                          {codigoCliente(c.id)}
-                        </span>
+                        <span className="mr-1.5 font-bold text-success">{codigoCliente(c.id)}</span>
                         {c.nome ?? "Sem nome"}
                       </p>
                       <p className="truncate text-xs text-muted-foreground">
@@ -345,6 +428,7 @@ interface NovoEmprestimoDialogProps {
 const INITIAL_FORM = {
   clienteId: "" as string | number | "",
   valorPrincipal: "",
+  valorParcelaManual: "",
   taxaJuros: "",
   numParcelas: "",
   tipoJuros: "simples" as TipoJuros,
@@ -364,8 +448,7 @@ function extractPeriodicidade(obs: string | null): {
     const label = match[1].trim().toLowerCase();
     if (label.startsWith("quinzen")) periodicidade = "quinzenal";
     else if (label.startsWith("seman")) periodicidade = "semanal";
-    else if (label.startsWith("diár") || label.startsWith("diar"))
-      periodicidade = "diario";
+    else if (label.startsWith("diár") || label.startsWith("diar")) periodicidade = "diario";
     else periodicidade = "mensal";
   }
   const cleaned = obs.replace(/^\[Periodicidade:[^\]]*\]\s*\n*/i, "").trim();
@@ -379,6 +462,7 @@ export function NovoEmprestimoDialog({
   defaultClienteId,
 }: NovoEmprestimoDialogProps) {
   const [form, setForm] = useState(INITIAL_FORM);
+  const [calculoDriver, setCalculoDriver] = useState<CalculoDriver>("taxa");
   const queryClient = useQueryClient();
   const listClientesFn = useServerFn(listClientes);
   const createEmprestimoFn = useServerFn(createEmprestimo);
@@ -396,18 +480,20 @@ export function NovoEmprestimoDialog({
   useEffect(() => {
     if (!open) return;
     if (emprestimo) {
-      const { periodicidade, observacoes } = extractPeriodicidade(
-        emprestimo.observacoes,
-      );
+      const { periodicidade, observacoes } = extractPeriodicidade(emprestimo.observacoes);
       const tj = (emprestimo.tipo_juros ?? "simples") as TipoJuros;
+      setCalculoDriver("taxa");
       setForm({
         clienteId: emprestimo.cliente_id ?? "",
         valorPrincipal: String(emprestimo.valor_principal ?? ""),
-        taxaJuros: emprestimo.taxa_juros != null ? String(emprestimo.taxa_juros).replace(".", ",") : "",
+        valorParcelaManual:
+          emprestimo.valor_parcela != null
+            ? String(emprestimo.valor_parcela).replace(".", ",")
+            : "",
+        taxaJuros:
+          emprestimo.taxa_juros != null ? String(emprestimo.taxa_juros).replace(".", ",") : "",
         numParcelas: String(emprestimo.numero_parcelas ?? ""),
-        tipoJuros: (["simples", "composto", "so_juros"] as const).includes(
-          tj as never,
-        )
+        tipoJuros: (["simples", "composto", "so_juros"] as const).includes(tj as never)
           ? tj
           : "simples",
         periodicidade,
@@ -415,22 +501,57 @@ export function NovoEmprestimoDialog({
         observacoes,
       });
     } else {
+      setCalculoDriver("taxa");
       setForm({ ...INITIAL_FORM, clienteId: defaultClienteId ?? "" });
     }
   }, [open, emprestimo, defaultClienteId]);
 
   const resultado = useMemo(
     () =>
-      calcular({
-        valorPrincipal: form.valorPrincipal,
-        taxaJuros: form.taxaJuros,
-        numParcelas: form.numParcelas,
-        tipoJuros: form.tipoJuros,
-        periodicidade: form.periodicidade,
-        dataInicio: form.dataInicio,
-      }),
-    [form],
+      calcular(
+        {
+          valorPrincipal: form.valorPrincipal,
+          valorParcelaManual: form.valorParcelaManual,
+          taxaJuros: form.taxaJuros,
+          numParcelas: form.numParcelas,
+          tipoJuros: form.tipoJuros,
+          periodicidade: form.periodicidade,
+          dataInicio: form.dataInicio,
+        },
+        calculoDriver,
+      ),
+    [form, calculoDriver],
   );
+
+  useEffect(() => {
+    const valor = parseFloat(form.valorPrincipal);
+    const n = parseInt(form.numParcelas);
+    if (!valor || !n || Number.isNaN(valor) || Number.isNaN(n)) return;
+
+    if (calculoDriver === "parcela") {
+      const parcela = parseMoney(form.valorParcelaManual);
+      const taxa = calcularTaxaPorParcela(valor, parcela, n, form.tipoJuros);
+      if (taxa === null) return;
+      const nextTaxa = formatTaxaInput(taxa * 100);
+      setForm((p) => (p.taxaJuros === nextTaxa ? p : { ...p, taxaJuros: nextTaxa }));
+      return;
+    }
+
+    const taxa = parseTaxa(form.taxaJuros) / 100;
+    if (Number.isNaN(taxa) || taxa < 0) return;
+    const parcela = calcularParcelaPorTaxa(valor, taxa, n, form.tipoJuros);
+    const nextParcela = formatMoneyInput(parcela);
+    setForm((p) =>
+      p.valorParcelaManual === nextParcela ? p : { ...p, valorParcelaManual: nextParcela },
+    );
+  }, [
+    calculoDriver,
+    form.numParcelas,
+    form.taxaJuros,
+    form.tipoJuros,
+    form.valorParcelaManual,
+    form.valorPrincipal,
+  ]);
 
   const cliente = clientes.find((c) => String(c.id) === String(form.clienteId));
   const podeSalvar = !!form.clienteId && !!resultado;
@@ -479,13 +600,12 @@ export function NovoEmprestimoDialog({
     },
     onSuccess: () => {
       toast.success(
-        isEdit
-          ? "Empréstimo atualizado com sucesso!"
-          : "Empréstimo cadastrado com sucesso!",
+        isEdit ? "Empréstimo atualizado com sucesso!" : "Empréstimo cadastrado com sucesso!",
       );
-      queryClient.invalidateQueries({ queryKey: ["dashboard", "kpis"] });
-      queryClient.invalidateQueries({ queryKey: ["dashboard", "charts"] });
-      queryClient.invalidateQueries({ queryKey: ["emprestimos", "list"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      queryClient.invalidateQueries({ queryKey: ["emprestimos"] });
+      queryClient.invalidateQueries({ queryKey: ["parcelas"] });
+      queryClient.invalidateQueries({ queryKey: ["clientes"] });
       onOpenChange(false);
     },
     onError: (err: Error) => {
@@ -541,15 +661,26 @@ export function NovoEmprestimoDialog({
                 <div className="h-px flex-1 bg-border" />
               </div>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <div className="space-y-2">
+                <div className="space-y-2 sm:col-span-2">
                   <Label>Valor Principal (R$) *</Label>
                   <Input
                     type="number"
                     placeholder="0,00"
                     value={form.valorPrincipal}
-                    onChange={(e) =>
-                      setForm((p) => ({ ...p, valorPrincipal: e.target.value }))
-                    }
+                    onChange={(e) => setForm((p) => ({ ...p, valorPrincipal: e.target.value }))}
+                    className="h-11"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Valor da Parcela (R$)</Label>
+                  <Input
+                    inputMode="decimal"
+                    placeholder="0,00"
+                    value={form.valorParcelaManual}
+                    onChange={(e) => {
+                      setCalculoDriver("parcela");
+                      setForm((p) => ({ ...p, valorParcelaManual: e.target.value }));
+                    }}
                     className="h-11"
                   />
                 </div>
@@ -559,24 +690,23 @@ export function NovoEmprestimoDialog({
                     inputMode="decimal"
                     placeholder="0,00"
                     value={form.taxaJuros}
-                    onChange={(e) =>
-                      setForm((p) => ({ ...p, taxaJuros: maskTaxa(e.target.value) }))
-                    }
+                    onChange={(e) => {
+                      setCalculoDriver("taxa");
+                      setForm((p) => ({ ...p, taxaJuros: maskTaxa(e.target.value) }));
+                    }}
                     className="h-11"
                   />
                 </div>
-              </div>
-              <div className="space-y-2">
-                <Label>Número de Parcelas *</Label>
-                <Input
-                  type="number"
-                  placeholder="Ex: 12"
-                  value={form.numParcelas}
-                  onChange={(e) =>
-                    setForm((p) => ({ ...p, numParcelas: e.target.value }))
-                  }
-                  className="h-11"
-                />
+                <div className="space-y-2 sm:col-span-2">
+                  <Label>Numero de Parcelas *</Label>
+                  <Input
+                    type="number"
+                    placeholder="Ex: 12"
+                    value={form.numParcelas}
+                    onChange={(e) => setForm((p) => ({ ...p, numParcelas: e.target.value }))}
+                    className="h-11"
+                  />
+                </div>
               </div>
             </section>
 
@@ -613,9 +743,7 @@ export function NovoEmprestimoDialog({
                   <Input
                     type="date"
                     value={form.dataInicio}
-                    onChange={(e) =>
-                      setForm((p) => ({ ...p, dataInicio: e.target.value }))
-                    }
+                    onChange={(e) => setForm((p) => ({ ...p, dataInicio: e.target.value }))}
                     className="h-11"
                   />
                 </div>
@@ -627,9 +755,7 @@ export function NovoEmprestimoDialog({
                     <button
                       key={p.value}
                       type="button"
-                      onClick={() =>
-                        setForm((f) => ({ ...f, periodicidade: p.value }))
-                      }
+                      onClick={() => setForm((f) => ({ ...f, periodicidade: p.value }))}
                       className={cn(
                         "rounded-md border-2 px-2 py-2 text-xs font-semibold transition-colors",
                         form.periodicidade === p.value
@@ -654,9 +780,7 @@ export function NovoEmprestimoDialog({
               <Textarea
                 placeholder="Adicione observações sobre este empréstimo..."
                 value={form.observacoes}
-                onChange={(e) =>
-                  setForm((p) => ({ ...p, observacoes: e.target.value }))
-                }
+                onChange={(e) => setForm((p) => ({ ...p, observacoes: e.target.value }))}
                 rows={3}
               />
             </section>
@@ -715,14 +839,8 @@ export function NovoEmprestimoDialog({
                       label="Valor Principal"
                       valor={fmtBRL(parseFloat(form.valorPrincipal) || 0)}
                     />
-                    <CardMetrica
-                      label="Total de Juros"
-                      valor={fmtBRL(resultado.totalJuros)}
-                    />
-                    <CardMetrica
-                      label="Valor da Parcela"
-                      valor={fmtBRL(resultado.valorParcela)}
-                    />
+                    <CardMetrica label="Total de Juros" valor={fmtBRL(resultado.totalJuros)} />
+                    <CardMetrica label="Valor da Parcela" valor={fmtBRL(resultado.valorParcela)} />
                     <CardMetrica
                       label="Total a Pagar"
                       valor={fmtBRL(resultado.totalPagar)}
@@ -737,16 +855,15 @@ export function NovoEmprestimoDialog({
                         : form.tipoJuros === "composto"
                           ? "Compostos"
                           : "Só Juros"}{" "}
-                      •{" "}
-                      {PERIODICIDADES.find((p) => p.value === form.periodicidade)?.label}{" "}
-                      • {form.numParcelas} parcela(s)
+                      • {PERIODICIDADES.find((p) => p.value === form.periodicidade)?.label} •{" "}
+                      {form.numParcelas} parcela(s)
                     </p>
                   </div>
                   {form.tipoJuros === "so_juros" && (
                     <div className="mt-2 rounded-md border-l-4 border-success bg-success/5 px-3 py-2">
                       <p className="text-xs text-foreground">
-                        💡 O cliente pagará apenas os juros mensais, quitando o capital
-                        principal na última parcela.
+                        💡 O cliente pagará apenas os juros mensais, quitando o capital principal na
+                        última parcela.
                       </p>
                     </div>
                   )}
@@ -778,9 +895,7 @@ export function NovoEmprestimoDialog({
                           <td className="px-3 py-2 font-bold text-success">
                             #{String(p.numero).padStart(2, "0")}
                           </td>
-                          <td className="px-3 py-2 text-muted-foreground">
-                            {p.vencimento}
-                          </td>
+                          <td className="px-3 py-2 text-muted-foreground">{p.vencimento}</td>
                           <td className="px-3 py-2 font-semibold text-foreground">
                             <div className="flex items-center gap-2">
                               <span>{fmtBRL(p.valor)}</span>

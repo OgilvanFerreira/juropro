@@ -8,9 +8,7 @@ function getServerClient(opts?: { admin?: boolean }) {
   const anonKey = process.env.EXTERNAL_SUPABASE_ANON_KEY;
   const serviceKey = process.env.EXTERNAL_SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !anonKey) {
-    throw new Error(
-      "EXTERNAL_SUPABASE_URL ou EXTERNAL_SUPABASE_ANON_KEY não configurados.",
-    );
+    throw new Error("EXTERNAL_SUPABASE_URL ou EXTERNAL_SUPABASE_ANON_KEY não configurados.");
   }
   const key = opts?.admin && serviceKey ? serviceKey : anonKey;
   return createClient(url, key, {
@@ -38,8 +36,7 @@ export type ParcelaListItem = {
 
 export const listParcelas = createServerFn({ method: "GET" })
   .middleware([requireAuthForExternal])
-  .handler(
-  async ({ context }): Promise<{ data: ParcelaListItem[]; error: string | null }> => {
+  .handler(async ({ context }): Promise<{ data: ParcelaListItem[]; error: string | null }> => {
     const supabase = getServerClient();
 
     const { data: parcelas, error: parErr } = await supabase
@@ -64,7 +61,9 @@ export const listParcelas = createServerFn({ method: "GET" })
     const { data: emps, error: empErr } = empIds.length
       ? await supabase
           .from("emprestimos")
-          .select("id, cliente_id, numero_parcelas, taxa_juros, valor_principal, created_at")
+          .select(
+            "id, cliente_id, numero_parcelas, taxa_juros, tipo_juros, valor_principal, created_at",
+          )
           .eq("user_id", context.userId)
           .in("id", empIds as (string | number)[])
       : { data: [], error: null };
@@ -80,6 +79,7 @@ export const listParcelas = createServerFn({ method: "GET" })
         cliente_id: string | number | null;
         numero_parcelas: number;
         taxa_juros: number;
+        tipo_juros: string | null;
         valor_principal: number;
         created_at: string | null;
       }
@@ -89,6 +89,7 @@ export const listParcelas = createServerFn({ method: "GET" })
         cliente_id: e.cliente_id ?? null,
         numero_parcelas: Number(e.numero_parcelas ?? 0),
         taxa_juros: Number(e.taxa_juros ?? 0),
+        tipo_juros: e.tipo_juros ?? null,
         valor_principal: Number(e.valor_principal ?? 0),
         created_at: e.created_at ?? null,
       }),
@@ -132,7 +133,19 @@ export const listParcelas = createServerFn({ method: "GET" })
     const out: ParcelaListItem[] = list.map((p) => {
       const emp = empMap.get(String(p.emprestimo_id));
       const cli = emp?.cliente_id ? cliMap.get(String(emp.cliente_id)) : null;
-      const minimo = emp ? (emp.valor_principal * emp.taxa_juros) / 100 : 0;
+      let minimo = 0;
+      if (emp) {
+        if (emp.tipo_juros === "so_juros") {
+          const valorParcela = Number(p.valor_parcela ?? 0);
+          const isUltima = Number(p.numero_parcela ?? 0) === emp.numero_parcelas;
+          minimo =
+            isUltima && valorParcela > emp.valor_principal
+              ? valorParcela - emp.valor_principal
+              : valorParcela;
+        } else {
+          minimo = (emp.valor_principal * emp.taxa_juros) / 100;
+        }
+      }
       const seq = seqMap.get(String(p.emprestimo_id)) ?? 0;
       const codigo = `#${String(seq).padStart(3, "0")}`;
       return {
@@ -155,8 +168,7 @@ export const listParcelas = createServerFn({ method: "GET" })
     });
 
     return { data: out, error: null };
-  },
-);
+  });
 
 const baixaSchema = z.object({
   id: z.union([z.string().min(1), z.number()]),
@@ -190,8 +202,7 @@ export const baixaParcela = createServerFn({ method: "POST" })
     if (!updated || updated.length === 0) {
       return {
         ok: false,
-        error:
-          "Nenhuma parcela foi atualizada. Verifique as permissões (RLS) da tabela parcelas.",
+        error: "Nenhuma parcela foi atualizada. Verifique as permissões (RLS) da tabela parcelas.",
       };
     }
     return { ok: true, error: null };
@@ -227,8 +238,7 @@ export const estornoParcela = createServerFn({ method: "POST" })
     if (!updated || updated.length === 0) {
       return {
         ok: false,
-        error:
-          "Nenhuma parcela foi estornada. Verifique as permissões (RLS) da tabela parcelas.",
+        error: "Nenhuma parcela foi estornada. Verifique as permissões (RLS) da tabela parcelas.",
       };
     }
     return { ok: true, error: null };
