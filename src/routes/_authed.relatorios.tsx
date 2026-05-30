@@ -69,6 +69,7 @@ import {
 import { listClientes } from "@/integrations/external-supabase/clientes.functions";
 import { ContratoPdfDialog } from "@/components/relatorios/ContratoPdfDialog";
 import { NovoEmprestimoDialog } from "@/components/emprestimos/NovoEmprestimoDialog";
+import { BaixaParcelaDialog } from "@/components/parcelas/BaixaParcelaDialog";
 import { exportToCsv } from "@/lib/csv";
 import { useAdminName } from "@/hooks/use-admin-name";
 import { cn } from "@/lib/utils";
@@ -513,8 +514,10 @@ function FinanceiroTab() {
       data_pagamento: string;
       valor_pago: number;
       gerar_nova_cobranca?: boolean;
+      nova_cobranca_base?: number;
       nova_cobranca_valor?: number;
       nova_cobranca_vencimento?: string;
+      nova_cobranca_periodicidade?: "mensal" | "quinzenal" | "semanal" | "diario";
     }) =>
       baixaFn({ data: input }),
     onMutate: (input) => setAcaoParcelaId(input.id),
@@ -950,7 +953,7 @@ function FinanceiroTab() {
         )}
       </div>
 
-      <FinanceiroBaixaDialog
+      <BaixaParcelaDialog
         parcela={modalParcela}
         onClose={() => setModalParcela(null)}
         onConfirm={(payload) =>
@@ -960,8 +963,10 @@ function FinanceiroTab() {
             data_pagamento: payload.data_pagamento,
             valor_pago: payload.valor_pago,
             gerar_nova_cobranca: payload.gerar_nova_cobranca,
+            nova_cobranca_base: payload.nova_cobranca_base,
             nova_cobranca_valor: payload.nova_cobranca_valor,
             nova_cobranca_vencimento: payload.nova_cobranca_vencimento,
+            nova_cobranca_periodicidade: payload.nova_cobranca_periodicidade,
           })
         }
         isLoading={baixaMutation.isPending}
@@ -1978,8 +1983,10 @@ function InadimplenciaTab() {
       data_pagamento: string;
       valor_pago: number;
       gerar_nova_cobranca?: boolean;
+      nova_cobranca_base?: number;
       nova_cobranca_valor?: number;
       nova_cobranca_vencimento?: string;
+      nova_cobranca_periodicidade?: "mensal" | "quinzenal" | "semanal" | "diario";
     }) =>
       baixaFn({ data: input }),
     onMutate: (input) => setBaixandoParcelaId(input.id),
@@ -2310,6 +2317,11 @@ function InadimplenciaTab() {
             id: parcela.id,
             data_pagamento: payload.data_pagamento,
             valor_pago: payload.valor_pago,
+            gerar_nova_cobranca: payload.gerar_nova_cobranca,
+            nova_cobranca_base: payload.nova_cobranca_base,
+            nova_cobranca_valor: payload.nova_cobranca_valor,
+            nova_cobranca_vencimento: payload.nova_cobranca_vencimento,
+            nova_cobranca_periodicidade: payload.nova_cobranca_periodicidade,
           })
         }
         isLoading={baixaMutation.isPending}
@@ -2328,13 +2340,23 @@ function InadimplenciaBaixaDialog({
   onClose: () => void;
   onConfirm: (
     parcela: ParcelaListItem,
-    payload: { data_pagamento: string; valor_pago: number },
+    payload: {
+      data_pagamento: string;
+      valor_pago: number;
+      gerar_nova_cobranca?: boolean;
+      nova_cobranca_base?: number;
+      nova_cobranca_valor?: number;
+      nova_cobranca_vencimento?: string;
+      nova_cobranca_periodicidade?: "mensal" | "quinzenal" | "semanal" | "diario";
+    },
   ) => void;
   isLoading: boolean;
 }) {
   const [parcelaId, setParcelaId] = useState("");
   const [dataPag, setDataPag] = useState(todayIso());
   const [valorPag, setValorPag] = useState("0");
+  const [gerarNovaCobranca, setGerarNovaCobranca] = useState(false);
+  const [periodicidade, setPeriodicidade] = useState<"mensal" | "quinzenal" | "semanal" | "diario">("mensal");
 
   const parcelas = useMemo(() => {
     return [...(cliente?.parcelas ?? [])].sort((a, b) => {
@@ -2352,6 +2374,8 @@ function InadimplenciaBaixaDialog({
     setParcelaId("");
     setDataPag(todayIso());
     setValorPag("0");
+    setGerarNovaCobranca(false);
+    setPeriodicidade("mensal");
   }, [cliente]);
 
   useEffect(() => {
@@ -2360,7 +2384,26 @@ function InadimplenciaBaixaDialog({
   }, [parcelaSelecionada]);
 
   const valorNum = Number.parseFloat(valorPag.replace(",", ".")) || 0;
-  const diferenca = parcelaSelecionada ? parcelaSelecionada.valor_parcela - valorNum : 0;
+  const diferenca = parcelaSelecionada ? Math.max(parcelaSelecionada.valor_parcela - valorNum, 0) : 0;
+  const periodicidades = [
+    { value: "mensal" as const, label: "Mensal", dias: 30 },
+    { value: "quinzenal" as const, label: "Quinzenal", dias: 15 },
+    { value: "semanal" as const, label: "Semanal", dias: 7 },
+    { value: "diario" as const, label: "Diário", dias: 1 },
+  ];
+  const per = periodicidades.find((p) => p.value === periodicidade) ?? periodicidades[0];
+  const minimo = Number(parcelaSelecionada?.valor_minimo ?? 0);
+  const capital = Number(parcelaSelecionada?.valor_principal ?? 0);
+  const jurosNaoPago = Math.max(minimo - valorNum, 0);
+  const quitouJuros = minimo > 0 && valorNum >= minimo - 0.005;
+  const baseNovaCobranca = parcelaSelecionada
+    ? quitouJuros
+      ? diferenca
+      : capital + jurosNaoPago
+    : 0;
+  const jurosNovaCobranca = baseNovaCobranca * (Number(parcelaSelecionada?.taxa_juros ?? 0) / 100);
+  const valorNovaCobranca = jurosNovaCobranca;
+  const vencimentoNovaCobranca = addDaysIso(dataPag, per.dias);
 
   return (
     <Dialog
@@ -2447,6 +2490,76 @@ function InadimplenciaBaixaDialog({
                     Pagamento parcial - diferença de {fmtBRL(diferenca)}
                   </p>
                 )}
+                <div className="rounded-lg border border-emerald-200 bg-emerald-50/70 p-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="space-y-1">
+                      <Label htmlFor="inad-gerar-nova-cobranca" className="text-sm font-semibold text-foreground">
+                        {diferenca > 0.005
+                          ? "Adicionar saldo na próxima cobrança?"
+                          : "Gerar nova cobrança?"}
+                      </Label>
+                      <p className="text-xs text-muted-foreground">
+                        A nova parcela será o juros sobre o montante em aberto.
+                      </p>
+                    </div>
+                    <Switch
+                      id="inad-gerar-nova-cobranca"
+                      checked={gerarNovaCobranca}
+                      onCheckedChange={setGerarNovaCobranca}
+                    />
+                  </div>
+
+                  {gerarNovaCobranca && (
+                    <div className="mt-3 space-y-3 border-t border-emerald-200 pt-3">
+                      <div>
+                        <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                          Periodicidade
+                        </Label>
+                        <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                          {periodicidades.map((p) => (
+                            <button
+                              key={p.value}
+                              type="button"
+                              onClick={() => setPeriodicidade(p.value)}
+                              className={cn(
+                                "rounded-md border px-2.5 py-2 text-xs font-semibold transition-colors",
+                                periodicidade === p.value
+                                  ? "border-emerald-600 bg-emerald-600 text-white"
+                                  : "border-border bg-background text-foreground hover:bg-muted",
+                              )}
+                            >
+                              {p.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="rounded-lg border border-border bg-background p-3">
+                        <p className="mb-2 text-xs font-bold uppercase tracking-wide text-muted-foreground">
+                          Preview da nova parcela
+                        </p>
+                        <div className="grid grid-cols-2 gap-3 text-sm">
+                          <div>
+                            <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Vencimento</p>
+                            <p className="font-semibold text-foreground">{fmtDate(vencimentoNovaCobranca)}</p>
+                          </div>
+                          <div>
+                            <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Montante</p>
+                            <p className="font-semibold text-foreground">{fmtBRL(baseNovaCobranca)}</p>
+                          </div>
+                          <div>
+                            <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Juros</p>
+                            <p className="font-semibold text-amber-600">{fmtBRL(jurosNovaCobranca)}</p>
+                          </div>
+                          <div>
+                            <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Total</p>
+                            <p className="font-semibold text-emerald-700">{fmtBRL(valorNovaCobranca)}</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
 
@@ -2460,6 +2573,11 @@ function InadimplenciaBaixaDialog({
                   onConfirm(parcelaSelecionada, {
                     data_pagamento: dataPag,
                     valor_pago: valorNum,
+                    gerar_nova_cobranca: gerarNovaCobranca,
+                    nova_cobranca_base: gerarNovaCobranca ? baseNovaCobranca : undefined,
+                    nova_cobranca_valor: gerarNovaCobranca ? valorNovaCobranca : undefined,
+                    nova_cobranca_vencimento: gerarNovaCobranca ? vencimentoNovaCobranca : undefined,
+                    nova_cobranca_periodicidade: gerarNovaCobranca ? periodicidade : undefined,
                   })
                 }
                 disabled={isLoading || !parcelaSelecionada || !dataPag || valorNum < 0}

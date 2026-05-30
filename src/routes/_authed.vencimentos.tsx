@@ -53,6 +53,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { TablePagination, type PageSize } from "@/components/ui/table-pagination";
 import { NovoEmprestimoDialog } from "@/components/emprestimos/NovoEmprestimoDialog";
+import { BaixaParcelaDialog } from "@/components/parcelas/BaixaParcelaDialog";
 import { useAdminName } from "@/hooks/use-admin-name";
 import {
   baixaParcela,
@@ -327,8 +328,10 @@ function VencimentosPage() {
       data_pagamento: string;
       valor_pago: number;
       gerar_nova_cobranca?: boolean;
+      nova_cobranca_base?: number;
       nova_cobranca_valor?: number;
       nova_cobranca_vencimento?: string;
+      nova_cobranca_periodicidade?: "mensal" | "quinzenal" | "semanal" | "diario";
     }) =>
       baixaParcela({ data: input }),
     onSuccess: (res) => {
@@ -671,7 +674,7 @@ function VencimentosPage() {
       </div>
 
       {/* Modal Baixa */}
-      <BaixaDialog
+      <BaixaParcelaDialog
         parcela={modalParcela}
         onClose={() => setModalParcela(null)}
         onConfirm={(payload) =>
@@ -681,8 +684,10 @@ function VencimentosPage() {
             data_pagamento: payload.data_pagamento,
             valor_pago: payload.valor_pago,
             gerar_nova_cobranca: payload.gerar_nova_cobranca,
+            nova_cobranca_base: payload.nova_cobranca_base,
             nova_cobranca_valor: payload.nova_cobranca_valor,
             nova_cobranca_vencimento: payload.nova_cobranca_vencimento,
+            nova_cobranca_periodicidade: payload.nova_cobranca_periodicidade,
           })
         }
         isLoading={baixaMutation.isPending}

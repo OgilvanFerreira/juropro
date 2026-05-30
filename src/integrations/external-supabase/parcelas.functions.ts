@@ -23,6 +23,7 @@ export type ParcelaListItem = {
   parcelas_total: number;
   data_vencimento: string | null;
   valor_parcela: number;
+  valor_principal: number;
   valor_minimo: number;
   status: string | null;
   data_pagamento: string | null;
@@ -32,6 +33,8 @@ export type ParcelaListItem = {
   cliente_telefone: string | null;
   contrato_codigo: string;
   emprestimo_seq: number;
+  taxa_juros: number;
+  tipo_juros: string | null;
 };
 
 export const listParcelas = createServerFn({ method: "GET" })
@@ -155,6 +158,7 @@ export const listParcelas = createServerFn({ method: "GET" })
         parcelas_total: emp?.numero_parcelas ?? 0,
         data_vencimento: p.data_vencimento ?? null,
         valor_parcela: Number(p.valor_parcela ?? 0),
+        valor_principal: emp?.valor_principal ?? 0,
         valor_minimo: minimo,
         status: p.status ?? null,
         data_pagamento: p.data_pagamento ?? null,
@@ -164,6 +168,8 @@ export const listParcelas = createServerFn({ method: "GET" })
         cliente_telefone: cli?.telefone ?? null,
         contrato_codigo: codigo,
         emprestimo_seq: seq,
+        taxa_juros: emp?.taxa_juros ?? 0,
+        tipo_juros: emp?.tipo_juros ?? null,
       };
     });
 
@@ -181,8 +187,10 @@ const baixaSchema = z.object({
   data_pagamento: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   valor_pago: z.number().min(0),
   gerar_nova_cobranca: z.boolean().optional(),
+  nova_cobranca_base: z.number().min(0).optional(),
   nova_cobranca_valor: z.number().min(0).optional(),
   nova_cobranca_vencimento: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  nova_cobranca_periodicidade: z.enum(["mensal", "quinzenal", "semanal", "diario"]).optional(),
 });
 
 export type BaixaParcelaInput = z.infer<typeof baixaSchema>;
@@ -241,9 +249,24 @@ export const baixaParcela = createServerFn({ method: "POST" })
         return { ok: false, error: `Baixa registrada, mas falhou ao calcular nova cobrança: ${ultErr.message}` };
       }
 
+      const { data: emprestimoAtual, error: empSelectErr } = await supabase
+        .from("emprestimos")
+        .select("taxa_juros, tipo_juros")
+        .eq("id", parcelaAtual.emprestimo_id)
+        .eq("user_id", context.userId)
+        .single();
+
+      if (empSelectErr) {
+        console.error("baixaParcela emprestimo select error:", empSelectErr);
+        return { ok: false, error: `Baixa registrada, mas falhou ao buscar juros do contrato: ${empSelectErr.message}` };
+      }
+
       const nextNumero = Number(ultimas?.[0]?.numero_parcela ?? parcelaAtual.numero_parcela ?? 0) + 1;
       const novoVencimento = data.nova_cobranca_vencimento ?? addDaysIso(data.data_pagamento, 30);
-      const novoValor = Number(data.nova_cobranca_valor ?? 0);
+      const taxa = Number(emprestimoAtual?.taxa_juros ?? 0) / 100;
+      const base = Number(data.nova_cobranca_base ?? 0);
+      const novoValor =
+        base > 0 ? Number((base * taxa).toFixed(2)) : Number(data.nova_cobranca_valor ?? 0);
 
       const { error: insErr } = await supabase.from("parcelas").insert({
         user_id: context.userId,
@@ -309,17 +332,15 @@ export const estornoParcela = createServerFn({ method: "POST" })
     let cobrancaGeradaNumero = 0;
 
     if (parcelaAtual.data_pagamento) {
-      const vencimentoGerado = addDaysIso(String(parcelaAtual.data_pagamento), 30);
       const { data: geradas, error: geradasErr } = await supabase
         .from("parcelas")
-        .select("id, numero_parcela")
+        .select("id, numero_parcela, created_at")
         .eq("user_id", context.userId)
         .eq("emprestimo_id", parcelaAtual.emprestimo_id)
         .eq("status", "pendente")
-        .eq("data_vencimento", vencimentoGerado)
         .gt("numero_parcela", Number(parcelaAtual.numero_parcela ?? 0))
         .gte("created_at", `${parcelaAtual.data_pagamento}T00:00:00`)
-        .order("numero_parcela", { ascending: false })
+        .order("created_at", { ascending: false })
         .limit(1);
 
       if (geradasErr) {
