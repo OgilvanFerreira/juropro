@@ -1,6 +1,7 @@
 import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Search,
   ArrowUp,
@@ -23,13 +24,26 @@ import {
   BarChart3,
   ClipboardList,
   Eye,
+  Pencil,
+  Undo2,
 } from "lucide-react";
+import { toast } from "sonner";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/dashboard/AppSidebar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
@@ -41,13 +55,20 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import { TablePagination, type PageSize } from "@/components/ui/table-pagination";
-import { listEmprestimos } from "@/integrations/external-supabase/emprestimos.functions";
 import {
+  getEmprestimo,
+  listEmprestimos,
+  type EmprestimoFull,
+} from "@/integrations/external-supabase/emprestimos.functions";
+import {
+  baixaParcela,
+  estornoParcela,
   listParcelas,
   type ParcelaListItem,
 } from "@/integrations/external-supabase/parcelas.functions";
 import { listClientes } from "@/integrations/external-supabase/clientes.functions";
 import { ContratoPdfDialog } from "@/components/relatorios/ContratoPdfDialog";
+import { NovoEmprestimoDialog } from "@/components/emprestimos/NovoEmprestimoDialog";
 import { exportToCsv } from "@/lib/csv";
 import { useAdminName } from "@/hooks/use-admin-name";
 import { cn } from "@/lib/utils";
@@ -60,7 +81,7 @@ type RelatoriosSearch = {
 
 export const Route = createFileRoute("/_authed/relatorios")({
   head: () => ({
-    meta: [{ title: "Relatorios - JuroPro" }],
+    meta: [{ title: "Relatórios - JuroPro" }],
   }),
   validateSearch: (search: Record<string, unknown>): RelatoriosSearch => {
     const out: RelatoriosSearch = {};
@@ -94,13 +115,19 @@ const fmtBRL = (v: number) =>
   });
 
 const fmtDate = (iso: string | null) => {
-  if (!iso) return "—";
+  if (!iso) return "-";
   const d = new Date(iso.length <= 10 ? iso + "T00:00:00" : iso);
-  if (Number.isNaN(d.getTime())) return "—";
+  if (Number.isNaN(d.getTime())) return "-";
   return d.toLocaleDateString("pt-BR");
 };
 
 const todayIso = () => new Date().toISOString().slice(0, 10);
+
+const addDaysIso = (iso: string, days: number) => {
+  const d = new Date(`${iso}T00:00:00`);
+  d.setDate(d.getDate() + days);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
 
 const MESES = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
 
@@ -168,9 +195,9 @@ function RelatoriosPage() {
   );
 }
 
-// ─────────────────────────────────────────────────────────────
+// ------------------------------------------------------------
 // KPI Card
-// ─────────────────────────────────────────────────────────────
+// ------------------------------------------------------------
 function KpiBox({
   label,
   value,
@@ -214,9 +241,9 @@ function KpiBox({
   );
 }
 
-// ─────────────────────────────────────────────────────────────
+// ------------------------------------------------------------
 // Sort header helper
-// ─────────────────────────────────────────────────────────────
+// ------------------------------------------------------------
 function SortHeader<K extends string>({
   label,
   col,
@@ -258,9 +285,9 @@ function SortHeader<K extends string>({
   );
 }
 
-// ─────────────────────────────────────────────────────────────
+// ------------------------------------------------------------
 // Cliente combobox
-// ─────────────────────────────────────────────────────────────
+// ------------------------------------------------------------
 function ClienteFilter({
   clientes,
   value,
@@ -319,7 +346,7 @@ function ClienteFilter({
                       value === String(c.id) ? "opacity-100" : "opacity-0",
                     )}
                   />
-                  {c.nome ?? "—"}
+                  {c.nome ?? "-"}
                 </CommandItem>
               ))}
             </CommandGroup>
@@ -343,6 +370,12 @@ function FinanceiroTab() {
   const [porPagina, setPorPagina] = useState<PageSize>(5);
   const [sortKey, setSortKey] = useState<FinSortKey | null>("vencimento");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const [acaoParcelaId, setAcaoParcelaId] = useState<string | number | null>(null);
+  const [modalParcela, setModalParcela] = useState<ParcelaListItem | null>(null);
+
+  const queryClient = useQueryClient();
+  const baixaFn = useServerFn(baixaParcela);
+  const estornoFn = useServerFn(estornoParcela);
 
   const { user, loading: authLoading } = useAuth();
   const authReady = !authLoading && !!user;
@@ -474,13 +507,60 @@ function FinanceiroTab() {
     }
   };
 
+  const baixaMutation = useMutation({
+    mutationFn: (input: {
+      id: string | number;
+      data_pagamento: string;
+      valor_pago: number;
+      gerar_nova_cobranca?: boolean;
+      nova_cobranca_valor?: number;
+      nova_cobranca_vencimento?: string;
+    }) =>
+      baixaFn({ data: input }),
+    onMutate: (input) => setAcaoParcelaId(input.id),
+    onSuccess: (res) => {
+      if (!res.ok) {
+        toast.error(res.error ?? "Falha ao registrar baixa.");
+        return;
+      }
+      toast.success("Baixa registrada com sucesso!");
+      setModalParcela(null);
+      queryClient.invalidateQueries({ queryKey: ["parcelas"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      queryClient.invalidateQueries({ queryKey: ["emprestimos"] });
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "Erro inesperado.");
+    },
+    onSettled: () => setAcaoParcelaId(null),
+  });
+
+  const estornoMutation = useMutation({
+    mutationFn: (parcela: ParcelaListItem) => estornoFn({ data: { id: parcela.id } }),
+    onMutate: (parcela) => setAcaoParcelaId(parcela.id),
+    onSuccess: (res) => {
+      if (!res.ok) {
+        toast.error(res.error ?? "Falha ao estornar pagamento.");
+        return;
+      }
+      toast.success("Pagamento estornado com sucesso!");
+      queryClient.invalidateQueries({ queryKey: ["parcelas"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      queryClient.invalidateQueries({ queryKey: ["emprestimos"] });
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "Erro inesperado.");
+    },
+    onSettled: () => setAcaoParcelaId(null),
+  });
+
   const isLoading = empQ.isLoading || parQ.isLoading;
 
   const handleExport = () => {
     exportToCsv(
       `financeiro-${todayIso()}.csv`,
       detalhadas.map((p) => ({
-        cliente: p.cliente_nome ?? "—",
+        cliente: p.cliente_nome ?? "-",
         contrato: p.contrato_codigo ?? "",
         vencimento: fmtDate(p.data_vencimento),
         valor: p.valor_parcela.toFixed(2).replace(".", ","),
@@ -498,7 +578,7 @@ function FinanceiroTab() {
     );
   };
 
-  // Apenas referência (não muda lógica) — manter unused emprestimos sem erro
+  // Apenas referência (não muda lógica) - manter unused emprestimos sem erro
   void emprestimos;
 
   return (
@@ -585,7 +665,7 @@ function FinanceiroTab() {
         <div className="flex items-center justify-between gap-2 mb-4 flex-wrap">
           <h3 className="text-sm font-semibold flex items-center gap-1.5">
             <BarChart3 className="h-4 w-4 text-info" />
-            Previsto vs Realizado — Últimos 6 Meses
+            Previsto vs Realizado - Últimos 6 Meses
           </h3>
           <div className="flex items-center gap-3 text-xs text-muted-foreground">
             <div className="flex items-center gap-1.5">
@@ -687,6 +767,9 @@ function FinanceiroTab() {
                       dir={sortDir}
                       onClick={handleSort}
                     />
+                    <th className="px-3 py-2.5 text-right text-xs font-semibold text-muted-foreground whitespace-nowrap">
+                      Ações
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -698,7 +781,7 @@ function FinanceiroTab() {
                         key={String(p.id)}
                         className="border-b last:border-0 hover:bg-muted/30 transition-colors"
                       >
-                        <td className="px-3 py-2.5">{p.cliente_nome ?? "—"}</td>
+                        <td className="px-3 py-2.5">{p.cliente_nome ?? "-"}</td>
                         <td className="px-3 py-2.5 font-mono text-xs font-semibold text-primary">
                           {p.contrato_codigo}
                         </td>
@@ -717,7 +800,7 @@ function FinanceiroTab() {
                             paga ? "text-success font-medium" : "text-muted-foreground",
                           )}
                         >
-                          {paga ? fmtBRL(p.valor_pago ?? p.valor_parcela) : "—"}
+                          {paga ? fmtBRL(p.valor_pago ?? p.valor_parcela) : "-"}
                         </td>
                         <td className="px-3 py-2.5">
                           <Badge
@@ -734,6 +817,46 @@ function FinanceiroTab() {
                             {paga ? "Pago" : atrasada ? "Atrasado" : "Pendente"}
                           </Badge>
                         </td>
+                        <td className="px-3 py-2.5 text-right">
+                          <TooltipProvider delayDuration={250}>
+                            {paga ? (
+                              <ActionTooltip label="Estornar pagamento">
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-8 border-amber-200 text-amber-700 hover:bg-amber-50 hover:text-amber-800"
+                                  onClick={() => estornoMutation.mutate(p)}
+                                  disabled={acaoParcelaId === p.id}
+                                >
+                                  {acaoParcelaId === p.id ? (
+                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                  ) : (
+                                    <Undo2 className="h-3.5 w-3.5" />
+                                  )}
+                                  Estornar
+                                </Button>
+                              </ActionTooltip>
+                            ) : (
+                              <ActionTooltip label="Dar baixa na parcela">
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  className="h-8 bg-success text-success-foreground hover:bg-success/90"
+                                  onClick={() => setModalParcela(p)}
+                                  disabled={acaoParcelaId === p.id}
+                                >
+                                  {acaoParcelaId === p.id ? (
+                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                  ) : (
+                                    <CheckCircle2 className="h-3.5 w-3.5" />
+                                  )}
+                                  Dar baixa
+                                </Button>
+                              </ActionTooltip>
+                            )}
+                          </TooltipProvider>
+                        </td>
                       </tr>
                     );
                   })}
@@ -749,7 +872,7 @@ function FinanceiroTab() {
                 return (
                   <div key={String(p.id)} className="p-3 space-y-1.5">
                     <div className="flex items-center justify-between gap-2">
-                      <p className="font-medium text-sm truncate">{p.cliente_nome ?? "—"}</p>
+                      <p className="font-medium text-sm truncate">{p.cliente_nome ?? "-"}</p>
                       <Badge
                         variant="outline"
                         className={cn(
@@ -768,7 +891,7 @@ function FinanceiroTab() {
                       <span className="font-mono font-semibold text-primary">
                         {p.contrato_codigo}
                       </span>
-                      <span className="text-muted-foreground">•</span>
+                      <span className="text-muted-foreground">-</span>
                       <span
                         className={cn(
                           atrasada ? "text-destructive font-medium" : "text-muted-foreground",
@@ -785,6 +908,28 @@ function FinanceiroTab() {
                         </span>
                       ) : null}
                     </div>
+                    <Button
+                      type="button"
+                      variant={paga ? "outline" : "default"}
+                      size="sm"
+                      className={cn(
+                        "mt-2 w-full",
+                        paga
+                          ? "border-amber-200 text-amber-700 hover:bg-amber-50 hover:text-amber-800"
+                          : "bg-success text-success-foreground hover:bg-success/90",
+                      )}
+                      onClick={() => (paga ? estornoMutation.mutate(p) : setModalParcela(p))}
+                      disabled={acaoParcelaId === p.id}
+                    >
+                      {acaoParcelaId === p.id ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : paga ? (
+                        <Undo2 className="h-4 w-4" />
+                      ) : (
+                        <CheckCircle2 className="h-4 w-4" />
+                      )}
+                      {paga ? "Estornar" : "Dar baixa"}
+                    </Button>
                   </div>
                 );
               })}
@@ -804,6 +949,195 @@ function FinanceiroTab() {
           </>
         )}
       </div>
+
+      <FinanceiroBaixaDialog
+        parcela={modalParcela}
+        onClose={() => setModalParcela(null)}
+        onConfirm={(payload) =>
+          modalParcela &&
+          baixaMutation.mutate({
+            id: modalParcela.id,
+            data_pagamento: payload.data_pagamento,
+            valor_pago: payload.valor_pago,
+            gerar_nova_cobranca: payload.gerar_nova_cobranca,
+            nova_cobranca_valor: payload.nova_cobranca_valor,
+            nova_cobranca_vencimento: payload.nova_cobranca_vencimento,
+          })
+        }
+        isLoading={baixaMutation.isPending}
+      />
+    </div>
+  );
+}
+
+function FinanceiroBaixaDialog({
+  parcela,
+  onClose,
+  onConfirm,
+  isLoading,
+}: {
+  parcela: ParcelaListItem | null;
+  onClose: () => void;
+  onConfirm: (payload: {
+    data_pagamento: string;
+    valor_pago: number;
+    gerar_nova_cobranca?: boolean;
+    nova_cobranca_valor?: number;
+    nova_cobranca_vencimento?: string;
+  }) => void;
+  isLoading: boolean;
+}) {
+  const [dataPag, setDataPag] = useState(todayIso());
+  const [valorPag, setValorPag] = useState("0");
+  const [gerarNovaCobranca, setGerarNovaCobranca] = useState(false);
+
+  useEffect(() => {
+    if (parcela) {
+      setDataPag(todayIso());
+      setValorPag(parcela.valor_parcela.toFixed(2));
+      setGerarNovaCobranca(false);
+    }
+  }, [parcela]);
+
+  const valorNum = Number.parseFloat(valorPag.replace(",", ".")) || 0;
+  const diferenca = parcela ? Math.max(parcela.valor_parcela - valorNum, 0) : 0;
+  const valorNovaCobranca = parcela
+    ? diferenca > 0.005
+      ? parcela.valor_parcela + diferenca
+      : parcela.valor_parcela
+    : 0;
+  const vencimentoNovaCobranca = addDaysIso(dataPag, 30);
+
+  return (
+    <Dialog
+      open={!!parcela}
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+    >
+      <DialogContent className="w-[calc(100vw-2rem)] sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+            Confirmar Baixa
+          </DialogTitle>
+          <DialogDescription>
+            {parcela?.cliente_nome ?? "Cliente"} • Parcela {parcela?.numero_parcela}/
+            {parcela?.parcelas_total || parcela?.numero_parcela}
+          </DialogDescription>
+        </DialogHeader>
+
+        {parcela && (
+          <>
+            <div className="rounded-lg bg-muted/40 p-3">
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <FinanceiroInfo label="Contrato" value={parcela.contrato_codigo} />
+                <FinanceiroInfo
+                  label="Parcela"
+                  value={`${parcela.numero_parcela}/${parcela.parcelas_total || parcela.numero_parcela}`}
+                />
+                <FinanceiroInfo label="Vencimento" value={fmtDate(parcela.data_vencimento)} />
+                <FinanceiroInfo label="Valor" value={fmtBRL(parcela.valor_parcela)} />
+              </div>
+              <div className="mt-2 border-t border-border pt-2">
+                <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+                  Mínimo (Juros)
+                </p>
+                <p className="text-sm font-semibold text-amber-600">
+                  {fmtBRL(parcela.valor_minimo)}
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <Label htmlFor="financeiro-data-pagamento">Data do Pagamento</Label>
+                <Input
+                  id="financeiro-data-pagamento"
+                  type="date"
+                  value={dataPag}
+                  onChange={(e) => setDataPag(e.target.value)}
+                />
+              </div>
+              <div>
+                <Label htmlFor="financeiro-valor-pago">Valor Pago (R$)</Label>
+                <Input
+                  id="financeiro-valor-pago"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={valorPag}
+                  onChange={(e) => setValorPag(e.target.value)}
+                />
+                {diferenca > 0.005 && (
+                  <p className="mt-1.5 text-xs text-amber-600">
+                    Pagamento parcial - diferença de {fmtBRL(diferenca)}
+                  </p>
+                )}
+              </div>
+              <div className="rounded-lg border border-emerald-200 bg-emerald-50/70 p-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="space-y-1">
+                    <Label htmlFor="financeiro-gerar-nova-cobranca" className="text-sm font-semibold text-foreground">
+                      {diferenca > 0.005
+                        ? "Adicionar diferença na próxima cobrança?"
+                        : "Gerar nova cobrança para os próximos 30 dias?"}
+                    </Label>
+                    <p className="text-xs text-muted-foreground">
+                      Será criada uma cobrança de {fmtBRL(valorNovaCobranca)} em {fmtDate(vencimentoNovaCobranca)}.
+                    </p>
+                  </div>
+                  <Switch
+                    id="financeiro-gerar-nova-cobranca"
+                    checked={gerarNovaCobranca}
+                    onCheckedChange={setGerarNovaCobranca}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <DialogFooter className="gap-2 sm:justify-end">
+              <Button variant="outline" onClick={onClose} disabled={isLoading}>
+                Cancelar
+              </Button>
+              <Button
+                onClick={() =>
+                  onConfirm({
+                    data_pagamento: dataPag,
+                    valor_pago: valorNum,
+                    gerar_nova_cobranca: gerarNovaCobranca,
+                    nova_cobranca_valor: gerarNovaCobranca ? valorNovaCobranca : undefined,
+                    nova_cobranca_vencimento: gerarNovaCobranca ? vencimentoNovaCobranca : undefined,
+                  })
+                }
+                disabled={isLoading || !dataPag || valorNum < 0}
+                className="bg-emerald-600 hover:bg-emerald-700"
+              >
+                {isLoading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Salvando...
+                  </>
+                ) : (
+                  <>
+                    <Check className="h-4 w-4" />
+                    Confirmar Recebimento
+                  </>
+                )}
+              </Button>
+            </DialogFooter>
+          </>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function FinanceiroInfo({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">{label}</p>
+      <p className="font-semibold text-foreground">{value}</p>
     </div>
   );
 }
@@ -862,6 +1196,12 @@ function ContratosTab() {
     id: string | number;
     codigo: string;
   } | null>(null);
+  const [novoOpen, setNovoOpen] = useState(false);
+  const [emprestimoEditando, setEmprestimoEditando] = useState<EmprestimoFull | null>(null);
+  const [loadingEditId, setLoadingEditId] = useState<string | number | null>(null);
+
+  const queryClient = useQueryClient();
+  const getEmprestimoFn = useServerFn(getEmprestimo);
 
   useEffect(() => {
     if (searchParams.contrato) {
@@ -1008,7 +1348,7 @@ function ContratosTab() {
       `contratos-${todayIso()}.csv`,
       filtrados.map((e) => ({
         id: codigoOf(e.id),
-        cliente: e.cliente_nome ?? "—",
+        cliente: e.cliente_nome ?? "-",
         valor: e.valor_principal.toFixed(2).replace(".", ","),
         taxa: `${e.taxa_juros}%`,
         parcelas: e.numero_parcelas,
@@ -1030,6 +1370,32 @@ function ContratosTab() {
   };
 
   const isLoading = empQ.isLoading || parQ.isLoading || cliQ.isLoading;
+
+  const handleEditar = async (id: string | number) => {
+    setLoadingEditId(id);
+    try {
+      const res = await getEmprestimoFn({ data: { id } });
+      if (!res.data) {
+        toast.error(res.error ?? "Empréstimo não encontrado.");
+        return;
+      }
+      setEmprestimoEditando(res.data);
+      setNovoOpen(true);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao carregar empréstimo.");
+    } finally {
+      setLoadingEditId(null);
+    }
+  };
+
+  const handleDialogChange = (open: boolean) => {
+    setNovoOpen(open);
+    if (!open) {
+      setEmprestimoEditando(null);
+      queryClient.invalidateQueries({ queryKey: ["emprestimos"] });
+      queryClient.invalidateQueries({ queryKey: ["parcelas"] });
+    }
+  };
 
   const contratoSelecionado = contratoPdf
     ? (emprestimos.find((e) => String(e.id) === String(contratoPdf.id)) ?? null)
@@ -1201,7 +1567,7 @@ function ContratosTab() {
                         <td className="px-3 py-2.5 font-mono text-xs font-semibold text-primary">
                           {codigoOf(e.id)}
                         </td>
-                        <td className="px-3 py-2.5">{e.cliente_nome ?? "—"}</td>
+                        <td className="px-3 py-2.5">{e.cliente_nome ?? "-"}</td>
                         <td className="px-3 py-2.5 font-medium">{fmtBRL(e.valor_principal)}</td>
                         <td className="px-3 py-2.5 text-muted-foreground">{e.taxa_juros}% a.m.</td>
                         <td className="px-3 py-2.5 text-muted-foreground">{e.numero_parcelas}x</td>
@@ -1210,7 +1576,7 @@ function ContratosTab() {
                             variant="outline"
                             className="bg-info/10 text-info border-info/30 capitalize"
                           >
-                            {e.tipo_juros ?? "—"}
+                            {e.tipo_juros ?? "-"}
                           </Badge>
                         </td>
                         <td className="px-3 py-2.5 text-muted-foreground whitespace-nowrap">
@@ -1221,12 +1587,28 @@ function ContratosTab() {
                             variant="outline"
                             className="bg-success/15 text-success border-success/30"
                           >
-                            ● {stats.pagas}/{stats.total} pagas
+                            - {stats.pagas}/{stats.total} pagas
                           </Badge>
                         </td>
                         <td className="px-3 py-2.5 text-right">
                           <TooltipProvider delayDuration={250}>
                             <div className="flex items-center justify-end gap-1.5">
+                              <ActionTooltip label="Editar contrato">
+                                <Button
+                                  size="icon"
+                                  variant="outline"
+                                  className="h-8 w-8"
+                                  onClick={() => handleEditar(e.id)}
+                                  disabled={loadingEditId === e.id}
+                                  aria-label="Editar contrato"
+                                >
+                                  {loadingEditId === e.id ? (
+                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                  ) : (
+                                    <Pencil className="h-3.5 w-3.5" />
+                                  )}
+                                </Button>
+                              </ActionTooltip>
                               <ActionTooltip label="Visualizar contrato">
                                 <Button
                                   size="icon"
@@ -1284,7 +1666,7 @@ function ContratosTab() {
                           {codigoOf(e.id)}
                         </span>
                         <span className="font-medium text-sm truncate">
-                          {e.cliente_nome ?? "—"}
+                          {e.cliente_nome ?? "-"}
                         </span>
                       </div>
                       <Badge
@@ -1308,7 +1690,7 @@ function ContratosTab() {
                         <p className="font-semibold">
                           {e.numero_parcelas}x{" "}
                           <span className="text-muted-foreground capitalize">
-                            ({e.tipo_juros ?? "—"})
+                            ({e.tipo_juros ?? "-"})
                           </span>
                         </p>
                       </div>
@@ -1319,20 +1701,34 @@ function ContratosTab() {
                         </p>
                       </div>
                     </div>
-                    <div className="flex gap-2 pt-1">
+                    <div className="grid grid-cols-3 gap-2 pt-1">
                       <Button
                         size="sm"
                         variant="outline"
-                        className="flex-1 bg-info/10 hover:bg-info/20 border-info/30 text-info h-8"
-                        onClick={() => setContratoPdf({ id: e.id, codigo: codigoOf(e.id) })}
+                        className="h-8"
+                        onClick={() => handleEditar(e.id)}
+                        disabled={loadingEditId === e.id}
                       >
-                        <Eye className="h-3.5 w-3.5" />
-                        Visualizar
+                        {loadingEditId === e.id ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <Pencil className="h-3.5 w-3.5" />
+                        )}
+                        Editar
                       </Button>
                       <Button
                         size="sm"
                         variant="outline"
-                        className="flex-1 bg-success/10 hover:bg-success/20 border-success/30 text-success h-8"
+                        className="bg-info/10 hover:bg-info/20 border-info/30 text-info h-8"
+                        onClick={() => setContratoPdf({ id: e.id, codigo: codigoOf(e.id) })}
+                      >
+                        <Eye className="h-3.5 w-3.5" />
+                        Ver
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="bg-success/10 hover:bg-success/20 border-success/30 text-success h-8"
                         onClick={() => setContratoPdf({ id: e.id, codigo: codigoOf(e.id) })}
                       >
                         <FileText className="h-3.5 w-3.5" />
@@ -1359,6 +1755,12 @@ function ContratosTab() {
         )}
       </div>
 
+      <NovoEmprestimoDialog
+        open={novoOpen}
+        onOpenChange={handleDialogChange}
+        emprestimo={emprestimoEditando}
+      />
+
       <ContratoPdfDialog
         open={!!contratoPdf}
         onOpenChange={(o) => !o && setContratoPdf(null)}
@@ -1372,7 +1774,7 @@ function ContratosTab() {
 }
 
 // ============================================================
-// TAB INADIMPLÊNCIA — agrupada por cliente
+// TAB INADIMPLÊNCIA - agrupada por cliente
 // ============================================================
 type InadSortKey = "cliente" | "qtd" | "total" | "atraso";
 
@@ -1394,6 +1796,11 @@ function InadimplenciaTab() {
   const [porPagina, setPorPagina] = useState<PageSize>(5);
   const [sortKey, setSortKey] = useState<InadSortKey>("atraso");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  const [baixaCliente, setBaixaCliente] = useState<ClienteInad | null>(null);
+  const [baixandoParcelaId, setBaixandoParcelaId] = useState<string | number | null>(null);
+
+  const queryClient = useQueryClient();
+  const baixaFn = useServerFn(baixaParcela);
 
   const { user, loading: authLoading } = useAuth();
   const authReady = !authLoading && !!user;
@@ -1436,12 +1843,12 @@ function InadimplenciaTab() {
   const agrupados: ClienteInad[] = useMemo(() => {
     const map = new Map<string, ClienteInad>();
     atrasadas.forEach((p) => {
-      const k = String(p.cliente_id ?? "—");
+      const k = String(p.cliente_id ?? "-");
       const cur =
         map.get(k) ??
         ({
           cliente_id: k,
-          cliente_nome: p.cliente_nome ?? "—",
+          cliente_nome: p.cliente_nome ?? "-",
           contrato_codigos: [],
           qtdParcelas: 0,
           totalDivida: 0,
@@ -1565,6 +1972,34 @@ function InadimplenciaTab() {
 
   const isLoading = parQ.isLoading || cliQ.isLoading;
 
+  const baixaMutation = useMutation({
+    mutationFn: (input: {
+      id: string | number;
+      data_pagamento: string;
+      valor_pago: number;
+      gerar_nova_cobranca?: boolean;
+      nova_cobranca_valor?: number;
+      nova_cobranca_vencimento?: string;
+    }) =>
+      baixaFn({ data: input }),
+    onMutate: (input) => setBaixandoParcelaId(input.id),
+    onSuccess: (res) => {
+      if (!res.ok) {
+        toast.error(res.error ?? "Falha ao registrar baixa.");
+        return;
+      }
+      toast.success("Baixa registrada com sucesso!");
+      setBaixaCliente(null);
+      queryClient.invalidateQueries({ queryKey: ["parcelas"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      queryClient.invalidateQueries({ queryKey: ["emprestimos"] });
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "Erro inesperado.");
+    },
+    onSettled: () => setBaixandoParcelaId(null),
+  });
+
   return (
     <div className="space-y-4">
       {/* KPIs */}
@@ -1639,7 +2074,7 @@ function InadimplenciaTab() {
         ) : filtrados.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 text-center px-4">
             <Check className="h-10 w-10 text-success mb-2" />
-            <p className="text-sm font-medium">Nenhum cliente inadimplente 🎉</p>
+            <p className="text-sm font-medium">Nenhum cliente inadimplente</p>
             <p className="text-xs text-muted-foreground">Tudo em dia neste filtro.</p>
           </div>
         ) : (
@@ -1710,41 +2145,60 @@ function InadimplenciaTab() {
                         </td>
                         <td className="px-3 py-2.5">
                           <Badge variant="outline" className={cn("border", risco.cls)}>
-                            ● {risco.label}
+                            - {risco.label}
                           </Badge>
                         </td>
                         <td className="px-3 py-2.5 text-right">
-                          <div className="flex items-center justify-end gap-1.5">
-                            {wpp ? (
-                              <a
-                                href={wpp}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-success/30 bg-success/10 text-success hover:bg-success/20"
-                                title="Cobrar via WhatsApp"
-                              >
-                                <WhatsAppIcon className="h-3.5 w-3.5" />
-                              </a>
-                            ) : (
-                              <span
-                                className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-muted bg-muted/30 text-muted-foreground opacity-50"
-                                title="Telefone não cadastrado"
-                              >
-                                <WhatsAppIcon className="h-3.5 w-3.5" />
-                              </span>
-                            )}
-                            <Button
-                              size="icon"
-                              variant="outline"
-                              className="h-8 w-8 bg-info/10 hover:bg-info/20 border-info/30 text-info"
-                              title="Ver detalhes em Vencimentos"
-                              asChild
-                            >
-                              <a href={`/vencimentos?status=atrasado`}>
-                                <Eye className="h-3.5 w-3.5" />
-                              </a>
-                            </Button>
-                          </div>
+                          <TooltipProvider delayDuration={250}>
+                            <div className="flex items-center justify-end gap-1.5">
+                              {wpp ? (
+                                <ActionTooltip label="Cobrar via WhatsApp">
+                                  <a
+                                    href={wpp}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-success/30 bg-success/10 text-success hover:bg-success/20"
+                                  >
+                                    <WhatsAppIcon className="h-3.5 w-3.5" />
+                                  </a>
+                                </ActionTooltip>
+                              ) : (
+                                <ActionTooltip label="Telefone não cadastrado">
+                                  <span className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-muted bg-muted/30 text-muted-foreground opacity-50">
+                                    <WhatsAppIcon className="h-3.5 w-3.5" />
+                                  </span>
+                                </ActionTooltip>
+                              )}
+                              <ActionTooltip label="Dar baixa">
+                                <Button
+                                  size="icon"
+                                  variant="outline"
+                                  className="h-8 w-8 bg-success/10 hover:bg-success/20 border-success/30 text-success"
+                                  onClick={() => setBaixaCliente(c)}
+                                  disabled={baixandoParcelaId !== null}
+                                  aria-label="Dar baixa"
+                                >
+                                  {baixandoParcelaId !== null ? (
+                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                  ) : (
+                                    <CheckCircle2 className="h-3.5 w-3.5" />
+                                  )}
+                                </Button>
+                              </ActionTooltip>
+                              <ActionTooltip label="Ver detalhes em Vencimentos">
+                                <Button
+                                  size="icon"
+                                  variant="outline"
+                                  className="h-8 w-8 bg-info/10 hover:bg-info/20 border-info/30 text-info"
+                                  asChild
+                                >
+                                  <a href={`/vencimentos?status=atrasado`}>
+                                    <Eye className="h-3.5 w-3.5" />
+                                  </a>
+                                </Button>
+                              </ActionTooltip>
+                            </div>
+                          </TooltipProvider>
                         </td>
                       </tr>
                     );
@@ -1773,7 +2227,7 @@ function InadimplenciaTab() {
                       <span className="font-mono font-semibold text-primary">
                         {c.contrato_codigos.join(", ")}
                       </span>
-                      <span className="text-muted-foreground">•</span>
+                      <span className="text-muted-foreground">-</span>
                       <span className="text-muted-foreground">
                         {c.qtdParcelas} parcela{c.qtdParcelas > 1 ? "s" : ""}
                       </span>
@@ -1788,26 +2242,41 @@ function InadimplenciaTab() {
                         <p className="font-bold text-warning">{c.diasAtrasoMax} dias</p>
                       </div>
                     </div>
-                    <div className="flex gap-2 pt-1">
+                    <div className="grid grid-cols-3 gap-2 pt-1">
                       {wpp ? (
                         <a
                           href={wpp}
                           target="_blank"
                           rel="noreferrer"
-                          className="flex-1 inline-flex items-center justify-center gap-1.5 h-8 rounded-md border border-success/30 bg-success/10 text-success text-xs font-medium hover:bg-success/20"
+                          className="inline-flex items-center justify-center gap-1.5 h-8 rounded-md border border-success/30 bg-success/10 text-success text-xs font-medium hover:bg-success/20"
                         >
                           <WhatsAppIcon className="h-3.5 w-3.5" />
                           WhatsApp
                         </a>
                       ) : (
-                        <span className="flex-1 inline-flex items-center justify-center gap-1.5 h-8 rounded-md border bg-muted/30 text-muted-foreground text-xs opacity-50">
+                        <span className="inline-flex items-center justify-center gap-1.5 h-8 rounded-md border bg-muted/30 text-muted-foreground text-xs opacity-50">
                           <WhatsAppIcon className="h-3.5 w-3.5" />
-                          Sem telefone
+                          Sem tel.
                         </span>
                       )}
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="h-8 bg-success/10 hover:bg-success/20 border-success/30 text-success"
+                        onClick={() => setBaixaCliente(c)}
+                        disabled={baixandoParcelaId !== null}
+                      >
+                        {baixandoParcelaId !== null ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <CheckCircle2 className="h-3.5 w-3.5" />
+                        )}
+                        Baixa
+                      </Button>
                       <a
                         href="/vencimentos?status=atrasado"
-                        className="flex-1 inline-flex items-center justify-center gap-1.5 h-8 rounded-md border border-info/30 bg-info/10 text-info text-xs font-medium hover:bg-info/20"
+                        className="inline-flex items-center justify-center gap-1.5 h-8 rounded-md border border-info/30 bg-info/10 text-info text-xs font-medium hover:bg-info/20"
                       >
                         <Eye className="h-3.5 w-3.5" />
                         Detalhes
@@ -1832,7 +2301,187 @@ function InadimplenciaTab() {
           </>
         )}
       </div>
+
+      <InadimplenciaBaixaDialog
+        cliente={baixaCliente}
+        onClose={() => setBaixaCliente(null)}
+        onConfirm={(parcela, payload) =>
+          baixaMutation.mutate({
+            id: parcela.id,
+            data_pagamento: payload.data_pagamento,
+            valor_pago: payload.valor_pago,
+          })
+        }
+        isLoading={baixaMutation.isPending}
+      />
     </div>
+  );
+}
+
+function InadimplenciaBaixaDialog({
+  cliente,
+  onClose,
+  onConfirm,
+  isLoading,
+}: {
+  cliente: ClienteInad | null;
+  onClose: () => void;
+  onConfirm: (
+    parcela: ParcelaListItem,
+    payload: { data_pagamento: string; valor_pago: number },
+  ) => void;
+  isLoading: boolean;
+}) {
+  const [parcelaId, setParcelaId] = useState("");
+  const [dataPag, setDataPag] = useState(todayIso());
+  const [valorPag, setValorPag] = useState("0");
+
+  const parcelas = useMemo(() => {
+    return [...(cliente?.parcelas ?? [])].sort((a, b) => {
+      const dataA = a.data_vencimento ?? "";
+      const dataB = b.data_vencimento ?? "";
+      if (dataA !== dataB) return dataA.localeCompare(dataB);
+      return (a.contrato_codigo ?? "").localeCompare(b.contrato_codigo ?? "");
+    });
+  }, [cliente]);
+
+  const parcelaSelecionada = parcelas.find((p) => String(p.id) === parcelaId) ?? null;
+
+  useEffect(() => {
+    if (!cliente) return;
+    setParcelaId("");
+    setDataPag(todayIso());
+    setValorPag("0");
+  }, [cliente]);
+
+  useEffect(() => {
+    if (!parcelaSelecionada) return;
+    setValorPag(parcelaSelecionada.valor_parcela.toFixed(2));
+  }, [parcelaSelecionada]);
+
+  const valorNum = Number.parseFloat(valorPag.replace(",", ".")) || 0;
+  const diferenca = parcelaSelecionada ? parcelaSelecionada.valor_parcela - valorNum : 0;
+
+  return (
+    <Dialog
+      open={!!cliente}
+      onOpenChange={(open) => {
+        if (!open && !isLoading) onClose();
+      }}
+    >
+      <DialogContent className="w-[calc(100vw-2rem)] sm:max-w-xl">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+            Dar baixa em inadimplência
+          </DialogTitle>
+          <DialogDescription>
+            {cliente?.cliente_nome ?? "Cliente"} • escolha o contrato/parcela em atraso
+          </DialogDescription>
+        </DialogHeader>
+
+        {cliente && (
+          <>
+            <div className="space-y-2">
+              <Label>Contrato / Parcela</Label>
+              <div className="max-h-56 space-y-2 overflow-y-auto pr-1">
+                {parcelas.map((p) => {
+                  const selected = String(p.id) === parcelaId;
+                  return (
+                    <button
+                      key={String(p.id)}
+                      type="button"
+                      className={cn(
+                        "w-full rounded-lg border p-3 text-left transition-colors",
+                        selected
+                          ? "border-emerald-500 bg-emerald-50 text-emerald-900"
+                          : "border-border bg-card hover:bg-muted/50",
+                      )}
+                      onClick={() => setParcelaId(String(p.id))}
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="font-mono text-xs font-semibold text-primary">
+                          {p.contrato_codigo}
+                        </span>
+                        <span className="text-xs font-semibold text-foreground">
+                          Parcela {p.numero_parcela}/{p.parcelas_total || p.numero_parcela}
+                        </span>
+                      </div>
+                      <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-muted-foreground sm:grid-cols-3">
+                        <span>Vencimento: {fmtDate(p.data_vencimento)}</span>
+                        <span>Valor: {fmtBRL(p.valor_parcela)}</span>
+                        <span>Mínimo: {fmtBRL(p.valor_minimo)}</span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {parcelaSelecionada && (
+              <div className="space-y-3 rounded-lg border bg-muted/20 p-3">
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div>
+                    <Label htmlFor="inad-data-pagamento">Data do Pagamento</Label>
+                    <Input
+                      id="inad-data-pagamento"
+                      type="date"
+                      value={dataPag}
+                      onChange={(e) => setDataPag(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="inad-valor-pago">Valor Pago (R$)</Label>
+                    <Input
+                      id="inad-valor-pago"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={valorPag}
+                      onChange={(e) => setValorPag(e.target.value)}
+                    />
+                  </div>
+                </div>
+                {diferenca > 0.005 && (
+                  <p className="text-xs text-amber-600">
+                    Pagamento parcial - diferença de {fmtBRL(diferenca)}
+                  </p>
+                )}
+              </div>
+            )}
+
+            <DialogFooter className="gap-2 sm:justify-end">
+              <Button variant="outline" onClick={onClose} disabled={isLoading}>
+                Cancelar
+              </Button>
+              <Button
+                onClick={() =>
+                  parcelaSelecionada &&
+                  onConfirm(parcelaSelecionada, {
+                    data_pagamento: dataPag,
+                    valor_pago: valorNum,
+                  })
+                }
+                disabled={isLoading || !parcelaSelecionada || !dataPag || valorNum < 0}
+                className="bg-emerald-600 hover:bg-emerald-700"
+              >
+                {isLoading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Salvando...
+                  </>
+                ) : (
+                  <>
+                    <Check className="h-4 w-4" />
+                    Confirmar Recebimento
+                  </>
+                )}
+              </Button>
+            </DialogFooter>
+          </>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }
 

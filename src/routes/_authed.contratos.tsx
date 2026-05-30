@@ -1,5 +1,5 @@
 import { type ReactNode, useMemo, useState } from "react";
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
@@ -16,8 +16,6 @@ import {
   CheckCircle2,
   TrendingUp,
   Clock,
-  CalendarClock,
-  BarChart3,
 } from "lucide-react";
 import { toast } from "sonner";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
@@ -50,7 +48,7 @@ import { useAuth } from "@/hooks/use-auth";
 
 export const Route = createFileRoute("/_authed/contratos")({
   head: () => ({
-    meta: [{ title: "Contratos — JuroPro" }],
+    meta: [{ title: "Contratos - JuroPro" }],
   }),
   component: ContratosPage,
 });
@@ -73,9 +71,9 @@ const fmtTaxa = (v: number) =>
 const fmtBRL = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
 const fmtDate = (iso: string | null) => {
-  if (!iso) return "—";
+  if (!iso) return "-";
   const d = new Date(iso.length <= 10 ? iso + "T00:00:00" : iso);
-  if (Number.isNaN(d.getTime())) return "—";
+  if (Number.isNaN(d.getTime())) return "-";
   return d.toLocaleDateString("pt-BR");
 };
 
@@ -100,7 +98,6 @@ function ActionTooltip({ label, children }: { label: string; children: ReactNode
     </Tooltip>
   );
 }
-
 type SortKey = "id" | "cliente" | "principal" | "taxa" | "parcelas" | "data_inicio" | "status";
 type SortDir = "asc" | "desc";
 
@@ -116,8 +113,6 @@ function ContratosPage() {
   const [emprestimoParaExcluir, setEmprestimoParaExcluir] = useState<EmprestimoListItem | null>(
     null,
   );
-
-  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const listFn = useServerFn(listEmprestimos);
   const getFn = useServerFn(getEmprestimo);
@@ -421,7 +416,7 @@ function ContratosPage() {
                               Status <SortIcon column="status" />
                             </button>
                           </th>
-                          <th className="px-3 py-2 text-right">Ações</th>
+                          <th className="px-3 py-2 text-right">{"A\u00e7\u00f5es"}</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -431,21 +426,6 @@ function ContratosPage() {
                             item={e}
                             seqId={e.seqId}
                             onEdit={() => handleEditar(e.id)}
-                            onVencimentos={() =>
-                              navigate({
-                                to: "/vencimentos",
-                                search: { contrato: `#${String(e.seqId).padStart(3, "0")}` },
-                              })
-                            }
-                            onRelatorio={() =>
-                              navigate({
-                                to: "/relatorios",
-                                search: {
-                                  tab: "contratos",
-                                  contrato: `#${String(e.seqId).padStart(3, "0")}`,
-                                },
-                              })
-                            }
                             onDelete={() => setEmprestimoParaExcluir(e)}
                             isLoadingEdit={loadingEditId === e.id}
                           />
@@ -462,21 +442,6 @@ function ContratosPage() {
                         item={e}
                         seqId={e.seqId}
                         onEdit={() => handleEditar(e.id)}
-                        onVencimentos={() =>
-                          navigate({
-                            to: "/vencimentos",
-                            search: { contrato: `#${String(e.seqId).padStart(3, "0")}` },
-                          })
-                        }
-                        onRelatorio={() =>
-                          navigate({
-                            to: "/relatorios",
-                            search: {
-                              tab: "contratos",
-                              contrato: `#${String(e.seqId).padStart(3, "0")}`,
-                            },
-                          })
-                        }
                         onDelete={() => setEmprestimoParaExcluir(e)}
                         isLoadingEdit={loadingEditId === e.id}
                       />
@@ -587,16 +552,12 @@ function RowDesktop({
   item,
   seqId,
   onEdit,
-  onVencimentos,
-  onRelatorio,
   onDelete,
   isLoadingEdit,
 }: {
   item: EmprestimoListItem;
   seqId: number;
   onEdit: () => void;
-  onVencimentos: () => void;
-  onRelatorio: () => void;
   onDelete: () => void;
   isLoadingEdit: boolean;
 }) {
@@ -607,7 +568,7 @@ function RowDesktop({
       <td className="px-3 py-3 font-mono text-xs text-muted-foreground">
         #{String(seqId).padStart(3, "0")}
       </td>
-      <td className="px-3 py-3 font-medium text-foreground">{item.cliente_nome ?? "—"}</td>
+      <td className="px-3 py-3 font-medium text-foreground">{item.cliente_nome ?? "-"}</td>
       <td className="px-3 py-3 text-right">{fmtBRL(item.valor_principal)}</td>
       <td className="px-3 py-3 text-right">
         <div className="flex items-center justify-end gap-2">
@@ -625,36 +586,12 @@ function RowDesktop({
       <td className="px-3 py-3 text-left text-muted-foreground">{fmtDate(item.data_inicio)}</td>
       <td className="px-3 py-3 text-center">
         <Badge variant="outline" className={cn("capitalize", statusBadgeClass(item.status))}>
-          {item.status ?? "—"}
+          {item.status ?? "-"}
         </Badge>
       </td>
       <td className="px-3 py-3 text-right">
         <TooltipProvider delayDuration={250}>
           <div className="flex items-center justify-end gap-1">
-            <ActionTooltip label="Ver vencimentos">
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 text-muted-foreground hover:text-warning"
-                onClick={onVencimentos}
-                aria-label="Ver vencimentos do contrato"
-              >
-                <CalendarClock className="h-4 w-4" />
-              </Button>
-            </ActionTooltip>
-            <ActionTooltip label="Ver relatorio">
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 text-muted-foreground hover:text-info"
-                onClick={onRelatorio}
-                aria-label="Ver relatorio do contrato"
-              >
-                <BarChart3 className="h-4 w-4" />
-              </Button>
-            </ActionTooltip>
             <ActionTooltip label="Editar emprestimo">
               <Button
                 type="button"
@@ -695,16 +632,12 @@ function CardMobile({
   item,
   seqId,
   onEdit,
-  onVencimentos,
-  onRelatorio,
   onDelete,
   isLoadingEdit,
 }: {
   item: EmprestimoListItem;
   seqId: number;
   onEdit: () => void;
-  onVencimentos: () => void;
-  onRelatorio: () => void;
   onDelete: () => void;
   isLoadingEdit: boolean;
 }) {
@@ -715,14 +648,14 @@ function CardMobile({
       <div className="mb-2 flex items-start justify-between gap-2">
         <div className="min-w-0">
           <p className="truncate text-sm font-semibold text-foreground">
-            {item.cliente_nome ?? "—"}
+            {item.cliente_nome ?? "-"}
           </p>
           <p className="font-mono text-[11px] text-muted-foreground">
             #{String(seqId).padStart(3, "0")}
           </p>
         </div>
         <Badge variant="outline" className={cn("capitalize", statusBadgeClass(item.status))}>
-          {item.status ?? "—"}
+          {item.status ?? "-"}
         </Badge>
       </div>
       <div className="grid grid-cols-2 gap-2 text-xs">
@@ -755,26 +688,6 @@ function CardMobile({
         </div>
       </div>
       <div className="mt-3 flex flex-wrap justify-end gap-2 border-t pt-3">
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className="h-8 gap-1"
-          onClick={onVencimentos}
-        >
-          <CalendarClock className="h-3.5 w-3.5" />
-          Vencimentos
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className="h-8 gap-1"
-          onClick={onRelatorio}
-        >
-          <BarChart3 className="h-3.5 w-3.5" />
-          Relatorio
-        </Button>
         <Button
           type="button"
           variant="outline"

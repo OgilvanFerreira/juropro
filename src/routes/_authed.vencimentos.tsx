@@ -15,11 +15,14 @@ import {
   AlertTriangle,
   CheckCircle2,
   Undo2,
+  Pencil,
+  Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/dashboard/AppSidebar";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Input } from "@/components/ui/input";
 import {
   Dialog,
@@ -30,6 +33,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -48,13 +52,19 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { TablePagination, type PageSize } from "@/components/ui/table-pagination";
+import { NovoEmprestimoDialog } from "@/components/emprestimos/NovoEmprestimoDialog";
 import { useAdminName } from "@/hooks/use-admin-name";
 import {
   baixaParcela,
   estornoParcela,
+  excluirParcela,
   listParcelas,
   type ParcelaListItem,
 } from "@/integrations/external-supabase/parcelas.functions";
+import {
+  getEmprestimo,
+  type EmprestimoFull,
+} from "@/integrations/external-supabase/emprestimos.functions";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
 
@@ -102,6 +112,15 @@ const fmtDate = (iso: string | null) => {
 const todayISO = () => {
   const d = new Date();
   d.setHours(0, 0, 0, 0);
+  const y = d.getFullYear();
+  const mo = String(d.getMonth() + 1).padStart(2, "0");
+  const da = String(d.getDate()).padStart(2, "0");
+  return `${y}-${mo}-${da}`;
+};
+
+const addDaysISO = (iso: string, days: number) => {
+  const d = new Date(`${iso}T00:00:00`);
+  d.setDate(d.getDate() + days);
   const y = d.getFullYear();
   const mo = String(d.getMonth() + 1).padStart(2, "0");
   const da = String(d.getDate()).padStart(2, "0");
@@ -162,6 +181,7 @@ function VencimentosPage() {
   const authReady = !authLoading && !!user;
   const queryClient = useQueryClient();
   const listFn = useServerFn(listParcelas);
+  const getEmprestimoFn = useServerFn(getEmprestimo);
   const searchParams = Route.useSearch();
 
   const { data, isLoading, isError, error, refetch } = useQuery({
@@ -184,6 +204,10 @@ function VencimentosPage() {
   const [porPagina, setPorPagina] = useState<PageSize>(10);
   const [modalParcela, setModalParcela] = useState<ParcelaProcessada | null>(null);
   const [estornoParcelaState, setEstornoParcelaState] = useState<ParcelaProcessada | null>(null);
+  const [parcelaParaExcluir, setParcelaParaExcluir] = useState<ParcelaProcessada | null>(null);
+  const [emprestimoEditando, setEmprestimoEditando] = useState<EmprestimoFull | null>(null);
+  const [editOpen, setEditOpen] = useState(false);
+  const [loadingEditId, setLoadingEditId] = useState<string | number | null>(null);
 
   // Sincroniza filtro quando o search param muda (ex: vindo do KPI Dashboard)
   useEffect(() => {
@@ -298,7 +322,14 @@ function VencimentosPage() {
   }, [processadas]);
 
   const baixaMutation = useMutation({
-    mutationFn: (input: { id: string | number; data_pagamento: string; valor_pago: number }) =>
+    mutationFn: (input: {
+      id: string | number;
+      data_pagamento: string;
+      valor_pago: number;
+      gerar_nova_cobranca?: boolean;
+      nova_cobranca_valor?: number;
+      nova_cobranca_vencimento?: string;
+    }) =>
       baixaParcela({ data: input }),
     onSuccess: (res) => {
       if (!res.ok) {
@@ -334,6 +365,40 @@ function VencimentosPage() {
     },
   });
 
+  const excluirMutation = useMutation({
+    mutationFn: (input: { id: string | number }) => excluirParcela({ data: input }),
+    onSuccess: (res) => {
+      if (!res.ok) {
+        toast.error(res.error ?? "Falha ao excluir vencimento.");
+        return;
+      }
+      toast.success("Vencimento excluído com sucesso!");
+      setParcelaParaExcluir(null);
+      queryClient.invalidateQueries({ queryKey: ["parcelas"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      queryClient.invalidateQueries({ queryKey: ["emprestimos"] });
+    },
+    onError: (e) => {
+      toast.error(e instanceof Error ? e.message : "Erro inesperado.");
+    },
+  });
+
+  const handleEditarContrato = async (parcela: ParcelaProcessada) => {
+    setLoadingEditId(parcela.emprestimo_id);
+    try {
+      const res = await getEmprestimoFn({ data: { id: parcela.emprestimo_id } });
+      if (res.error || !res.data) {
+        toast.error(res.error ?? "Contrato nao encontrado.");
+        return;
+      }
+      setEmprestimoEditando(res.data);
+      setEditOpen(true);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao carregar contrato.");
+    } finally {
+      setLoadingEditId(null);
+    }
+  };
   const buildWhatsAppLink = (p: ParcelaProcessada) => {
     const tel = (p.cliente_telefone ?? "").replace(/\D/g, "");
     if (!tel) return null;
@@ -549,6 +614,9 @@ function VencimentosPage() {
                             item={p}
                             onBaixa={() => setModalParcela(p)}
                             onEstorno={() => setEstornoParcelaState(p)}
+                            onEdit={() => handleEditarContrato(p)}
+                            onDelete={() => setParcelaParaExcluir(p)}
+                            isLoadingEdit={loadingEditId === p.emprestimo_id}
                             buildWhatsAppLink={buildWhatsAppLink}
                           />
                         ))}
@@ -565,6 +633,9 @@ function VencimentosPage() {
                       item={p}
                       onBaixa={() => setModalParcela(p)}
                       onEstorno={() => setEstornoParcelaState(p)}
+                      onEdit={() => handleEditarContrato(p)}
+                      onDelete={() => setParcelaParaExcluir(p)}
+                      isLoadingEdit={loadingEditId === p.emprestimo_id}
                       buildWhatsAppLink={buildWhatsAppLink}
                     />
                   ))}
@@ -609,10 +680,73 @@ function VencimentosPage() {
             id: modalParcela.id,
             data_pagamento: payload.data_pagamento,
             valor_pago: payload.valor_pago,
+            gerar_nova_cobranca: payload.gerar_nova_cobranca,
+            nova_cobranca_valor: payload.nova_cobranca_valor,
+            nova_cobranca_vencimento: payload.nova_cobranca_vencimento,
           })
         }
         isLoading={baixaMutation.isPending}
       />
+
+      <NovoEmprestimoDialog
+        open={editOpen}
+        onOpenChange={(open) => {
+          setEditOpen(open);
+          if (!open) setEmprestimoEditando(null);
+        }}
+        emprestimo={emprestimoEditando}
+      />
+
+      <AlertDialog
+        open={!!parcelaParaExcluir}
+        onOpenChange={(open) => {
+          if (!open && !excluirMutation.isPending) setParcelaParaExcluir(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir vencimento?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação removerá o vencimento selecionado
+              {parcelaParaExcluir?.cliente_nome ? ` de ${parcelaParaExcluir.cliente_nome}` : ""}.
+              Esta operação não pode ser desfeita.
+              {parcelaParaExcluir && (
+                <span className="mt-3 block rounded-md bg-muted/50 p-2 text-xs">
+                  <strong>{parcelaParaExcluir.contrato_codigo}</strong> - Parcela{" "}
+                  {parcelaParaExcluir.numero_parcela}/
+                  {parcelaParaExcluir.parcelas_total || parcelaParaExcluir.numero_parcela} -{" "}
+                  {fmtBRL(parcelaParaExcluir.valor_parcela)}
+                </span>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={excluirMutation.isPending}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={excluirMutation.isPending}
+              onClick={(e) => {
+                e.preventDefault();
+                if (parcelaParaExcluir) {
+                  excluirMutation.mutate({ id: parcelaParaExcluir.id });
+                }
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {excluirMutation.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Excluindo...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Excluir
+                </>
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Confirmação Estorno */}
       <AlertDialog
@@ -729,17 +863,31 @@ function WhatsAppIcon({ className }: { className?: string }) {
     </svg>
   );
 }
+function ActionTooltip({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>{children}</TooltipTrigger>
+      <TooltipContent side="top">{label}</TooltipContent>
+    </Tooltip>
+  );
+}
 
 function RowActions({
   item,
   onBaixa,
   onEstorno,
+  onEdit,
+  onDelete,
+  isLoadingEdit,
   buildWhatsAppLink,
   variant = "desktop",
 }: {
   item: ParcelaProcessada;
   onBaixa: () => void;
   onEstorno: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+  isLoadingEdit: boolean;
   buildWhatsAppLink: (p: ParcelaProcessada) => string | null;
   variant?: "desktop" | "mobile";
 }) {
@@ -749,7 +897,7 @@ function RowActions({
 
   if (isMobile) {
     return (
-      <div className="grid w-full grid-cols-2 gap-2">
+      <div className="grid w-full grid-cols-2 gap-2 sm:grid-cols-3">
         {wppLink ? (
           <a
             href={wppLink}
@@ -767,6 +915,21 @@ function RowActions({
             Sem telefone
           </Button>
         )}
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={onEdit}
+          disabled={isLoadingEdit}
+          aria-label="Editar contrato"
+          className="h-9 gap-1.5 border-blue-300 text-blue-700 hover:bg-blue-50 dark:border-blue-900 dark:text-blue-300 dark:hover:bg-blue-950"
+        >
+          {isLoadingEdit ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <Pencil className="h-4 w-4" />
+          )}
+          Editar
+        </Button>
         {pago ? (
           <Button
             size="sm"
@@ -788,68 +951,119 @@ function RowActions({
             Receber
           </Button>
         )}
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={onDelete}
+          aria-label="Excluir vencimento"
+          className="h-9 gap-1.5 border-red-300 text-red-700 hover:bg-red-50 dark:border-red-900 dark:text-red-300 dark:hover:bg-red-950"
+        >
+          <Trash2 className="h-4 w-4" />
+          Excluir
+        </Button>
       </div>
     );
   }
 
   return (
-    <div className="flex items-center justify-end gap-1.5">
-      {wppLink ? (
-        <a
-          href={wppLink}
-          target="_blank"
-          rel="noopener noreferrer"
-          aria-label="Enviar WhatsApp"
-          className="inline-flex h-8 w-8 items-center justify-center rounded-md text-emerald-600 transition-colors hover:bg-emerald-50 dark:hover:bg-emerald-950"
-        >
-          <WhatsAppIcon className="h-4 w-4" />
-        </a>
-      ) : (
-        <Button
-          variant="ghost"
-          size="icon"
-          disabled
-          aria-label="Cliente sem telefone"
-          className="h-8 w-8 opacity-40"
-        >
-          <WhatsAppIcon className="h-4 w-4" />
-        </Button>
-      )}
-      {pago ? (
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={onEstorno}
-          aria-label="Estornar pagamento"
-          title="Estornar pagamento"
-          className="h-8 w-8 text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950"
-        >
-          <Undo2 className="h-4 w-4" />
-        </Button>
-      ) : (
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={onBaixa}
-          aria-label="Confirmar pagamento"
-          className="h-8 w-8 text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950"
-        >
-          <Check className="h-4 w-4" />
-        </Button>
-      )}
-    </div>
+    <TooltipProvider delayDuration={250}>
+      <div className="flex flex-wrap items-center justify-end gap-1.5">
+        {wppLink ? (
+          <ActionTooltip label="Enviar WhatsApp">
+            <a
+              href={wppLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Enviar WhatsApp"
+              className="inline-flex h-8 w-8 items-center justify-center rounded-md text-emerald-600 transition-colors hover:bg-emerald-50 dark:hover:bg-emerald-950"
+            >
+              <WhatsAppIcon className="h-4 w-4" />
+            </a>
+          </ActionTooltip>
+        ) : (
+          <ActionTooltip label="Cliente sem telefone">
+            <Button
+              variant="ghost"
+              size="icon"
+              disabled
+              aria-label="Cliente sem telefone"
+              className="h-8 w-8 opacity-40"
+            >
+              <WhatsAppIcon className="h-4 w-4" />
+            </Button>
+          </ActionTooltip>
+        )}
+        <ActionTooltip label="Editar contrato">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onEdit}
+            disabled={isLoadingEdit}
+            aria-label="Editar contrato"
+            className="h-8 w-8 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950"
+          >
+            {isLoadingEdit ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Pencil className="h-4 w-4" />
+            )}
+          </Button>
+        </ActionTooltip>
+        {pago ? (
+          <ActionTooltip label="Estornar pagamento">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onEstorno}
+              aria-label="Estornar pagamento"
+              className="h-8 w-8 text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950"
+            >
+              <Undo2 className="h-4 w-4" />
+            </Button>
+          </ActionTooltip>
+        ) : (
+          <ActionTooltip label="Confirmar pagamento">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onBaixa}
+              aria-label="Confirmar pagamento"
+              className="h-8 w-8 text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950"
+            >
+              <Check className="h-4 w-4" />
+            </Button>
+          </ActionTooltip>
+        )}
+        <ActionTooltip label="Excluir vencimento">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onDelete}
+            aria-label="Excluir vencimento"
+            className="h-8 w-8 text-red-600 hover:bg-red-50 dark:hover:bg-red-950"
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </ActionTooltip>
+      </div>
+    </TooltipProvider>
   );
 }
-
 function RowDesktop({
   item,
   onBaixa,
   onEstorno,
+  onEdit,
+  onDelete,
+  isLoadingEdit,
   buildWhatsAppLink,
 }: {
   item: ParcelaProcessada;
   onBaixa: () => void;
   onEstorno: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+  isLoadingEdit: boolean;
   buildWhatsAppLink: (p: ParcelaProcessada) => string | null;
 }) {
   return (
@@ -874,6 +1088,9 @@ function RowDesktop({
           item={item}
           onBaixa={onBaixa}
           onEstorno={onEstorno}
+          onEdit={onEdit}
+          onDelete={onDelete}
+          isLoadingEdit={isLoadingEdit}
           buildWhatsAppLink={buildWhatsAppLink}
         />
       </td>
@@ -885,11 +1102,17 @@ function CardMobile({
   item,
   onBaixa,
   onEstorno,
+  onEdit,
+  onDelete,
+  isLoadingEdit,
   buildWhatsAppLink,
 }: {
   item: ParcelaProcessada;
   onBaixa: () => void;
   onEstorno: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+  isLoadingEdit: boolean;
   buildWhatsAppLink: (p: ParcelaProcessada) => string | null;
 }) {
   return (
@@ -931,6 +1154,9 @@ function CardMobile({
           item={item}
           onBaixa={onBaixa}
           onEstorno={onEstorno}
+          onEdit={onEdit}
+          onDelete={onDelete}
+          isLoadingEdit={isLoadingEdit}
           buildWhatsAppLink={buildWhatsAppLink}
           variant="mobile"
         />
@@ -1006,22 +1232,36 @@ function BaixaDialog({
 }: {
   parcela: ParcelaProcessada | null;
   onClose: () => void;
-  onConfirm: (payload: { data_pagamento: string; valor_pago: number }) => void;
+  onConfirm: (payload: {
+    data_pagamento: string;
+    valor_pago: number;
+    gerar_nova_cobranca?: boolean;
+    nova_cobranca_valor?: number;
+    nova_cobranca_vencimento?: string;
+  }) => void;
   isLoading: boolean;
 }) {
   const [dataPag, setDataPag] = useState(todayISO());
   const [valorPag, setValorPag] = useState("0");
+  const [gerarNovaCobranca, setGerarNovaCobranca] = useState(false);
 
   // Sincroniza valores ao abrir
   useEffect(() => {
     if (parcela) {
       setDataPag(todayISO());
       setValorPag(parcela.valor_parcela.toFixed(2));
+      setGerarNovaCobranca(false);
     }
   }, [parcela]);
 
-  const valorNum = parseFloat(valorPag) || 0;
-  const diferenca = parcela ? parcela.valor_parcela - valorNum : 0;
+  const valorNum = Number.parseFloat(valorPag.replace(",", ".")) || 0;
+  const diferenca = parcela ? Math.max(parcela.valor_parcela - valorNum, 0) : 0;
+  const valorNovaCobranca = parcela
+    ? diferenca > 0.005
+      ? parcela.valor_parcela + diferenca
+      : parcela.valor_parcela
+    : 0;
+  const vencimentoNovaCobranca = addDaysISO(dataPag, 30);
 
   return (
     <Dialog
@@ -1086,9 +1326,28 @@ function BaixaDialog({
                 />
                 {diferenca > 0.005 && (
                   <p className="mt-1.5 text-xs text-amber-600">
-                    ⚠️ Pagamento parcial — diferença de {fmtBRL(diferenca)}
+                    Pagamento parcial - diferença de {fmtBRL(diferenca)}
                   </p>
                 )}
+              </div>
+              <div className="rounded-lg border border-emerald-200 bg-emerald-50/70 p-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="space-y-1">
+                    <Label htmlFor="gerar-nova-cobranca" className="text-sm font-semibold text-foreground">
+                      {diferenca > 0.005
+                        ? "Adicionar diferença na próxima cobrança?"
+                        : "Gerar nova cobrança para os próximos 30 dias?"}
+                    </Label>
+                    <p className="text-xs text-muted-foreground">
+                      Será criada uma cobrança de {fmtBRL(valorNovaCobranca)} em {fmtDate(vencimentoNovaCobranca)}.
+                    </p>
+                  </div>
+                  <Switch
+                    id="gerar-nova-cobranca"
+                    checked={gerarNovaCobranca}
+                    onCheckedChange={setGerarNovaCobranca}
+                  />
+                </div>
               </div>
             </div>
 
@@ -1101,6 +1360,9 @@ function BaixaDialog({
                   onConfirm({
                     data_pagamento: dataPag,
                     valor_pago: valorNum,
+                    gerar_nova_cobranca: gerarNovaCobranca,
+                    nova_cobranca_valor: gerarNovaCobranca ? valorNovaCobranca : undefined,
+                    nova_cobranca_vencimento: gerarNovaCobranca ? vencimentoNovaCobranca : undefined,
                   })
                 }
                 disabled={isLoading || !dataPag || valorNum < 0}

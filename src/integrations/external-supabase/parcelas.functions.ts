@@ -170,10 +170,19 @@ export const listParcelas = createServerFn({ method: "GET" })
     return { data: out, error: null };
   });
 
+function addDaysIso(iso: string, days: number) {
+  const d = new Date(`${iso}T00:00:00`);
+  d.setDate(d.getDate() + days);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
 const baixaSchema = z.object({
   id: z.union([z.string().min(1), z.number()]),
   data_pagamento: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   valor_pago: z.number().min(0),
+  gerar_nova_cobranca: z.boolean().optional(),
+  nova_cobranca_valor: z.number().min(0).optional(),
+  nova_cobranca_vencimento: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
 });
 
 export type BaixaParcelaInput = z.infer<typeof baixaSchema>;
@@ -183,6 +192,18 @@ export const baixaParcela = createServerFn({ method: "POST" })
   .inputValidator((input: BaixaParcelaInput) => baixaSchema.parse(input))
   .handler(async ({ data, context }): Promise<{ ok: boolean; error: string | null }> => {
     const supabase = getServerClient({ admin: true });
+
+    const { data: parcelaAtual, error: parcelaErr } = await supabase
+      .from("parcelas")
+      .select("id, emprestimo_id, numero_parcela, data_vencimento, valor_parcela")
+      .eq("id", data.id)
+      .eq("user_id", context.userId)
+      .single();
+
+    if (parcelaErr || !parcelaAtual) {
+      console.error("baixaParcela select error:", parcelaErr);
+      return { ok: false, error: parcelaErr?.message ?? "Parcela não encontrada." };
+    }
 
     const { data: updated, error } = await supabase
       .from("parcelas")
@@ -205,6 +226,51 @@ export const baixaParcela = createServerFn({ method: "POST" })
         error: "Nenhuma parcela foi atualizada. Verifique as permissões (RLS) da tabela parcelas.",
       };
     }
+
+    if (data.gerar_nova_cobranca && Number(data.nova_cobranca_valor ?? 0) > 0) {
+      const { data: ultimas, error: ultErr } = await supabase
+        .from("parcelas")
+        .select("numero_parcela")
+        .eq("user_id", context.userId)
+        .eq("emprestimo_id", parcelaAtual.emprestimo_id)
+        .order("numero_parcela", { ascending: false })
+        .limit(1);
+
+      if (ultErr) {
+        console.error("baixaParcela next select error:", ultErr);
+        return { ok: false, error: `Baixa registrada, mas falhou ao calcular nova cobrança: ${ultErr.message}` };
+      }
+
+      const nextNumero = Number(ultimas?.[0]?.numero_parcela ?? parcelaAtual.numero_parcela ?? 0) + 1;
+      const novoVencimento = data.nova_cobranca_vencimento ?? addDaysIso(data.data_pagamento, 30);
+      const novoValor = Number(data.nova_cobranca_valor ?? 0);
+
+      const { error: insErr } = await supabase.from("parcelas").insert({
+        user_id: context.userId,
+        emprestimo_id: parcelaAtual.emprestimo_id,
+        numero_parcela: nextNumero,
+        data_vencimento: novoVencimento,
+        valor_parcela: novoValor,
+        status: "pendente",
+      });
+
+      if (insErr) {
+        console.error("baixaParcela insert nova cobrança error:", insErr);
+        return { ok: false, error: `Baixa registrada, mas falhou ao gerar nova cobrança: ${insErr.message}` };
+      }
+
+      const { error: empErr } = await supabase
+        .from("emprestimos")
+        .update({ numero_parcelas: nextNumero })
+        .eq("id", parcelaAtual.emprestimo_id)
+        .eq("user_id", context.userId);
+
+      if (empErr) {
+        console.error("baixaParcela update emprestimo parcelas error:", empErr);
+        return { ok: false, error: `Nova cobrança criada, mas falhou ao atualizar o total do contrato: ${empErr.message}` };
+      }
+    }
+
     return { ok: true, error: null };
   });
 
@@ -219,6 +285,53 @@ export const estornoParcela = createServerFn({ method: "POST" })
   .inputValidator((input: EstornoParcelaInput) => estornoSchema.parse(input))
   .handler(async ({ data, context }): Promise<{ ok: boolean; error: string | null }> => {
     const supabase = getServerClient({ admin: true });
+
+    const { data: parcelaAtual, error: parcelaErr } = await supabase
+      .from("parcelas")
+      .select("id, emprestimo_id, numero_parcela, data_pagamento, valor_parcela, valor_pago, status")
+      .eq("id", data.id)
+      .eq("user_id", context.userId)
+      .single();
+
+    if (parcelaErr || !parcelaAtual) {
+      console.error("estornoParcela select error:", parcelaErr);
+      return { ok: false, error: parcelaErr?.message ?? "Parcela não encontrada." };
+    }
+
+    const { data: emprestimoAtual } = await supabase
+      .from("emprestimos")
+      .select("numero_parcelas")
+      .eq("id", parcelaAtual.emprestimo_id)
+      .eq("user_id", context.userId)
+      .single();
+
+    let cobrancaGeradaId: string | number | null = null;
+    let cobrancaGeradaNumero = 0;
+
+    if (parcelaAtual.data_pagamento) {
+      const vencimentoGerado = addDaysIso(String(parcelaAtual.data_pagamento), 30);
+      const { data: geradas, error: geradasErr } = await supabase
+        .from("parcelas")
+        .select("id, numero_parcela")
+        .eq("user_id", context.userId)
+        .eq("emprestimo_id", parcelaAtual.emprestimo_id)
+        .eq("status", "pendente")
+        .eq("data_vencimento", vencimentoGerado)
+        .gt("numero_parcela", Number(parcelaAtual.numero_parcela ?? 0))
+        .gte("created_at", `${parcelaAtual.data_pagamento}T00:00:00`)
+        .order("numero_parcela", { ascending: false })
+        .limit(1);
+
+      if (geradasErr) {
+        console.error("estornoParcela generated select error:", geradasErr);
+        return { ok: false, error: geradasErr.message };
+      }
+
+      if (geradas?.[0]) {
+        cobrancaGeradaId = geradas[0].id;
+        cobrancaGeradaNumero = Number(geradas[0].numero_parcela ?? 0);
+      }
+    }
 
     const { data: updated, error } = await supabase
       .from("parcelas")
@@ -241,5 +354,101 @@ export const estornoParcela = createServerFn({ method: "POST" })
         error: "Nenhuma parcela foi estornada. Verifique as permissões (RLS) da tabela parcelas.",
       };
     }
+
+    if (cobrancaGeradaId) {
+      const { error: deleteErr } = await supabase
+        .from("parcelas")
+        .delete()
+        .eq("id", cobrancaGeradaId)
+        .eq("user_id", context.userId);
+
+      if (deleteErr) {
+        console.error("estornoParcela delete generated error:", deleteErr);
+        return {
+          ok: false,
+          error: `Pagamento estornado, mas falhou ao remover a cobrança gerada: ${deleteErr.message}`,
+        };
+      }
+
+      const totalAtual = Number(emprestimoAtual?.numero_parcelas ?? 0);
+      const novoTotal = Math.max(Number(parcelaAtual.numero_parcela ?? 1), totalAtual - 1, cobrancaGeradaNumero - 1);
+      const { error: empErr } = await supabase
+        .from("emprestimos")
+        .update({ numero_parcelas: novoTotal })
+        .eq("id", parcelaAtual.emprestimo_id)
+        .eq("user_id", context.userId);
+
+      if (empErr) {
+        console.error("estornoParcela update emprestimo error:", empErr);
+        return {
+          ok: false,
+          error: `Cobrança gerada removida, mas falhou ao atualizar o total do contrato: ${empErr.message}`,
+        };
+      }
+    }
+
+    return { ok: true, error: null };
+  });
+
+const excluirParcelaSchema = z.object({
+  id: z.union([z.string().min(1), z.number()]),
+});
+
+export type ExcluirParcelaInput = z.infer<typeof excluirParcelaSchema>;
+
+export const excluirParcela = createServerFn({ method: "POST" })
+  .middleware([requireAuthForExternal])
+  .inputValidator((input: ExcluirParcelaInput) => excluirParcelaSchema.parse(input))
+  .handler(async ({ data, context }): Promise<{ ok: boolean; error: string | null }> => {
+    const supabase = getServerClient({ admin: true });
+
+    const { data: parcelaAtual, error: parcelaErr } = await supabase
+      .from("parcelas")
+      .select("id, emprestimo_id")
+      .eq("id", data.id)
+      .eq("user_id", context.userId)
+      .single();
+
+    if (parcelaErr || !parcelaAtual) {
+      console.error("excluirParcela select error:", parcelaErr);
+      return { ok: false, error: parcelaErr?.message ?? "Parcela não encontrada." };
+    }
+
+    const { error: deleteErr } = await supabase
+      .from("parcelas")
+      .delete()
+      .eq("id", data.id)
+      .eq("user_id", context.userId);
+
+    if (deleteErr) {
+      console.error("excluirParcela delete error:", deleteErr);
+      return { ok: false, error: deleteErr.message };
+    }
+
+    const { data: restantes, error: restantesErr } = await supabase
+      .from("parcelas")
+      .select("numero_parcela")
+      .eq("user_id", context.userId)
+      .eq("emprestimo_id", parcelaAtual.emprestimo_id)
+      .order("numero_parcela", { ascending: false })
+      .limit(1);
+
+    if (restantesErr) {
+      console.error("excluirParcela restantes error:", restantesErr);
+      return { ok: false, error: `Parcela excluída, mas falhou ao recalcular o contrato: ${restantesErr.message}` };
+    }
+
+    const novoTotal = Number(restantes?.[0]?.numero_parcela ?? 0);
+    const { error: empErr } = await supabase
+      .from("emprestimos")
+      .update({ numero_parcelas: novoTotal })
+      .eq("id", parcelaAtual.emprestimo_id)
+      .eq("user_id", context.userId);
+
+    if (empErr) {
+      console.error("excluirParcela emprestimo error:", empErr);
+      return { ok: false, error: `Parcela excluída, mas falhou ao atualizar o contrato: ${empErr.message}` };
+    }
+
     return { ok: true, error: null };
   });

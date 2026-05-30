@@ -133,7 +133,7 @@ function calcular(
   const inicio = new Date(form.dataInicio + "T00:00:00");
   const buildData = (i: number) => {
     const d = new Date(inicio);
-    d.setDate(d.getDate() + i * per.dias);
+    d.setDate(d.getDate() + (i + 1) * per.dias);
     const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
     return { vencimento: d.toLocaleDateString("pt-BR"), vencimentoIso: iso };
   };
