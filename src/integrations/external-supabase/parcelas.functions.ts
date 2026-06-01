@@ -136,15 +136,24 @@ export const listParcelas = createServerFn({ method: "GET" })
     const out: ParcelaListItem[] = list.map((p) => {
       const emp = empMap.get(String(p.emprestimo_id));
       const cli = emp?.cliente_id ? cliMap.get(String(emp.cliente_id)) : null;
+      let valorCapital = Number(p.valor_parcela ?? 0);
       let minimo = 0;
       if (emp) {
         if (emp.tipo_juros === "so_juros") {
           const valorParcela = Number(p.valor_parcela ?? 0);
-          const isUltima = Number(p.numero_parcela ?? 0) === emp.numero_parcelas;
-          minimo =
-            isUltima && valorParcela > emp.valor_principal
-              ? valorParcela - emp.valor_principal
-              : valorParcela;
+          const jurosOriginal = (emp.valor_principal * emp.taxa_juros) / 100;
+          const totalOriginal = emp.valor_principal + jurosOriginal;
+
+          if (approxMoney(valorParcela, jurosOriginal)) {
+            valorCapital = emp.valor_principal;
+            minimo = valorParcela;
+          } else if (approxMoney(valorParcela, totalOriginal)) {
+            valorCapital = emp.valor_principal;
+            minimo = valorParcela - emp.valor_principal;
+          } else {
+            valorCapital = valorParcela;
+            minimo = (valorCapital * emp.taxa_juros) / 100;
+          }
         } else {
           minimo = (emp.valor_principal * emp.taxa_juros) / 100;
         }
@@ -157,7 +166,7 @@ export const listParcelas = createServerFn({ method: "GET" })
         numero_parcela: Number(p.numero_parcela ?? 0),
         parcelas_total: emp?.numero_parcelas ?? 0,
         data_vencimento: p.data_vencimento ?? null,
-        valor_parcela: Number(p.valor_parcela ?? 0),
+        valor_parcela: valorCapital,
         valor_principal: emp?.valor_principal ?? 0,
         valor_minimo: minimo,
         status: p.status ?? null,
@@ -180,6 +189,10 @@ function addDaysIso(iso: string, days: number) {
   const d = new Date(`${iso}T00:00:00`);
   d.setDate(d.getDate() + days);
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function approxMoney(a: number, b: number) {
+  return Math.abs(a - b) <= 0.05;
 }
 
 const baixaSchema = z.object({
@@ -265,7 +278,7 @@ export const baixaParcela = createServerFn({ method: "POST" })
       const novoVencimento = data.nova_cobranca_vencimento ?? addDaysIso(data.data_pagamento, 30);
       const taxa = Number(emprestimoAtual?.taxa_juros ?? 0) / 100;
       const base = Number(data.nova_cobranca_base ?? 0);
-      const novoValor =
+      const novoJuros =
         base > 0 ? Number((base * taxa).toFixed(2)) : Number(data.nova_cobranca_valor ?? 0);
 
       const { error: insErr } = await supabase.from("parcelas").insert({
@@ -273,7 +286,7 @@ export const baixaParcela = createServerFn({ method: "POST" })
         emprestimo_id: parcelaAtual.emprestimo_id,
         numero_parcela: nextNumero,
         data_vencimento: novoVencimento,
-        valor_parcela: novoValor,
+        valor_parcela: base > 0 ? Number(base.toFixed(2)) : novoJuros,
         status: "pendente",
       });
 

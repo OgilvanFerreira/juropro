@@ -571,7 +571,7 @@ function VencimentosPage() {
                             dir={sortDir}
                             onSort={handleSort}
                           >
-                            Valor
+                            Capital
                           </Th>
                           <Th
                             sortKey="valor_minimo"
@@ -1140,7 +1140,7 @@ function CardMobile({
           <p className="font-semibold text-foreground">{fmtDate(item.data_vencimento)}</p>
         </div>
         <div>
-          <p className="text-muted-foreground">Valor</p>
+          <p className="text-muted-foreground">Capital</p>
           <p className="font-semibold text-foreground">{fmtBRL(item.valor_parcela)}</p>
         </div>
         <div>
@@ -1297,7 +1297,7 @@ function BaixaDialog({
                   value={`${parcela.numero_parcela}/${parcela.parcelas_total || parcela.numero_parcela}`}
                 />
                 <Info label="Vencimento" value={fmtDate(parcela.data_vencimento)} />
-                <Info label="Valor" value={fmtBRL(parcela.valor_parcela)} />
+                <Info label="Capital" value={fmtBRL(parcela.valor_parcela)} />
               </div>
               <div className="mt-2 border-t border-border pt-2">
                 <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">

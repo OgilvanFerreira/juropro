@@ -88,13 +88,11 @@ function calcularPreview(
   periodicidade: BaixaPeriodicidade,
 ) {
   const dias = PERIODICIDADES.find((p) => p.value === periodicidade)?.dias ?? 30;
-  const valorParcela = Number(parcela?.valor_parcela ?? 0);
-  const saldoRestante = Math.max(valorParcela - valorPago, 0);
+  const valorCapital = Number(parcela?.valor_parcela ?? 0);
   const minimo = Number(parcela?.valor_minimo ?? 0);
-  const capital = Number(parcela?.valor_principal ?? 0);
   const jurosNaoPago = Math.max(minimo - valorPago, 0);
-  const quitouJuros = minimo > 0 && valorPago >= minimo - 0.005;
-  const base = parcela ? (quitouJuros ? saldoRestante : capital + jurosNaoPago) : 0;
+  const abatimentoCapital = Math.max(valorPago - minimo, 0);
+  const base = parcela ? Math.max(valorCapital - abatimentoCapital, 0) + jurosNaoPago : 0;
   const taxa = Number(parcela?.taxa_juros ?? 0);
   const juros = base * (taxa / 100);
   const total = juros;
@@ -102,12 +100,12 @@ function calcularPreview(
   return {
     dias,
     vencimento: addDaysISO(dataPagamento || todayISO(), dias),
-    saldoRestante,
+    saldoRestante: jurosNaoPago,
     jurosNaoPago,
     base,
     juros,
     total,
-    pagamentoParcial: saldoRestante > 0.005,
+    pagamentoParcial: jurosNaoPago > 0.005,
   };
 }
 
@@ -143,7 +141,7 @@ export function BaixaParcelaDialog({
   useEffect(() => {
     if (parcela) {
       setDataPag(todayISO());
-      setValorPag(parcela.valor_parcela.toFixed(2));
+      setValorPag((parcela.valor_minimo || parcela.valor_parcela).toFixed(2));
       setGerarNovaCobranca(false);
       setPeriodicidade("mensal");
     }
@@ -186,7 +184,7 @@ export function BaixaParcelaDialog({
                   value={`${parcela.numero_parcela}/${parcela.parcelas_total || parcela.numero_parcela}`}
                 />
                 <Info label="Vencimento" value={fmtDate(parcela.data_vencimento)} />
-                <Info label="Valor" value={fmtBRL(parcela.valor_parcela)} />
+                <Info label="Capital" value={fmtBRL(parcela.valor_parcela)} />
                 <Info label="Taxa" value={`${Number(parcela.taxa_juros ?? 0)}%`} />
                 <Info label="Tipo" value={tipoJurosLabel(parcela.tipo_juros)} />
               </div>

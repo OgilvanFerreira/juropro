@@ -377,7 +377,7 @@ function ContratosPage() {
                               onClick={() => handleSort("principal")}
                               className="inline-flex items-center gap-1 hover:text-foreground transition-colors ml-auto"
                             >
-                              Principal <SortIcon column="principal" />
+                              Capital <SortIcon column="principal" />
                             </button>
                           </th>
                           <th className="px-3 py-2 text-right">
@@ -660,7 +660,7 @@ function CardMobile({
       </div>
       <div className="grid grid-cols-2 gap-2 text-xs">
         <div>
-          <p className="text-muted-foreground">Principal</p>
+          <p className="text-muted-foreground">Capital</p>
           <p className="font-semibold text-foreground">{fmtBRL(item.valor_principal)}</p>
         </div>
         <div>

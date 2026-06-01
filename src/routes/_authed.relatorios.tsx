@@ -574,7 +574,7 @@ function FinanceiroTab() {
         { key: "cliente", label: "Cliente" },
         { key: "contrato", label: "Contrato" },
         { key: "vencimento", label: "Vencimento" },
-        { key: "valor", label: "Valor (R$)" },
+        { key: "valor", label: "Capital (R$)" },
         { key: "valor_pago", label: "Valor Pago (R$)" },
         { key: "status", label: "Status" },
       ],
@@ -750,7 +750,7 @@ function FinanceiroTab() {
                       onClick={handleSort}
                     />
                     <SortHeader<FinSortKey>
-                      label="Valor"
+                      label="Capital"
                       col="valor"
                       current={sortKey}
                       dir={sortDir}
@@ -1042,7 +1042,7 @@ function FinanceiroBaixaDialog({
                   value={`${parcela.numero_parcela}/${parcela.parcelas_total || parcela.numero_parcela}`}
                 />
                 <FinanceiroInfo label="Vencimento" value={fmtDate(parcela.data_vencimento)} />
-                <FinanceiroInfo label="Valor" value={fmtBRL(parcela.valor_parcela)} />
+                <FinanceiroInfo label="Capital" value={fmtBRL(parcela.valor_parcela)} />
               </div>
               <div className="mt-2 border-t border-border pt-2">
                 <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
@@ -1364,7 +1364,7 @@ function ContratosTab() {
       [
         { key: "id", label: "Contrato" },
         { key: "cliente", label: "Cliente" },
-        { key: "valor", label: "Valor (R$)" },
+        { key: "valor", label: "Capital (R$)" },
         { key: "taxa", label: "Taxa" },
         { key: "parcelas", label: "Parcelas" },
         { key: "tipo", label: "Tipo" },
@@ -1516,7 +1516,7 @@ function ContratosTab() {
                       onClick={handleSort}
                     />
                     <SortHeader<ContratoSortKey>
-                      label="Valor"
+                      label="Capital"
                       col="valor"
                       current={sortKey}
                       dir={sortDir}
@@ -1683,7 +1683,7 @@ function ContratosTab() {
                     </div>
                     <div className="grid grid-cols-2 gap-1 text-xs">
                       <div>
-                        <p className="text-muted-foreground">Valor</p>
+                        <p className="text-muted-foreground">Capital</p>
                         <p className="font-semibold">{fmtBRL(e.valor_principal)}</p>
                       </div>
                       <div>
@@ -2380,11 +2380,10 @@ function InadimplenciaBaixaDialog({
 
   useEffect(() => {
     if (!parcelaSelecionada) return;
-    setValorPag(parcelaSelecionada.valor_parcela.toFixed(2));
+    setValorPag((parcelaSelecionada.valor_minimo || parcelaSelecionada.valor_parcela).toFixed(2));
   }, [parcelaSelecionada]);
 
   const valorNum = Number.parseFloat(valorPag.replace(",", ".")) || 0;
-  const diferenca = parcelaSelecionada ? Math.max(parcelaSelecionada.valor_parcela - valorNum, 0) : 0;
   const periodicidades = [
     { value: "mensal" as const, label: "Mensal", dias: 30 },
     { value: "quinzenal" as const, label: "Quinzenal", dias: 15 },
@@ -2393,17 +2392,15 @@ function InadimplenciaBaixaDialog({
   ];
   const per = periodicidades.find((p) => p.value === periodicidade) ?? periodicidades[0];
   const minimo = Number(parcelaSelecionada?.valor_minimo ?? 0);
-  const capital = Number(parcelaSelecionada?.valor_principal ?? 0);
   const jurosNaoPago = Math.max(minimo - valorNum, 0);
-  const quitouJuros = minimo > 0 && valorNum >= minimo - 0.005;
+  const abatimentoCapital = Math.max(valorNum - minimo, 0);
   const baseNovaCobranca = parcelaSelecionada
-    ? quitouJuros
-      ? diferenca
-      : capital + jurosNaoPago
+    ? Math.max(Number(parcelaSelecionada.valor_parcela ?? 0) - abatimentoCapital, 0) + jurosNaoPago
     : 0;
   const jurosNovaCobranca = baseNovaCobranca * (Number(parcelaSelecionada?.taxa_juros ?? 0) / 100);
   const valorNovaCobranca = jurosNovaCobranca;
   const vencimentoNovaCobranca = addDaysIso(dataPag, per.dias);
+  const diferenca = jurosNaoPago;
 
   return (
     <Dialog
@@ -2452,7 +2449,7 @@ function InadimplenciaBaixaDialog({
                       </div>
                       <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-muted-foreground sm:grid-cols-3">
                         <span>Vencimento: {fmtDate(p.data_vencimento)}</span>
-                        <span>Valor: {fmtBRL(p.valor_parcela)}</span>
+                        <span>Capital: {fmtBRL(p.valor_parcela)}</span>
                         <span>Mínimo: {fmtBRL(p.valor_minimo)}</span>
                       </div>
                     </button>
