@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from "@tanstack/react-router";
 import { useAuth } from "@/hooks/use-auth";
 import { Skeleton } from "@/components/ui/skeleton";
 
-const PUBLIC_ROUTES = ["/login", "/recuperar-senha", "/reset-password"];
+const PUBLIC_ROUTES = ["/login", "/recuperar-senha", "/reset-password", "/privacidade"];
 
 function isPublicPath(pathname: string) {
   return PUBLIC_ROUTES.some((p) => pathname === p || pathname.startsWith(p + "/"));
@@ -59,7 +59,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   const { pathname } = useLocation();
   const publica = isPublicPath(pathname);
 
-  // Redirecionamento ATÔMICO: dispara assim que confirmamos que NÃO há sessão.
+  // Redirecionamento atomico: dispara assim que confirmamos que nao ha sessao.
   useEffect(() => {
     if (loading) return;
     if (!user && !publica) {
@@ -75,16 +75,12 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     }
   }, [user, loading, publica, pathname, navigate]);
 
-  // Rotas públicas: sempre renderizam (login, recuperar-senha, etc.)
+  // Rotas publicas: sempre renderizam (login, recuperar-senha, etc.).
   if (publica) {
     return <>{children}</>;
   }
 
-  // Rota privada + ainda validando sessão:
-  // - Se há token persistido → render otimista (children) para evitar flash.
-  //   O AuthProvider já inicia loading=false neste caso, então este branch
-  //   raramente é atingido — fica como segurança extra.
-  // - Sem token persistido → skeleton no lugar de spinner.
+  // Rota privada + ainda validando sessao.
   if (loading) {
     if (hasPersistedSession) {
       return <>{children}</>;
@@ -92,9 +88,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     return <AppShellSkeleton />;
   }
 
-  // Sessão confirmada como ausente: NUNCA renderiza children. O useEffect
-  // já está disparando o redirect; mostramos skeleton durante a transição
-  // para evitar flash de tela vazia.
+  // Sessao confirmada como ausente: nunca renderiza children durante o redirect.
   if (!user) {
     return <AppShellSkeleton />;
   }

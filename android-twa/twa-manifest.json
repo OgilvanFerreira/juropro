@@ -1,0 +1,50 @@
+{
+  "packageId": "br.com.juropro.app",
+  "host": "juropro.com.br",
+  "name": "JuroPro",
+  "launcherName": "JuroPro",
+  "display": "standalone",
+  "themeColor": "#1E3A5F",
+  "themeColorDark": "#0B1F33",
+  "navigationColor": "#0B1F33",
+  "navigationColorDark": "#0B1F33",
+  "navigationDividerColor": "#0B1F33",
+  "navigationDividerColorDark": "#0B1F33",
+  "backgroundColor": "#FFFFFF",
+  "enableNotifications": false,
+  "startUrl": "/login",
+  "iconUrl": "https://juropro.com.br/icons/icon-512x512.png",
+  "maskableIconUrl": "https://juropro.com.br/icons/icon-512x512.png",
+  "splashScreenFadeOutDuration": 300,
+  "signingKey": {
+    "path": "D:\\Projetos\\1 - Juropro\\android-twa\\juropro-upload-key.jks",
+    "alias": "juropro"
+  },
+  "appVersionName": "1",
+  "appVersionCode": 1,
+  "shortcuts": [],
+  "generatorApp": "bubblewrap-cli",
+  "webManifestUrl": "https://juropro.com.br/manifest.json",
+  "fallbackType": "customtabs",
+  "features": {},
+  "alphaDependencies": {
+    "enabled": false
+  },
+  "enableSiteSettingsShortcut": true,
+  "isChromeOSOnly": false,
+  "isMetaQuest": false,
+  "fullScopeUrl": "https://juropro.com.br/",
+  "minSdkVersion": 21,
+  "orientation": "portrait",
+  "fingerprints": [],
+  "additionalTrustedOrigins": [],
+  "retainedBundles": [],
+  "protocolHandlers": [],
+  "fileHandlers": [],
+  "launchHandlerClientMode": "",
+  "displayOverride": [
+    "standalone",
+    "minimal-ui"
+  ],
+  "appVersion": "1"
+}
