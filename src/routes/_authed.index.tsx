@@ -21,6 +21,7 @@ import { Button } from "@/components/ui/button";
 import { NovoEmprestimoDialog } from "@/components/emprestimos/NovoEmprestimoDialog";
 import { InstallAppButton } from "@/components/pwa/InstallAppButton";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { getDailyInspirationalPhrase } from "@/lib/inspirational-phrases";
 import {
   getDashboardKpis,
   getDashboardCharts,
@@ -117,6 +118,7 @@ function Dashboard() {
     user?.email?.split("@")[0] ||
     "Usuário";
   const firstName = displayName.split(" ")[0];
+  const dailyPhrase = getDailyInspirationalPhrase(user?.id ?? displayName);
 
   const kpisQ = useQuery({
     queryKey: ["dashboard", "kpis"],
@@ -205,6 +207,9 @@ function Dashboard() {
                 </h1>
                 <p className="text-sm text-muted-foreground">
                   Visão geral da operação — atualizado agora.
+                </p>
+                <p className="max-w-2xl text-xs text-muted-foreground/80">
+                  {dailyPhrase}
                 </p>
               </div>
               <TooltipProvider delayDuration={150}>
