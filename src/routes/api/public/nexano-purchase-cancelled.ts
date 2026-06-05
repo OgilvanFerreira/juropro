@@ -24,6 +24,7 @@ function extractToken(req: Request, body: Record<string, unknown>): string | nul
   const urlToken = new URL(req.url).searchParams.get("token");
 
   return (
+    urlToken ||
     req.headers.get("authorization")?.replace(/^Bearer\s+/i, "").trim() ||
     req.headers.get("x-webhook-token") ||
     req.headers.get("x-nexano-token") ||
@@ -33,7 +34,6 @@ function extractToken(req: Request, body: Record<string, unknown>): string | nul
     req.headers.get("x-api-key") ||
     body.token?.toString() ||
     body.secret?.toString() ||
-    urlToken ||
     null
   );
 }
