@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from "@tanstack/react-router";
 import { useAuth } from "@/hooks/use-auth";
 import { Skeleton } from "@/components/ui/skeleton";
 
-const PUBLIC_ROUTES = ["/login", "/recuperar-senha", "/reset-password", "/privacidade"];
+const PUBLIC_ROUTES = ["/login", "/recuperar-senha", "/reset-password", "/privacidade", "/obrigado"];
 
 function isPublicPath(pathname: string) {
   return PUBLIC_ROUTES.some((p) => pathname === p || pathname.startsWith(p + "/"));
