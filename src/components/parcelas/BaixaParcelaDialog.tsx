@@ -34,9 +34,6 @@ export type BaixaParcelaPayload = {
   data_pagamento: string;
   valor_pago: number;
   gerar_nova_cobranca?: boolean;
-  nova_cobranca_base?: number;
-  nova_cobranca_valor?: number;
-  nova_cobranca_vencimento?: string;
   nova_cobranca_periodicidade?: BaixaPeriodicidade;
 };
 
@@ -293,9 +290,6 @@ export function BaixaParcelaDialog({
                     data_pagamento: dataPag,
                     valor_pago: valorNum,
                     gerar_nova_cobranca: gerarNovaCobranca,
-                    nova_cobranca_base: gerarNovaCobranca ? preview.base : undefined,
-                    nova_cobranca_valor: gerarNovaCobranca ? preview.total : undefined,
-                    nova_cobranca_vencimento: gerarNovaCobranca ? preview.vencimento : undefined,
                     nova_cobranca_periodicidade: gerarNovaCobranca ? periodicidade : undefined,
                   })
                 }

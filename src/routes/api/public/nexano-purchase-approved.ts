@@ -32,19 +32,11 @@ function getExternalAdmin() {
 }
 
 function extractToken(req: Request, body: Record<string, unknown>): string | null {
-  const urlToken = new URL(req.url).searchParams.get("token");
-
   return (
-    urlToken ||
     req.headers.get("authorization")?.replace(/^Bearer\s+/i, "").trim() ||
     req.headers.get("x-webhook-token") ||
-    req.headers.get("x-nexano-token") ||
-    req.headers.get("x-webhook-secret") ||
-    req.headers.get("x-token") ||
     req.headers.get("token") ||
-    req.headers.get("x-api-key") ||
     (body.token as string) ||
-    (body.secret as string) ||
     null
   );
 }
@@ -69,13 +61,11 @@ function validateSignature(req: Request, rawBody: string, secret: string): boole
 }
 
 function validateWebhook(req: Request, body: Record<string, unknown>, rawBody: string): boolean {
-  const secret =
-    process.env.NEXANO_APPROVED_WEBHOOK_SECRET ||
-    process.env.NEXANO_WEBHOOK_SECRET;
+  const secret = process.env.KIWIFY_APPROVED_WEBHOOK_SECRET;
 
   if (!secret) {
     console.error(
-      "[webhook-approved] NEXANO_APPROVED_WEBHOOK_SECRET ou NEXANO_WEBHOOK_SECRET nao configurado na Vercel",
+      "[webhook-approved] KIWIFY_APPROVED_WEBHOOK_SECRET nao configurado na Vercel",
     );
     return false;
   }
@@ -91,6 +81,24 @@ function validateWebhook(req: Request, body: Record<string, unknown>, rawBody: s
   }
 
   return safeCompare(token, secret);
+}
+
+function extractEvent(body: Record<string, unknown>): string {
+  return (
+    findStringByKeys(body, ["webhook_event_type", "event_type", "event", "type"]) ?? ""
+  )
+    .trim()
+    .toLowerCase();
+}
+
+function isApprovedEvent(body: Record<string, unknown>): boolean {
+  const event = extractEvent(body);
+  return (
+    event.includes("webhook.test") ||
+    event === "compra_aprovada" ||
+    event === "purchase_approved" ||
+    event === "purchase.approved"
+  );
 }
 
 function findStringByKeys(value: unknown, keys: string[], depth = 0): string | null {
@@ -205,12 +213,7 @@ function extractBuyerData(body: Record<string, unknown>) {
 }
 
 function isWebhookTest(body: Record<string, unknown>) {
-  const event =
-    (body.event as string | undefined) ??
-    (body.type as string | undefined) ??
-    (body.status as string | undefined);
-
-  return event?.toLowerCase().includes("webhook.test") === true;
+  return extractEvent(body).includes("webhook.test");
 }
 
 function generateTemporaryPassword(): string {
@@ -358,6 +361,11 @@ export const Route = createFileRoute("/api/public/nexano-purchase-approved")({
 
         if (!validateWebhook(request, body, rawBody)) {
           return Response.json({ error: "Token invalido" }, { status: 401 });
+        }
+
+        if (!isApprovedEvent(body)) {
+          console.warn("[webhook-approved] Evento nao permitido nesta rota");
+          return Response.json({ error: "Evento nao permitido" }, { status: 422 });
         }
 
         if (isWebhookTest(body)) {

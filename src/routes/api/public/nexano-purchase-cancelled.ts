@@ -21,19 +21,11 @@ function getExternalAdmin() {
 }
 
 function extractToken(req: Request, body: Record<string, unknown>): string | null {
-  const urlToken = new URL(req.url).searchParams.get("token");
-
   return (
-    urlToken ||
     req.headers.get("authorization")?.replace(/^Bearer\s+/i, "").trim() ||
     req.headers.get("x-webhook-token") ||
-    req.headers.get("x-nexano-token") ||
-    req.headers.get("x-webhook-secret") ||
-    req.headers.get("x-token") ||
     req.headers.get("token") ||
-    req.headers.get("x-api-key") ||
     body.token?.toString() ||
-    body.secret?.toString() ||
     null
   );
 }
@@ -57,22 +49,47 @@ function validateSignature(req: Request, rawBody: string, secret: string): boole
   return safeCompare(normalized, expected);
 }
 
-function getAcceptedSecrets(): string[] {
-  return [
-    process.env.NEXANO_CANCELLED_WEBHOOK_SECRETS,
-    process.env.NEXANO_CANCELLED_WEBHOOK_SECRET,
-    process.env.NEXANO_WEBHOOK_SECRET,
-  ]
-    .filter(Boolean)
-    .flatMap((value) => value!.split(","))
-    .map((value) => value.trim())
-    .filter(Boolean);
+type BlockingEvent = "cancelled" | "refund" | "late" | "chargeback" | "test";
+
+function extractEvent(body: Record<string, unknown>): string {
+  return (
+    findStringByKeys(body, ["webhook_event_type", "event_type", "event", "type"]) ?? ""
+  )
+    .trim()
+    .toLowerCase();
+}
+
+function classifyBlockingEvent(body: Record<string, unknown>): BlockingEvent | null {
+  const event = extractEvent(body);
+  if (event.includes("webhook.test")) return "test";
+  if (["subscription_canceled", "subscription_cancelled", "assinatura_cancelada"].includes(event)) {
+    return "cancelled";
+  }
+  if (["compra_reembolsada", "purchase_refunded", "refund"].includes(event)) return "refund";
+  if (["subscription_late", "assinatura_atrasada"].includes(event)) return "late";
+  if (event === "chargeback") return "chargeback";
+  return null;
+}
+
+function getEventSecrets(event: BlockingEvent | null): string[] {
+  const secrets = {
+    cancelled: process.env.KIWIFY_CANCELLED_WEBHOOK_SECRET,
+    refund: process.env.KIWIFY_REFUND_WEBHOOK_SECRET,
+    late: process.env.KIWIFY_LATE_WEBHOOK_SECRET,
+    chargeback: process.env.KIWIFY_CHARGEBACK_WEBHOOK_SECRET,
+  };
+
+  if (event === "test") return Object.values(secrets).filter((value): value is string => !!value);
+  if (!event) return [];
+  const secret = secrets[event];
+  return secret ? [secret] : [];
 }
 
 function validateWebhook(req: Request, body: Record<string, unknown>, rawBody: string): boolean {
-  const acceptedSecrets = getAcceptedSecrets();
+  const event = classifyBlockingEvent(body);
+  const acceptedSecrets = getEventSecrets(event);
   if (acceptedSecrets.length === 0) {
-    console.error("[webhook-cancelled] Tokens de webhook nao configurados na Vercel");
+    console.error("[webhook-cancelled] Evento desconhecido ou segredo especifico nao configurado");
     return false;
   }
 
@@ -173,12 +190,7 @@ function extractBuyerIdentifier(body: Record<string, unknown>): {
 }
 
 function isWebhookTest(body: Record<string, unknown>) {
-  const event =
-    (body.event as string | undefined) ??
-    (body.type as string | undefined) ??
-    (body.status as string | undefined);
-
-  return event?.toLowerCase().includes("webhook.test") === true;
+  return extractEvent(body).includes("webhook.test");
 }
 
 async function findUserByEmail(
@@ -217,6 +229,11 @@ export const Route = createFileRoute("/api/public/nexano-purchase-cancelled")({
 
         if (!validateWebhook(request, body, rawBody)) {
           return Response.json({ error: "Token invalido" }, { status: 401 });
+        }
+
+        if (!classifyBlockingEvent(body)) {
+          console.warn("[webhook-cancelled] Evento nao permitido nesta rota");
+          return Response.json({ error: "Evento nao permitido" }, { status: 422 });
         }
 
         if (isWebhookTest(body)) {

@@ -328,9 +328,6 @@ function VencimentosPage() {
       data_pagamento: string;
       valor_pago: number;
       gerar_nova_cobranca?: boolean;
-      nova_cobranca_base?: number;
-      nova_cobranca_valor?: number;
-      nova_cobranca_vencimento?: string;
       nova_cobranca_periodicidade?: "mensal" | "quinzenal" | "semanal" | "diario";
     }) =>
       baixaParcela({ data: input }),
@@ -684,9 +681,6 @@ function VencimentosPage() {
             data_pagamento: payload.data_pagamento,
             valor_pago: payload.valor_pago,
             gerar_nova_cobranca: payload.gerar_nova_cobranca,
-            nova_cobranca_base: payload.nova_cobranca_base,
-            nova_cobranca_valor: payload.nova_cobranca_valor,
-            nova_cobranca_vencimento: payload.nova_cobranca_vencimento,
             nova_cobranca_periodicidade: payload.nova_cobranca_periodicidade,
           })
         }
@@ -1241,8 +1235,6 @@ function BaixaDialog({
     data_pagamento: string;
     valor_pago: number;
     gerar_nova_cobranca?: boolean;
-    nova_cobranca_valor?: number;
-    nova_cobranca_vencimento?: string;
   }) => void;
   isLoading: boolean;
 }) {
@@ -1366,8 +1358,6 @@ function BaixaDialog({
                     data_pagamento: dataPag,
                     valor_pago: valorNum,
                     gerar_nova_cobranca: gerarNovaCobranca,
-                    nova_cobranca_valor: gerarNovaCobranca ? valorNovaCobranca : undefined,
-                    nova_cobranca_vencimento: gerarNovaCobranca ? vencimentoNovaCobranca : undefined,
                   })
                 }
                 disabled={isLoading || !dataPag || valorNum < 0}

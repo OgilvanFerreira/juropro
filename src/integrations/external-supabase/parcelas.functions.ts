@@ -200,11 +200,15 @@ const baixaSchema = z.object({
   data_pagamento: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   valor_pago: z.number().min(0),
   gerar_nova_cobranca: z.boolean().optional(),
-  nova_cobranca_base: z.number().min(0).optional(),
-  nova_cobranca_valor: z.number().min(0).optional(),
-  nova_cobranca_vencimento: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   nova_cobranca_periodicidade: z.enum(["mensal", "quinzenal", "semanal", "diario"]).optional(),
 });
+
+const BAIXA_PERIODICIDADE_DIAS = {
+  mensal: 30,
+  quinzenal: 15,
+  semanal: 7,
+  diario: 1,
+} as const;
 
 export type BaixaParcelaInput = z.infer<typeof baixaSchema>;
 
@@ -235,6 +239,7 @@ export const baixaParcela = createServerFn({ method: "POST" })
       })
       .eq("id", data.id)
       .eq("user_id", context.userId)
+      .neq("status", "pago")
       .select("id");
 
     if (error) {
@@ -244,11 +249,11 @@ export const baixaParcela = createServerFn({ method: "POST" })
     if (!updated || updated.length === 0) {
       return {
         ok: false,
-        error: "Nenhuma parcela foi atualizada. Verifique as permissões (RLS) da tabela parcelas.",
+        error: "Esta parcela já foi baixada ou não está disponível para pagamento.",
       };
     }
 
-    if (data.gerar_nova_cobranca && Number(data.nova_cobranca_valor ?? 0) > 0) {
+    if (data.gerar_nova_cobranca) {
       const { data: ultimas, error: ultErr } = await supabase
         .from("parcelas")
         .select("numero_parcela")
@@ -264,7 +269,7 @@ export const baixaParcela = createServerFn({ method: "POST" })
 
       const { data: emprestimoAtual, error: empSelectErr } = await supabase
         .from("emprestimos")
-        .select("taxa_juros, tipo_juros")
+        .select("taxa_juros, tipo_juros, valor_principal")
         .eq("id", parcelaAtual.emprestimo_id)
         .eq("user_id", context.userId)
         .single();
@@ -275,18 +280,43 @@ export const baixaParcela = createServerFn({ method: "POST" })
       }
 
       const nextNumero = Number(ultimas?.[0]?.numero_parcela ?? parcelaAtual.numero_parcela ?? 0) + 1;
-      const novoVencimento = data.nova_cobranca_vencimento ?? addDaysIso(data.data_pagamento, 30);
+      const periodicidade = data.nova_cobranca_periodicidade ?? "mensal";
+      const novoVencimento = addDaysIso(data.data_pagamento, BAIXA_PERIODICIDADE_DIAS[periodicidade]);
       const taxa = Number(emprestimoAtual?.taxa_juros ?? 0) / 100;
-      const base = Number(data.nova_cobranca_base ?? 0);
-      const novoJuros =
-        base > 0 ? Number((base * taxa).toFixed(2)) : Number(data.nova_cobranca_valor ?? 0);
+      const capitalOriginal = Number(emprestimoAtual?.valor_principal ?? 0);
+      const valorParcelaAtual = Number(parcelaAtual.valor_parcela ?? 0);
+      const jurosOriginal = capitalOriginal * taxa;
+      const totalOriginal = capitalOriginal + jurosOriginal;
+
+      let capitalAtual = valorParcelaAtual;
+      let jurosMinimo = jurosOriginal;
+      if (emprestimoAtual?.tipo_juros === "so_juros") {
+        if (approxMoney(valorParcelaAtual, jurosOriginal)) {
+          capitalAtual = capitalOriginal;
+          jurosMinimo = valorParcelaAtual;
+        } else if (approxMoney(valorParcelaAtual, totalOriginal)) {
+          capitalAtual = capitalOriginal;
+          jurosMinimo = valorParcelaAtual - capitalOriginal;
+        } else {
+          jurosMinimo = valorParcelaAtual * taxa;
+        }
+      }
+
+      const jurosNaoPago = Math.max(jurosMinimo - data.valor_pago, 0);
+      const abatimentoCapital = Math.max(data.valor_pago - jurosMinimo, 0);
+      const base = Math.max(capitalAtual - abatimentoCapital, 0) + jurosNaoPago;
+      const novoJuros = Number((base * taxa).toFixed(2));
+
+      if (base <= 0 || novoJuros <= 0) {
+        return { ok: true, error: null };
+      }
 
       const { error: insErr } = await supabase.from("parcelas").insert({
         user_id: context.userId,
         emprestimo_id: parcelaAtual.emprestimo_id,
         numero_parcela: nextNumero,
         data_vencimento: novoVencimento,
-        valor_parcela: base > 0 ? Number(base.toFixed(2)) : novoJuros,
+        valor_parcela: Number(base.toFixed(2)),
         status: "pendente",
       });
 
