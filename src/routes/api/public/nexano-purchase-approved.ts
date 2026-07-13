@@ -380,8 +380,8 @@ export const Route = createFileRoute("/api/public/nexano-purchase-approved")({
         }
 
         if (!isApprovedEvent(body)) {
-          console.warn("[webhook-approved] Evento nao permitido nesta rota");
-          return Response.json({ error: "Evento nao permitido" }, { status: 422 });
+          console.log("[webhook-approved] Evento autenticado ignorado nesta rota");
+          return Response.json({ ok: true, ignored: true }, { status: 200 });
         }
 
         if (isWebhookTest(body)) {

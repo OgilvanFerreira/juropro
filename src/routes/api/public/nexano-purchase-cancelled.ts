@@ -94,8 +94,9 @@ function getEventSecrets(event: BlockingEvent | null): string[] {
     chargeback: process.env.KIWIFY_CHARGEBACK_WEBHOOK_SECRET,
   };
 
-  if (event === "test") return Object.values(secrets).filter((value): value is string => !!value);
-  if (!event) return [];
+  if (event === "test" || !event) {
+    return Object.values(secrets).filter((value): value is string => !!value);
+  }
   const secret = secrets[event];
   return secret ? [secret] : [];
 }
@@ -249,8 +250,8 @@ export const Route = createFileRoute("/api/public/nexano-purchase-cancelled")({
         }
 
         if (!classifyBlockingEvent(body)) {
-          console.warn("[webhook-cancelled] Evento nao permitido nesta rota");
-          return Response.json({ error: "Evento nao permitido" }, { status: 422 });
+          console.log("[webhook-cancelled] Evento autenticado ignorado nesta rota");
+          return Response.json({ ok: true, ignored: true }, { status: 200 });
         }
 
         if (isWebhookTest(body)) {
