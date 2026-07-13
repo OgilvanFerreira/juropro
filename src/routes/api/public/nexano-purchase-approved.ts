@@ -47,17 +47,30 @@ function safeCompare(a: string, b: string): boolean {
   return left.length === right.length && timingSafeEqual(left, right);
 }
 
-function validateSignature(req: Request, rawBody: string, secret: string): boolean {
+function validateSignature(
+  req: Request,
+  rawBody: string,
+  body: Record<string, unknown>,
+  secret: string,
+): boolean {
+  const querySignature = new URL(req.url).searchParams.get("signature");
   const signature =
+    querySignature ||
     req.headers.get("x-webhook-signature") ||
     req.headers.get("x-nexano-signature") ||
     req.headers.get("x-signature");
 
   if (!signature) return false;
 
-  const normalized = signature.replace(/^sha256=/i, "").trim();
-  const expected = createHmac("sha256", secret).update(rawBody).digest("hex");
-  return safeCompare(normalized, expected);
+  const normalized = signature.replace(/^(sha1|sha256)=/i, "").trim();
+  const algorithms = querySignature ? ["sha1"] : ["sha256", "sha1"];
+  const payloads = [...new Set([rawBody, JSON.stringify(body)])];
+  return algorithms.some((algorithm) =>
+    payloads.some((payload) => {
+      const expected = createHmac(algorithm, secret).update(payload).digest("hex");
+      return safeCompare(normalized, expected);
+    }),
+  );
 }
 
 function validateWebhook(req: Request, body: Record<string, unknown>, rawBody: string): boolean {
@@ -72,7 +85,7 @@ function validateWebhook(req: Request, body: Record<string, unknown>, rawBody: s
 
   const token = extractToken(req, body);
   if (!token) {
-    const validSignature = validateSignature(req, rawBody, secret);
+    const validSignature = validateSignature(req, rawBody, body, secret);
     if (!validSignature) {
       console.error("[webhook-approved] Token/assinatura ausente ou invalida");
       return false;
@@ -95,6 +108,7 @@ function isApprovedEvent(body: Record<string, unknown>): boolean {
   const event = extractEvent(body);
   return (
     event.includes("webhook.test") ||
+    event === "order_approved" ||
     event === "compra_aprovada" ||
     event === "purchase_approved" ||
     event === "purchase.approved"
@@ -358,6 +372,8 @@ export const Route = createFileRoute("/api/public/nexano-purchase-approved")({
         } catch {
           return Response.json({ error: "Payload JSON invalido" }, { status: 400 });
         }
+
+        console.log("[webhook-approved] Evento recebido:", extractEvent(body) || "nao informado");
 
         if (!validateWebhook(request, body, rawBody)) {
           return Response.json({ error: "Token invalido" }, { status: 401 });

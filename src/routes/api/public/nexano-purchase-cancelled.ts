@@ -36,17 +36,30 @@ function safeCompare(a: string, b: string): boolean {
   return left.length === right.length && timingSafeEqual(left, right);
 }
 
-function validateSignature(req: Request, rawBody: string, secret: string): boolean {
+function validateSignature(
+  req: Request,
+  rawBody: string,
+  body: Record<string, unknown>,
+  secret: string,
+): boolean {
+  const querySignature = new URL(req.url).searchParams.get("signature");
   const signature =
+    querySignature ||
     req.headers.get("x-webhook-signature") ||
     req.headers.get("x-nexano-signature") ||
     req.headers.get("x-signature");
 
   if (!signature) return false;
 
-  const normalized = signature.replace(/^sha256=/i, "").trim();
-  const expected = createHmac("sha256", secret).update(rawBody).digest("hex");
-  return safeCompare(normalized, expected);
+  const normalized = signature.replace(/^(sha1|sha256)=/i, "").trim();
+  const algorithms = querySignature ? ["sha1"] : ["sha256", "sha1"];
+  const payloads = [...new Set([rawBody, JSON.stringify(body)])];
+  return algorithms.some((algorithm) =>
+    payloads.some((payload) => {
+      const expected = createHmac(algorithm, secret).update(payload).digest("hex");
+      return safeCompare(normalized, expected);
+    }),
+  );
 }
 
 type BlockingEvent = "cancelled" | "refund" | "late" | "chargeback" | "test";
@@ -65,9 +78,11 @@ function classifyBlockingEvent(body: Record<string, unknown>): BlockingEvent | n
   if (["subscription_canceled", "subscription_cancelled", "assinatura_cancelada"].includes(event)) {
     return "cancelled";
   }
-  if (["compra_reembolsada", "purchase_refunded", "refund"].includes(event)) return "refund";
+  if (["order_refunded", "compra_reembolsada", "purchase_refunded", "refund"].includes(event)) {
+    return "refund";
+  }
   if (["subscription_late", "assinatura_atrasada"].includes(event)) return "late";
-  if (event === "chargeback") return "chargeback";
+  if (["order_chargeback", "chargeback"].includes(event)) return "chargeback";
   return null;
 }
 
@@ -96,7 +111,7 @@ function validateWebhook(req: Request, body: Record<string, unknown>, rawBody: s
   const token = extractToken(req, body);
   if (!token) {
     const validSignature = acceptedSecrets.some((secret) =>
-      validateSignature(req, rawBody, secret),
+      validateSignature(req, rawBody, body, secret),
     );
     if (!validSignature) {
       console.error("[webhook-cancelled] Token/assinatura ausente ou invalida");
@@ -226,6 +241,8 @@ export const Route = createFileRoute("/api/public/nexano-purchase-cancelled")({
         } catch {
           return Response.json({ error: "Payload JSON invalido" }, { status: 400 });
         }
+
+        console.log("[webhook-cancelled] Evento recebido:", extractEvent(body) || "nao informado");
 
         if (!validateWebhook(request, body, rawBody)) {
           return Response.json({ error: "Token invalido" }, { status: 401 });
