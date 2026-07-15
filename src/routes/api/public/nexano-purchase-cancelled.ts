@@ -4,6 +4,12 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { createClient } from "@supabase/supabase-js";
 import { createHmac, timingSafeEqual } from "node:crypto";
+import {
+  buildWebhookEventIdentity,
+  claimWebhookEvent,
+  completeWebhookEvent,
+  failWebhookEvent,
+} from "../../../lib/webhook-idempotency.server";
 
 function getExternalAdmin() {
   const url = process.env.EXTERNAL_SUPABASE_URL;
@@ -22,7 +28,10 @@ function getExternalAdmin() {
 
 function extractToken(req: Request, body: Record<string, unknown>): string | null {
   return (
-    req.headers.get("authorization")?.replace(/^Bearer\s+/i, "").trim() ||
+    req.headers
+      .get("authorization")
+      ?.replace(/^Bearer\s+/i, "")
+      .trim() ||
     req.headers.get("x-webhook-token") ||
     req.headers.get("token") ||
     body.token?.toString() ||
@@ -65,9 +74,7 @@ function validateSignature(
 type BlockingEvent = "cancelled" | "refund" | "late" | "chargeback" | "test";
 
 function extractEvent(body: Record<string, unknown>): string {
-  return (
-    findStringByKeys(body, ["webhook_event_type", "event_type", "event", "type"]) ?? ""
-  )
+  return (findStringByKeys(body, ["webhook_event_type", "event_type", "event", "type"]) ?? "")
     .trim()
     .toLowerCase();
 }
@@ -145,12 +152,13 @@ function findStringByKeys(value: unknown, keys: string[], depth = 0): string | n
 function extractBuyerIdentifier(body: Record<string, unknown>): {
   email: string | null;
   document: string | null;
-  externalId: string | null;
+  orderId: string | null;
+  subscriptionId: string | null;
 } {
   const client = (body.client as Record<string, unknown>) ?? {};
-  const customer = (body.customer as Record<string, unknown>) ?? {};
+  const customer = ((body.Customer ?? body.customer) as Record<string, unknown>) ?? {};
   const transaction = (body.transaction as Record<string, unknown>) ?? {};
-  const subscription = (body.subscription as Record<string, unknown>) ?? {};
+  const subscription = ((body.Subscription ?? body.subscription) as Record<string, unknown>) ?? {};
 
   const email =
     (client.email as string) ??
@@ -170,6 +178,8 @@ function extractBuyerIdentifier(body: Record<string, unknown>): {
     (client.cnpj as string) ??
     (customer.cpf as string) ??
     (customer.cnpj as string) ??
+    (customer.CPF as string) ??
+    (customer.CNPJ as string) ??
     (client.document as string) ??
     (customer.document as string) ??
     (body.subscriber_document_number as string) ??
@@ -186,33 +196,35 @@ function extractBuyerIdentifier(body: Record<string, unknown>): {
       "client_cnpj",
     ]);
 
-  const externalId =
-    (subscription.id as string) ??
+  const orderId =
+    (body.order_id as string) ??
     (transaction.id as string) ??
     (body.transaction_id as string) ??
     (body.payment_order_code as string) ??
-    (body.subscriber_id as string) ??
+    (body.order_ref as string) ??
     (body.id as string) ??
     findStringByKeys(body, [
-      "transaction_id",
       "order_id",
+      "transaction_id",
       "sale_id",
       "purchase_id",
       "payment_order_code",
-      "subscriber_id",
     ]);
 
-  return { email, document, externalId };
+  const subscriptionId =
+    (body.subscription_id as string) ??
+    (subscription.id as string) ??
+    (body.subscriber_id as string) ??
+    findStringByKeys(body, ["subscription_id", "subscriber_id"]);
+
+  return { email, document, orderId, subscriptionId };
 }
 
 function isWebhookTest(body: Record<string, unknown>) {
   return extractEvent(body).includes("webhook.test");
 }
 
-async function findUserByEmail(
-  supabase: ReturnType<typeof getExternalAdmin>,
-  email: string,
-) {
+async function findUserByEmail(supabase: ReturnType<typeof getExternalAdmin>, email: string) {
   const target = email.toLowerCase();
   const perPage = 1000;
 
@@ -249,7 +261,8 @@ export const Route = createFileRoute("/api/public/nexano-purchase-cancelled")({
           return Response.json({ error: "Token invalido" }, { status: 401 });
         }
 
-        if (!classifyBlockingEvent(body)) {
+        const blockingEvent = classifyBlockingEvent(body);
+        if (!blockingEvent) {
           console.log("[webhook-cancelled] Evento autenticado ignorado nesta rota");
           return Response.json({ ok: true, ignored: true }, { status: 200 });
         }
@@ -259,20 +272,16 @@ export const Route = createFileRoute("/api/public/nexano-purchase-cancelled")({
           return Response.json({ ok: true, message: "Webhook de teste recebido" });
         }
 
-        const { email, document, externalId } = extractBuyerIdentifier(body);
+        const { email, document, orderId, subscriptionId } = extractBuyerIdentifier(body);
+        const externalId =
+          blockingEvent === "cancelled" || blockingEvent === "late"
+            ? (subscriptionId ?? orderId)
+            : (orderId ?? subscriptionId);
         console.log("[webhook-cancelled] Identificadores extraidos:", {
           email,
           document: document ? `***${document.slice(-4)}` : null,
           externalId,
         });
-
-        if (!email && !document) {
-          console.warn("[webhook-cancelled] Nenhum identificador encontrado");
-          return Response.json(
-            { ok: true, message: "Nenhum identificador encontrado" },
-            { status: 200 },
-          );
-        }
 
         let supabase: ReturnType<typeof getExternalAdmin>;
         try {
@@ -280,14 +289,42 @@ export const Route = createFileRoute("/api/public/nexano-purchase-cancelled")({
         } catch (err: unknown) {
           const msg = err instanceof Error ? err.message : String(err);
           console.error("[webhook-cancelled]", msg);
-          return Response.json(
-            { error: "Configuracao do servidor incompleta" },
-            { status: 500 },
-          );
+          return Response.json({ error: "Configuracao do servidor incompleta" }, { status: 500 });
         }
 
-        let targetUserId: string | null = null;
+        const eventIdentity = buildWebhookEventIdentity({
+          externalId,
+          eventType: extractEvent(body),
+          rawBody,
+        });
+
         try {
+          const claim = await claimWebhookEvent(supabase, eventIdentity);
+          if (!claim.claimed) {
+            console.log(`[webhook-cancelled] Evento duplicado ignorado (${claim.status})`);
+            return Response.json({
+              ok: true,
+              duplicate: true,
+              status: claim.status,
+            });
+          }
+        } catch (err: unknown) {
+          const msg = err instanceof Error ? err.message : String(err);
+          console.error("[webhook-cancelled] Falha ao reservar evento:", msg);
+          return Response.json({ error: "Falha ao registrar evento de bloqueio" }, { status: 500 });
+        }
+
+        try {
+          if (!email && !document) {
+            console.warn("[webhook-cancelled] Nenhum identificador encontrado");
+            await completeWebhookEvent(supabase, eventIdentity);
+            return Response.json({
+              ok: true,
+              message: "Nenhum identificador encontrado",
+            });
+          }
+
+          let targetUserId: string | null = null;
           if (email) {
             const found = await findUserByEmail(supabase, email);
             if (found) targetUserId = found.id;
@@ -295,77 +332,85 @@ export const Route = createFileRoute("/api/public/nexano-purchase-cancelled")({
 
           if (!targetUserId && document) {
             const cleanDoc = document.replace(/\D/g, "");
-            const { data: profile } = await supabase
+            const { data: profile, error: profileError } = await supabase
               .from("profiles")
               .select("user_id")
               .eq("cpf", cleanDoc)
               .maybeSingle();
+            if (profileError) throw profileError;
             if (profile?.user_id) targetUserId = profile.user_id;
           }
+
+          if (!targetUserId) {
+            console.warn("[webhook-cancelled] Usuario nao encontrado");
+            await completeWebhookEvent(supabase, eventIdentity);
+            return Response.json({
+              ok: true,
+              message: "Usuario nao encontrado",
+            });
+          }
+
+          const { data: existingUser, error: existingUserError } =
+            await supabase.auth.admin.getUserById(targetUserId);
+          if (existingUserError) throw existingUserError;
+
+          const alreadyBanned =
+            existingUser?.user?.banned_until &&
+            new Date(existingUser.user.banned_until) > new Date();
+
+          if (alreadyBanned) {
+            await completeWebhookEvent(supabase, eventIdentity);
+            return Response.json({
+              ok: true,
+              message: "Usuario ja bloqueado",
+            });
+          }
+
+          const { error: banError } = await supabase.auth.admin.updateUserById(targetUserId, {
+            ban_duration: "876600h",
+          });
+          if (banError) {
+            throw new Error(`Erro ao bloquear usuario: ${banError.message}`);
+          }
+
+          const { error: signOutError } = await supabase.auth.admin.signOut(targetUserId, "global");
+          if (signOutError) {
+            console.warn("[webhook-cancelled] Aviso ao invalidar sessoes:", signOutError.message);
+          }
+
+          const { error: profileUpdateError } = await supabase
+            .from("profiles")
+            .update({ updated_at: new Date().toISOString() })
+            .eq("user_id", targetUserId);
+          if (profileUpdateError) {
+            console.warn(
+              "[webhook-cancelled] Aviso ao atualizar perfil:",
+              profileUpdateError.message,
+            );
+          }
+
+          await completeWebhookEvent(supabase, eventIdentity);
+          console.log(`[webhook-cancelled] Usuario ${targetUserId} bloqueado`);
+          return Response.json({
+            ok: true,
+            message: "Usuario bloqueado com sucesso",
+            user_id: targetUserId,
+          });
         } catch (err: unknown) {
           const msg = err instanceof Error ? err.message : String(err);
-          console.error("[webhook-cancelled] Erro ao localizar usuario:", msg);
-          return Response.json(
-            { error: "Erro ao localizar usuario" },
-            { status: 500 },
-          );
+          console.error("[webhook-cancelled] Falha no processamento:", msg);
+          try {
+            await failWebhookEvent(supabase, eventIdentity, msg);
+          } catch (trackingError: unknown) {
+            const trackingMessage =
+              trackingError instanceof Error ? trackingError.message : String(trackingError);
+            console.error(
+              "[webhook-cancelled] Falha ao registrar erro do evento:",
+              trackingMessage,
+            );
+          }
+          return Response.json({ error: "Falha ao processar evento de bloqueio" }, { status: 500 });
         }
-
-        if (!targetUserId) {
-          console.warn("[webhook-cancelled] Usuario nao encontrado");
-          return Response.json(
-            { ok: true, message: "Usuario nao encontrado" },
-            { status: 200 },
-          );
-        }
-
-        const { data: existingUser } = await supabase.auth.admin.getUserById(targetUserId);
-        const alreadyBanned =
-          existingUser?.user?.banned_until &&
-          new Date(existingUser.user.banned_until) > new Date();
-
-        if (alreadyBanned) {
-          return Response.json(
-            { ok: true, message: "Usuario ja bloqueado" },
-            { status: 200 },
-          );
-        }
-
-        const { error: banError } = await supabase.auth.admin.updateUserById(
-          targetUserId,
-          { ban_duration: "876600h" },
-        );
-
-        if (banError) {
-          console.error("[webhook-cancelled] Erro ao bloquear usuario:", banError.message);
-          return Response.json(
-            { error: "Erro ao bloquear usuario" },
-            { status: 500 },
-          );
-        }
-
-        const { error: signOutError } = await supabase.auth.admin.signOut(
-          targetUserId,
-          "global",
-        );
-        if (signOutError) {
-          console.warn(
-            "[webhook-cancelled] Aviso ao invalidar sessoes:",
-            signOutError.message,
-          );
-        }
-
-        await supabase
-          .from("profiles")
-          .update({ updated_at: new Date().toISOString() })
-          .eq("user_id", targetUserId);
-
-        console.log(`[webhook-cancelled] Usuario ${targetUserId} bloqueado`);
-        return Response.json({
-          ok: true,
-          message: "Usuario bloqueado com sucesso",
-          user_id: targetUserId,
-        });
       },
     },
   },

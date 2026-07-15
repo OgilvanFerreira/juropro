@@ -12,6 +12,12 @@ import { createFileRoute } from "@tanstack/react-router";
 import { createClient } from "@supabase/supabase-js";
 import nodemailer from "nodemailer";
 import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
+import {
+  buildWebhookEventIdentity,
+  claimWebhookEvent,
+  completeWebhookEvent,
+  failWebhookEvent,
+} from "../../../lib/webhook-idempotency.server";
 
 const APP_BASE_URL = process.env.APP_BASE_URL || "https://www.juropro.com.br";
 const LOGIN_URL = `${APP_BASE_URL.replace(/\/$/, "")}/login`;
@@ -33,7 +39,10 @@ function getExternalAdmin() {
 
 function extractToken(req: Request, body: Record<string, unknown>): string | null {
   return (
-    req.headers.get("authorization")?.replace(/^Bearer\s+/i, "").trim() ||
+    req.headers
+      .get("authorization")
+      ?.replace(/^Bearer\s+/i, "")
+      .trim() ||
     req.headers.get("x-webhook-token") ||
     req.headers.get("token") ||
     (body.token as string) ||
@@ -77,9 +86,7 @@ function validateWebhook(req: Request, body: Record<string, unknown>, rawBody: s
   const secret = process.env.KIWIFY_APPROVED_WEBHOOK_SECRET;
 
   if (!secret) {
-    console.error(
-      "[webhook-approved] KIWIFY_APPROVED_WEBHOOK_SECRET nao configurado na Vercel",
-    );
+    console.error("[webhook-approved] KIWIFY_APPROVED_WEBHOOK_SECRET nao configurado na Vercel");
     return false;
   }
 
@@ -97,9 +104,7 @@ function validateWebhook(req: Request, body: Record<string, unknown>, rawBody: s
 }
 
 function extractEvent(body: Record<string, unknown>): string {
-  return (
-    findStringByKeys(body, ["webhook_event_type", "event_type", "event", "type"]) ?? ""
-  )
+  return (findStringByKeys(body, ["webhook_event_type", "event_type", "event", "type"]) ?? "")
     .trim()
     .toLowerCase();
 }
@@ -135,9 +140,9 @@ function findStringByKeys(value: unknown, keys: string[], depth = 0): string | n
 
 function extractBuyerData(body: Record<string, unknown>) {
   const client = (body.client as Record<string, unknown>) ?? {};
-  const customer = (body.customer as Record<string, unknown>) ?? {};
+  const customer = ((body.Customer ?? body.customer) as Record<string, unknown>) ?? {};
   const transaction = (body.transaction as Record<string, unknown>) ?? {};
-  const subscription = (body.subscription as Record<string, unknown>) ?? {};
+  const subscription = ((body.Subscription ?? body.subscription) as Record<string, unknown>) ?? {};
 
   const email =
     (client.email as string) ??
@@ -155,6 +160,8 @@ function extractBuyerData(body: Record<string, unknown>) {
   const name =
     (client.name as string) ??
     (customer.name as string) ??
+    (customer.full_name as string) ??
+    (customer.first_name as string) ??
     (client.nome as string) ??
     (customer.nome as string) ??
     (body.subscriber_name as string) ??
@@ -174,6 +181,8 @@ function extractBuyerData(body: Record<string, unknown>) {
     (client.cnpj as string) ??
     (customer.cpf as string) ??
     (customer.cnpj as string) ??
+    (customer.CPF as string) ??
+    (customer.CNPJ as string) ??
     (client.document as string) ??
     (customer.document as string) ??
     (body.subscriber_document_number as string) ??
@@ -193,6 +202,7 @@ function extractBuyerData(body: Record<string, unknown>) {
   const phone =
     (client.phone as string) ??
     (customer.phone as string) ??
+    (customer.mobile as string) ??
     (client.telefone as string) ??
     (customer.telefone as string) ??
     (body.subscriber_phone as string) ??
@@ -208,10 +218,12 @@ function extractBuyerData(body: Record<string, unknown>) {
     ]);
 
   const externalId =
+    (body.order_id as string) ??
     (transaction.id as string) ??
-    (subscription.id as string) ??
     (body.transaction_id as string) ??
     (body.payment_order_code as string) ??
+    (body.order_ref as string) ??
+    (subscription.id as string) ??
     (body.subscriber_id as string) ??
     (body.id as string) ??
     findStringByKeys(body, [
@@ -326,10 +338,7 @@ async function sendTemporaryPasswordEmail(input: {
   });
 }
 
-async function findUserByEmail(
-  supabase: ReturnType<typeof getExternalAdmin>,
-  email: string,
-) {
+async function findUserByEmail(supabase: ReturnType<typeof getExternalAdmin>, email: string) {
   const target = email.toLowerCase();
   const perPage = 1000;
 
@@ -345,13 +354,8 @@ async function findUserByEmail(
   throw new Error("Limite de paginacao atingido ao buscar usuario por email.");
 }
 
-async function ensureUserRole(
-  supabase: ReturnType<typeof getExternalAdmin>,
-  userId: string,
-) {
-  const { error } = await supabase
-    .from("user_roles")
-    .insert({ user_id: userId, role: "user" });
+async function ensureUserRole(supabase: ReturnType<typeof getExternalAdmin>, userId: string) {
+  const { error } = await supabase.from("user_roles").insert({ user_id: userId, role: "user" });
 
   if (error && !error.message.toLowerCase().includes("duplicate")) {
     console.warn("[webhook-approved] Aviso ao inserir role:", error.message);
@@ -390,6 +394,7 @@ export const Route = createFileRoute("/api/public/nexano-purchase-approved")({
         }
 
         const { email, name, document, phone, externalId } = extractBuyerData(body);
+        const eventType = extractEvent(body);
 
         console.log("[webhook-approved] Dados extraidos:", {
           email,
@@ -400,10 +405,7 @@ export const Route = createFileRoute("/api/public/nexano-purchase-approved")({
         });
 
         if (!email) {
-          return Response.json(
-            { error: "Email do comprador nao encontrado" },
-            { status: 422 },
-          );
+          return Response.json({ error: "Email do comprador nao encontrado" }, { status: 422 });
         }
 
         try {
@@ -423,10 +425,29 @@ export const Route = createFileRoute("/api/public/nexano-purchase-approved")({
         } catch (err: unknown) {
           const msg = err instanceof Error ? err.message : String(err);
           console.error("[webhook-approved]", msg);
-          return Response.json(
-            { error: "Configuracao do servidor incompleta" },
-            { status: 500 },
-          );
+          return Response.json({ error: "Configuracao do servidor incompleta" }, { status: 500 });
+        }
+
+        const eventIdentity = buildWebhookEventIdentity({
+          externalId,
+          eventType,
+          rawBody,
+        });
+
+        try {
+          const claim = await claimWebhookEvent(supabase, eventIdentity);
+          if (!claim.claimed) {
+            console.log(`[webhook-approved] Evento duplicado ignorado (${claim.status})`);
+            return Response.json({
+              ok: true,
+              duplicate: true,
+              status: claim.status,
+            });
+          }
+        } catch (err: unknown) {
+          const msg = err instanceof Error ? err.message : String(err);
+          console.error("[webhook-approved] Falha ao reservar evento:", msg);
+          return Response.json({ error: "Falha ao registrar evento de compra" }, { status: 500 });
         }
 
         const temporaryPassword = generateTemporaryPassword();
@@ -458,34 +479,25 @@ export const Route = createFileRoute("/api/public/nexano-purchase-approved")({
             );
 
             if (updateError) {
-              console.error("[webhook-approved] Erro ao atualizar usuario:", updateError.message);
-              return Response.json(
-                { error: "Erro ao atualizar usuario" },
-                { status: 500 },
-              );
+              throw new Error(`Erro ao atualizar usuario: ${updateError.message}`);
             }
           } else {
-            const { data: newUser, error: createError } =
-              await supabase.auth.admin.createUser({
-                email,
-                password: temporaryPassword,
-                email_confirm: true,
-                user_metadata: {
-                  name: name ?? email.split("@")[0],
-                  must_change_password: true,
-                  phone: phone ?? null,
-                  document: document ?? null,
-                  external_purchase_id: externalId ?? null,
-                  created_by: "webhook-purchase-approved",
-                },
-              });
+            const { data: newUser, error: createError } = await supabase.auth.admin.createUser({
+              email,
+              password: temporaryPassword,
+              email_confirm: true,
+              user_metadata: {
+                name: name ?? email.split("@")[0],
+                must_change_password: true,
+                phone: phone ?? null,
+                document: document ?? null,
+                external_purchase_id: externalId ?? null,
+                created_by: "webhook-purchase-approved",
+              },
+            });
 
             if (createError || !newUser?.user) {
-              console.error(
-                "[webhook-approved] Erro ao criar usuario:",
-                createError?.message,
-              );
-              return Response.json({ error: "Erro ao criar usuario" }, { status: 500 });
+              throw new Error(`Erro ao criar usuario: ${createError?.message ?? "resposta vazia"}`);
             }
 
             userId = newUser.user.id;
@@ -497,13 +509,18 @@ export const Route = createFileRoute("/api/public/nexano-purchase-approved")({
             name,
             password: temporaryPassword,
           });
+          await completeWebhookEvent(supabase, eventIdentity);
         } catch (err: unknown) {
           const msg = err instanceof Error ? err.message : String(err);
           console.error("[webhook-approved] Falha no processamento:", msg);
-          return Response.json(
-            { error: "Falha ao processar compra aprovada" },
-            { status: 500 },
-          );
+          try {
+            await failWebhookEvent(supabase, eventIdentity, msg);
+          } catch (trackingError: unknown) {
+            const trackingMessage =
+              trackingError instanceof Error ? trackingError.message : String(trackingError);
+            console.error("[webhook-approved] Falha ao registrar erro do evento:", trackingMessage);
+          }
+          return Response.json({ error: "Falha ao processar compra aprovada" }, { status: 500 });
         }
 
         console.log(`[webhook-approved] Acesso liberado para ${email}`);
