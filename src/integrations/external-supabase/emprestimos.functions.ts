@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { requireAuthForExternal } from "./auth-guard";
+import { chunkValues, fetchAllPages } from "./query-pagination.server";
 
 function getServerClient(opts?: { admin?: boolean }) {
   const url = process.env.EXTERNAL_SUPABASE_URL;
@@ -66,14 +67,22 @@ export const listEmprestimos = createServerFn({ method: "GET" })
   .handler(async ({ context }): Promise<{ data: EmprestimoListItem[]; error: string | null }> => {
     const supabase = getServerClient();
 
-    const { data: emps, error: empErr } = await supabase
-      .from("emprestimos")
-      .select(
-        "id, cliente_id, valor_principal, taxa_juros, numero_parcelas, tipo_juros, data_inicio, status, observacoes, created_at",
-      )
-      .eq("user_id", context.userId)
-      .order("created_at", { ascending: false })
-      .limit(500);
+    const { data: emps, error: empErr } = await fetchAllPages<
+      Omit<
+        EmprestimoListItem,
+        "cliente_nome" | "parcelas_pagas" | "parcelas_total" | "total_pago" | "total_a_receber"
+      >
+    >((from, to) =>
+      supabase
+        .from("emprestimos")
+        .select(
+          "id, cliente_id, valor_principal, taxa_juros, numero_parcelas, tipo_juros, data_inicio, status, observacoes, created_at",
+        )
+        .eq("user_id", context.userId)
+        .order("created_at", { ascending: false })
+        .order("id", { ascending: false })
+        .range(from, to),
+    );
 
     if (empErr) {
       console.error("listEmprestimos error:", empErr);
@@ -88,20 +97,45 @@ export const listEmprestimos = createServerFn({ method: "GET" })
     );
     const empIds = list.map((e) => e.id);
 
-    const [{ data: clientesRows }, { data: parcRows }] = await Promise.all([
-      clienteIds.length
-        ? supabase
+    const [clientesResult, parcelasResult] = await Promise.all([
+      Promise.all(
+        chunkValues(clienteIds).map((ids) =>
+          supabase
             .from("clientes")
             .select("id, nome")
             .eq("user_id", context.userId)
-            .in("id", clienteIds as (string | number)[])
-        : Promise.resolve({ data: [] as { id: string | number; nome: string | null }[] }),
-      supabase
-        .from("parcelas")
-        .select("emprestimo_id, valor_parcela, status")
-        .eq("user_id", context.userId)
-        .in("emprestimo_id", empIds as (string | number)[]),
+            .in("id", ids as (string | number)[]),
+        ),
+      ),
+      Promise.all(
+        chunkValues(empIds).map((ids) =>
+          fetchAllPages<{
+            emprestimo_id: string | number;
+            valor_parcela: number | null;
+            status: string | null;
+          }>((from, to) =>
+            supabase
+              .from("parcelas")
+              .select("emprestimo_id, valor_parcela, status")
+              .eq("user_id", context.userId)
+              .in("emprestimo_id", ids as (string | number)[])
+              .order("id", { ascending: true })
+              .range(from, to),
+          ),
+        ),
+      ),
     ]);
+
+    const relatedError = [...clientesResult, ...parcelasResult].find(
+      (result) => result.error,
+    )?.error;
+    if (relatedError) {
+      console.error("listEmprestimos related data error:", relatedError);
+      return { data: [], error: relatedError.message };
+    }
+
+    const clientesRows = clientesResult.flatMap((result) => result.data ?? []);
+    const parcRows = parcelasResult.flatMap((result) => result.data ?? []);
 
     const nomeMap = new Map<string, string | null>();
     (clientesRows ?? []).forEach((c) => nomeMap.set(String(c.id), c.nome));

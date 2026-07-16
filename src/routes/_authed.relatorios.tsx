@@ -130,6 +130,9 @@ const addDaysIso = (iso: string, days: number) => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 };
 
+const cleanObservacoes = (value: string | null | undefined) =>
+  (value ?? "").replace(/^\[Periodicidade:[^\]]+\]\s*/i, "").trim();
+
 const MESES = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
 
 function RelatoriosPage() {
@@ -283,6 +286,22 @@ function SortHeader<K extends string>({
         )}
       </span>
     </th>
+  );
+}
+
+function ObservacaoText({
+  value,
+  className,
+}: {
+  value: string | null | undefined;
+  className?: string;
+}) {
+  const text = cleanObservacoes(value);
+  if (!text) return null;
+  return (
+    <p className={cn("mt-1 line-clamp-2 text-xs text-muted-foreground", className)} title={text}>
+      {text}
+    </p>
   );
 }
 
@@ -455,7 +474,8 @@ function FinanceiroTab() {
       if (!q) return true;
       const codigo = (p.contrato_codigo ?? "").toLowerCase();
       const nome = (p.cliente_nome ?? "").toLowerCase();
-      return codigo.includes(q) || nome.includes(q);
+      const observacoes = cleanObservacoes(p.observacoes).toLowerCase();
+      return codigo.includes(q) || nome.includes(q) || observacoes.includes(q);
     });
 
     if (sortKey) {
@@ -515,8 +535,7 @@ function FinanceiroTab() {
       valor_pago: number;
       gerar_nova_cobranca?: boolean;
       nova_cobranca_periodicidade?: "mensal" | "quinzenal" | "semanal" | "diario";
-    }) =>
-      baixaFn({ data: input }),
+    }) => baixaFn({ data: input }),
     onMutate: (input) => setAcaoParcelaId(input.id),
     onSuccess: (res) => {
       if (!res.ok) {
@@ -562,6 +581,7 @@ function FinanceiroTab() {
       detalhadas.map((p) => ({
         cliente: p.cliente_nome ?? "-",
         contrato: p.contrato_codigo ?? "",
+        observacoes: cleanObservacoes(p.observacoes),
         vencimento: fmtDate(p.data_vencimento),
         valor: p.valor_parcela.toFixed(2).replace(".", ","),
         valor_pago: (p.valor_pago ?? 0).toFixed(2).replace(".", ","),
@@ -570,6 +590,7 @@ function FinanceiroTab() {
       [
         { key: "cliente", label: "Cliente" },
         { key: "contrato", label: "Contrato" },
+        { key: "observacoes", label: "Observacoes" },
         { key: "vencimento", label: "Vencimento" },
         { key: "valor", label: "Capital (R$)" },
         { key: "valor_pago", label: "Valor Pago (R$)" },
@@ -781,7 +802,10 @@ function FinanceiroTab() {
                         key={String(p.id)}
                         className="border-b last:border-0 hover:bg-muted/30 transition-colors"
                       >
-                        <td className="px-3 py-2.5">{p.cliente_nome ?? "-"}</td>
+                        <td className="px-3 py-2.5">
+                          <p>{p.cliente_nome ?? "-"}</p>
+                          <ObservacaoText value={p.observacoes} />
+                        </td>
                         <td className="px-3 py-2.5 font-mono text-xs font-semibold text-primary">
                           {p.contrato_codigo}
                         </td>
@@ -900,6 +924,7 @@ function FinanceiroTab() {
                         {fmtDate(p.data_vencimento)}
                       </span>
                     </div>
+                    <ObservacaoText value={p.observacoes} />
                     <div className="flex items-center justify-between text-sm">
                       <span className="font-semibold">{fmtBRL(p.valor_parcela)}</span>
                       {paga ? (
@@ -1075,13 +1100,17 @@ function FinanceiroBaixaDialog({
               <div className="rounded-lg border border-emerald-200 bg-emerald-50/70 p-3">
                 <div className="flex items-start justify-between gap-3">
                   <div className="space-y-1">
-                    <Label htmlFor="financeiro-gerar-nova-cobranca" className="text-sm font-semibold text-foreground">
+                    <Label
+                      htmlFor="financeiro-gerar-nova-cobranca"
+                      className="text-sm font-semibold text-foreground"
+                    >
                       {diferenca > 0.005
                         ? "Adicionar diferença na próxima cobrança?"
                         : "Gerar nova cobrança para os próximos 30 dias?"}
                     </Label>
                     <p className="text-xs text-muted-foreground">
-                      Será criada uma cobrança de {fmtBRL(valorNovaCobranca)} em {fmtDate(vencimentoNovaCobranca)}.
+                      Será criada uma cobrança de {fmtBRL(valorNovaCobranca)} em{" "}
+                      {fmtDate(vencimentoNovaCobranca)}.
                     </p>
                   </div>
                   <Switch
@@ -1262,7 +1291,8 @@ function ContratosTab() {
       if (q) {
         const codigo = codigoOf(e.id).toLowerCase();
         const nome = (e.cliente_nome ?? "").toLowerCase();
-        if (!codigo.includes(q) && !nome.includes(q)) return false;
+        const observacoes = cleanObservacoes(e.observacoes).toLowerCase();
+        if (!codigo.includes(q) && !nome.includes(q) && !observacoes.includes(q)) return false;
       }
       return true;
     });
@@ -1344,6 +1374,7 @@ function ContratosTab() {
       filtrados.map((e) => ({
         id: codigoOf(e.id),
         cliente: e.cliente_nome ?? "-",
+        observacoes: cleanObservacoes(e.observacoes),
         valor: e.valor_principal.toFixed(2).replace(".", ","),
         taxa: `${e.taxa_juros}%`,
         parcelas: e.numero_parcelas,
@@ -1354,6 +1385,7 @@ function ContratosTab() {
       [
         { key: "id", label: "Contrato" },
         { key: "cliente", label: "Cliente" },
+        { key: "observacoes", label: "Observacoes" },
         { key: "valor", label: "Capital (R$)" },
         { key: "taxa", label: "Taxa" },
         { key: "parcelas", label: "Parcelas" },
@@ -1562,7 +1594,10 @@ function ContratosTab() {
                         <td className="px-3 py-2.5 font-mono text-xs font-semibold text-primary">
                           {codigoOf(e.id)}
                         </td>
-                        <td className="px-3 py-2.5">{e.cliente_nome ?? "-"}</td>
+                        <td className="px-3 py-2.5">
+                          <p>{e.cliente_nome ?? "-"}</p>
+                          <ObservacaoText value={e.observacoes} />
+                        </td>
                         <td className="px-3 py-2.5 font-medium">{fmtBRL(e.valor_principal)}</td>
                         <td className="px-3 py-2.5 text-muted-foreground">{e.taxa_juros}% a.m.</td>
                         <td className="px-3 py-2.5 text-muted-foreground">{e.numero_parcelas}x</td>
@@ -1671,6 +1706,7 @@ function ContratosTab() {
                         {stats.pagas}/{stats.total}
                       </Badge>
                     </div>
+                    <ObservacaoText value={e.observacoes} />
                     <div className="grid grid-cols-2 gap-1 text-xs">
                       <div>
                         <p className="text-muted-foreground">Capital</p>
@@ -1777,6 +1813,7 @@ type ClienteInad = {
   cliente_id: string;
   cliente_nome: string;
   contrato_codigos: string[];
+  observacoes: string[];
   qtdParcelas: number;
   totalDivida: number;
   diasAtrasoMax: number;
@@ -1845,6 +1882,7 @@ function InadimplenciaTab() {
           cliente_id: k,
           cliente_nome: p.cliente_nome ?? "-",
           contrato_codigos: [],
+          observacoes: [],
           qtdParcelas: 0,
           totalDivida: 0,
           diasAtrasoMax: 0,
@@ -1856,6 +1894,10 @@ function InadimplenciaTab() {
       if (dias > cur.diasAtrasoMax) cur.diasAtrasoMax = dias;
       if (p.contrato_codigo && !cur.contrato_codigos.includes(p.contrato_codigo)) {
         cur.contrato_codigos.push(p.contrato_codigo);
+      }
+      const obs = cleanObservacoes(p.observacoes);
+      if (obs && !cur.observacoes.includes(obs)) {
+        cur.observacoes.push(obs);
       }
       cur.parcelas.push(p);
       map.set(k, cur);
@@ -1874,7 +1916,8 @@ function InadimplenciaTab() {
       if (!q) return true;
       const nome = c.cliente_nome.toLowerCase();
       const codigos = c.contrato_codigos.join(" ").toLowerCase();
-      return nome.includes(q) || codigos.includes(q);
+      const observacoes = c.observacoes.join(" ").toLowerCase();
+      return nome.includes(q) || codigos.includes(q) || observacoes.includes(q);
     });
     arr = [...arr].sort((a, b) => {
       let av: string | number = 0;
@@ -1931,6 +1974,7 @@ function InadimplenciaTab() {
       filtrados.map((c) => ({
         cliente: c.cliente_nome,
         contratos: c.contrato_codigos.join(", "),
+        observacoes: c.observacoes.join(" | "),
         qtd: c.qtdParcelas,
         total: c.totalDivida.toFixed(2).replace(".", ","),
         atraso: c.diasAtrasoMax,
@@ -1938,6 +1982,7 @@ function InadimplenciaTab() {
       [
         { key: "cliente", label: "Cliente" },
         { key: "contratos", label: "Contratos" },
+        { key: "observacoes", label: "Observacoes" },
         { key: "qtd", label: "Qtd Parcelas" },
         { key: "total", label: "Total Dívida (R$)" },
         { key: "atraso", label: "Dias em Atraso" },
@@ -1974,8 +2019,7 @@ function InadimplenciaTab() {
       valor_pago: number;
       gerar_nova_cobranca?: boolean;
       nova_cobranca_periodicidade?: "mensal" | "quinzenal" | "semanal" | "diario";
-    }) =>
-      baixaFn({ data: input }),
+    }) => baixaFn({ data: input }),
     onMutate: (input) => setBaixandoParcelaId(input.id),
     onSuccess: (res) => {
       if (!res.ok) {
@@ -2126,7 +2170,10 @@ function InadimplenciaTab() {
                         key={c.cliente_id}
                         className="border-b last:border-0 hover:bg-muted/30 transition-colors"
                       >
-                        <td className="px-3 py-2.5">{c.cliente_nome}</td>
+                        <td className="px-3 py-2.5">
+                          <p>{c.cliente_nome}</p>
+                          <ObservacaoText value={c.observacoes.join(" | ")} />
+                        </td>
                         <td className="px-3 py-2.5 font-mono text-xs font-semibold text-primary">
                           {c.contrato_codigos.join(", ")}
                         </td>
@@ -2209,7 +2256,10 @@ function InadimplenciaTab() {
                 return (
                   <div key={c.cliente_id} className="p-3 space-y-2">
                     <div className="flex items-center justify-between gap-2">
-                      <p className="font-medium text-sm truncate">{c.cliente_nome}</p>
+                      <div className="min-w-0">
+                        <p className="font-medium text-sm truncate">{c.cliente_nome}</p>
+                        <ObservacaoText value={c.observacoes.join(" | ")} />
+                      </div>
                       <Badge
                         variant="outline"
                         className={cn("border shrink-0 text-[10px]", risco.cls)}
@@ -2337,7 +2387,9 @@ function InadimplenciaBaixaDialog({
   const [dataPag, setDataPag] = useState(todayIso());
   const [valorPag, setValorPag] = useState("0");
   const [gerarNovaCobranca, setGerarNovaCobranca] = useState(false);
-  const [periodicidade, setPeriodicidade] = useState<"mensal" | "quinzenal" | "semanal" | "diario">("mensal");
+  const [periodicidade, setPeriodicidade] = useState<"mensal" | "quinzenal" | "semanal" | "diario">(
+    "mensal",
+  );
 
   const parcelas = useMemo(() => {
     return [...(cliente?.parcelas ?? [])].sort((a, b) => {
@@ -2471,7 +2523,10 @@ function InadimplenciaBaixaDialog({
                 <div className="rounded-lg border border-emerald-200 bg-emerald-50/70 p-3">
                   <div className="flex items-start justify-between gap-3">
                     <div className="space-y-1">
-                      <Label htmlFor="inad-gerar-nova-cobranca" className="text-sm font-semibold text-foreground">
+                      <Label
+                        htmlFor="inad-gerar-nova-cobranca"
+                        className="text-sm font-semibold text-foreground"
+                      >
                         {diferenca > 0.005
                           ? "Adicionar saldo na próxima cobrança?"
                           : "Gerar nova cobrança?"}
@@ -2518,20 +2573,36 @@ function InadimplenciaBaixaDialog({
                         </p>
                         <div className="grid grid-cols-2 gap-3 text-sm">
                           <div>
-                            <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Vencimento</p>
-                            <p className="font-semibold text-foreground">{fmtDate(vencimentoNovaCobranca)}</p>
+                            <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+                              Vencimento
+                            </p>
+                            <p className="font-semibold text-foreground">
+                              {fmtDate(vencimentoNovaCobranca)}
+                            </p>
                           </div>
                           <div>
-                            <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Montante</p>
-                            <p className="font-semibold text-foreground">{fmtBRL(baseNovaCobranca)}</p>
+                            <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+                              Montante
+                            </p>
+                            <p className="font-semibold text-foreground">
+                              {fmtBRL(baseNovaCobranca)}
+                            </p>
                           </div>
                           <div>
-                            <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Juros</p>
-                            <p className="font-semibold text-amber-600">{fmtBRL(jurosNovaCobranca)}</p>
+                            <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+                              Juros
+                            </p>
+                            <p className="font-semibold text-amber-600">
+                              {fmtBRL(jurosNovaCobranca)}
+                            </p>
                           </div>
                           <div>
-                            <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Total</p>
-                            <p className="font-semibold text-emerald-700">{fmtBRL(valorNovaCobranca)}</p>
+                            <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+                              Total
+                            </p>
+                            <p className="font-semibold text-emerald-700">
+                              {fmtBRL(valorNovaCobranca)}
+                            </p>
                           </div>
                         </div>
                       </div>

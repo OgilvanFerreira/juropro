@@ -77,6 +77,9 @@ const fmtDate = (iso: string | null) => {
   return d.toLocaleDateString("pt-BR");
 };
 
+const cleanObservacoes = (value: string | null | undefined) =>
+  (value ?? "").replace(/^\[Periodicidade:[^\]]+\]\s*/i, "").trim();
+
 function statusBadgeClass(status: string | null) {
   switch ((status ?? "").toLowerCase()) {
     case "ativo":
@@ -193,6 +196,7 @@ function ContratosPage() {
           const seqStr = `#${String(e.seqId).padStart(3, "0")}`;
           return (
             (e.cliente_nome ?? "").toLowerCase().includes(q) ||
+            cleanObservacoes(e.observacoes).toLowerCase().includes(q) ||
             seqStr.toLowerCase().includes(q) ||
             String(e.seqId).includes(q) ||
             String(e.id).toLowerCase().includes(q) ||
@@ -568,7 +572,10 @@ function RowDesktop({
       <td className="px-3 py-3 font-mono text-xs text-muted-foreground">
         #{String(seqId).padStart(3, "0")}
       </td>
-      <td className="px-3 py-3 font-medium text-foreground">{item.cliente_nome ?? "-"}</td>
+      <td className="px-3 py-3">
+        <p className="font-medium text-foreground">{item.cliente_nome ?? "-"}</p>
+        <ObservacaoText value={item.observacoes} />
+      </td>
       <td className="px-3 py-3 text-right">{fmtBRL(item.valor_principal)}</td>
       <td className="px-3 py-3 text-right">
         <div className="flex items-center justify-end gap-2">
@@ -658,6 +665,7 @@ function CardMobile({
           {item.status ?? "-"}
         </Badge>
       </div>
+      <ObservacaoText value={item.observacoes} className="mb-2" />
       <div className="grid grid-cols-2 gap-2 text-xs">
         <div>
           <p className="text-muted-foreground">Capital</p>
@@ -715,6 +723,16 @@ function CardMobile({
         </Button>
       </div>
     </div>
+  );
+}
+
+function ObservacaoText({ value, className }: { value: string | null; className?: string }) {
+  const text = cleanObservacoes(value);
+  if (!text) return null;
+  return (
+    <p className={cn("mt-1 line-clamp-2 text-xs text-muted-foreground", className)} title={text}>
+      {text}
+    </p>
   );
 }
 

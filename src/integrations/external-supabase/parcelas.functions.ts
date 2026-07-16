@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { requireAuthForExternal } from "./auth-guard";
+import { chunkValues, fetchAllPages } from "./query-pagination.server";
 
 function getServerClient(opts?: { admin?: boolean }) {
   const url = process.env.EXTERNAL_SUPABASE_URL;
@@ -35,6 +36,7 @@ export type ParcelaListItem = {
   emprestimo_seq: number;
   taxa_juros: number;
   tipo_juros: string | null;
+  observacoes: string | null;
 };
 
 export const listParcelas = createServerFn({ method: "GET" })
@@ -42,14 +44,29 @@ export const listParcelas = createServerFn({ method: "GET" })
   .handler(async ({ context }): Promise<{ data: ParcelaListItem[]; error: string | null }> => {
     const supabase = getServerClient();
 
-    const { data: parcelas, error: parErr } = await supabase
-      .from("parcelas")
-      .select(
-        "id, emprestimo_id, numero_parcela, data_vencimento, valor_parcela, status, data_pagamento, valor_pago",
-      )
-      .eq("user_id", context.userId)
-      .order("data_vencimento", { ascending: true })
-      .limit(2000);
+    const { data: parcelas, error: parErr } = await fetchAllPages<
+      Pick<
+        ParcelaListItem,
+        | "id"
+        | "emprestimo_id"
+        | "numero_parcela"
+        | "data_vencimento"
+        | "valor_parcela"
+        | "status"
+        | "data_pagamento"
+        | "valor_pago"
+      >
+    >((from, to) =>
+      supabase
+        .from("parcelas")
+        .select(
+          "id, emprestimo_id, numero_parcela, data_vencimento, valor_parcela, status, data_pagamento, valor_pago",
+        )
+        .eq("user_id", context.userId)
+        .order("data_vencimento", { ascending: true })
+        .order("id", { ascending: true })
+        .range(from, to),
+    );
 
     if (parErr) {
       console.error("listParcelas error:", parErr);
@@ -61,15 +78,19 @@ export const listParcelas = createServerFn({ method: "GET" })
 
     const empIds = Array.from(new Set(list.map((p) => p.emprestimo_id).filter((v) => v != null)));
 
-    const { data: emps, error: empErr } = empIds.length
-      ? await supabase
+    const emprestimoResults = await Promise.all(
+      chunkValues(empIds).map((ids) =>
+        supabase
           .from("emprestimos")
           .select(
-            "id, cliente_id, numero_parcelas, taxa_juros, tipo_juros, valor_principal, created_at",
+            "id, cliente_id, numero_parcelas, taxa_juros, tipo_juros, valor_principal, observacoes, created_at",
           )
           .eq("user_id", context.userId)
-          .in("id", empIds as (string | number)[])
-      : { data: [], error: null };
+          .in("id", ids as (string | number)[]),
+      ),
+    );
+    const empErr = emprestimoResults.find((result) => result.error)?.error ?? null;
+    const emps = emprestimoResults.flatMap((result) => result.data ?? []);
 
     if (empErr) {
       console.error("listParcelas emprestimos error:", empErr);
@@ -84,6 +105,7 @@ export const listParcelas = createServerFn({ method: "GET" })
         taxa_juros: number;
         tipo_juros: string | null;
         valor_principal: number;
+        observacoes: string | null;
         created_at: string | null;
       }
     >();
@@ -94,17 +116,28 @@ export const listParcelas = createServerFn({ method: "GET" })
         taxa_juros: Number(e.taxa_juros ?? 0),
         tipo_juros: e.tipo_juros ?? null,
         valor_principal: Number(e.valor_principal ?? 0),
+        observacoes: e.observacoes ?? null,
         created_at: e.created_at ?? null,
       }),
     );
 
     // Calcula seqId global de TODOS os empréstimos DO USUÁRIO (mais antigo = #001)
-    const { data: allEmps } = await supabase
-      .from("emprestimos")
-      .select("id, created_at")
-      .eq("user_id", context.userId)
-      .order("created_at", { ascending: true })
-      .limit(2000);
+    const { data: allEmps, error: allEmpsErr } = await fetchAllPages<{
+      id: string | number;
+      created_at: string | null;
+    }>((from, to) =>
+      supabase
+        .from("emprestimos")
+        .select("id, created_at")
+        .eq("user_id", context.userId)
+        .order("created_at", { ascending: true })
+        .order("id", { ascending: true })
+        .range(from, to),
+    );
+    if (allEmpsErr) {
+      console.error("listParcelas all emprestimos error:", allEmpsErr);
+      return { data: [], error: allEmpsErr.message };
+    }
     const seqMap = new Map<string, number>();
     (allEmps ?? []).forEach((e, idx) => seqMap.set(String(e.id), idx + 1));
 
@@ -116,13 +149,17 @@ export const listParcelas = createServerFn({ method: "GET" })
       ),
     );
 
-    const { data: clientes, error: cliErr } = clienteIds.length
-      ? await supabase
+    const clienteResults = await Promise.all(
+      chunkValues(clienteIds).map((ids) =>
+        supabase
           .from("clientes")
           .select("id, nome, telefone")
           .eq("user_id", context.userId)
-          .in("id", clienteIds as (string | number)[])
-      : { data: [], error: null };
+          .in("id", ids as (string | number)[]),
+      ),
+    );
+    const cliErr = clienteResults.find((result) => result.error)?.error ?? null;
+    const clientes = clienteResults.flatMap((result) => result.data ?? []);
 
     if (cliErr) {
       console.error("listParcelas clientes error:", cliErr);
@@ -179,6 +216,7 @@ export const listParcelas = createServerFn({ method: "GET" })
         emprestimo_seq: seq,
         taxa_juros: emp?.taxa_juros ?? 0,
         tipo_juros: emp?.tipo_juros ?? null,
+        observacoes: emp?.observacoes ?? null,
       };
     });
 
@@ -264,7 +302,10 @@ export const baixaParcela = createServerFn({ method: "POST" })
 
       if (ultErr) {
         console.error("baixaParcela next select error:", ultErr);
-        return { ok: false, error: `Baixa registrada, mas falhou ao calcular nova cobrança: ${ultErr.message}` };
+        return {
+          ok: false,
+          error: `Baixa registrada, mas falhou ao calcular nova cobrança: ${ultErr.message}`,
+        };
       }
 
       const { data: emprestimoAtual, error: empSelectErr } = await supabase
@@ -276,12 +317,19 @@ export const baixaParcela = createServerFn({ method: "POST" })
 
       if (empSelectErr) {
         console.error("baixaParcela emprestimo select error:", empSelectErr);
-        return { ok: false, error: `Baixa registrada, mas falhou ao buscar juros do contrato: ${empSelectErr.message}` };
+        return {
+          ok: false,
+          error: `Baixa registrada, mas falhou ao buscar juros do contrato: ${empSelectErr.message}`,
+        };
       }
 
-      const nextNumero = Number(ultimas?.[0]?.numero_parcela ?? parcelaAtual.numero_parcela ?? 0) + 1;
+      const nextNumero =
+        Number(ultimas?.[0]?.numero_parcela ?? parcelaAtual.numero_parcela ?? 0) + 1;
       const periodicidade = data.nova_cobranca_periodicidade ?? "mensal";
-      const novoVencimento = addDaysIso(data.data_pagamento, BAIXA_PERIODICIDADE_DIAS[periodicidade]);
+      const novoVencimento = addDaysIso(
+        data.data_pagamento,
+        BAIXA_PERIODICIDADE_DIAS[periodicidade],
+      );
       const taxa = Number(emprestimoAtual?.taxa_juros ?? 0) / 100;
       const capitalOriginal = Number(emprestimoAtual?.valor_principal ?? 0);
       const valorParcelaAtual = Number(parcelaAtual.valor_parcela ?? 0);
@@ -322,7 +370,10 @@ export const baixaParcela = createServerFn({ method: "POST" })
 
       if (insErr) {
         console.error("baixaParcela insert nova cobrança error:", insErr);
-        return { ok: false, error: `Baixa registrada, mas falhou ao gerar nova cobrança: ${insErr.message}` };
+        return {
+          ok: false,
+          error: `Baixa registrada, mas falhou ao gerar nova cobrança: ${insErr.message}`,
+        };
       }
 
       const { error: empErr } = await supabase
@@ -333,7 +384,10 @@ export const baixaParcela = createServerFn({ method: "POST" })
 
       if (empErr) {
         console.error("baixaParcela update emprestimo parcelas error:", empErr);
-        return { ok: false, error: `Nova cobrança criada, mas falhou ao atualizar o total do contrato: ${empErr.message}` };
+        return {
+          ok: false,
+          error: `Nova cobrança criada, mas falhou ao atualizar o total do contrato: ${empErr.message}`,
+        };
       }
     }
 
@@ -354,7 +408,9 @@ export const estornoParcela = createServerFn({ method: "POST" })
 
     const { data: parcelaAtual, error: parcelaErr } = await supabase
       .from("parcelas")
-      .select("id, emprestimo_id, numero_parcela, data_pagamento, valor_parcela, valor_pago, status")
+      .select(
+        "id, emprestimo_id, numero_parcela, data_pagamento, valor_parcela, valor_pago, status",
+      )
       .eq("id", data.id)
       .eq("user_id", context.userId)
       .single();
@@ -435,7 +491,11 @@ export const estornoParcela = createServerFn({ method: "POST" })
       }
 
       const totalAtual = Number(emprestimoAtual?.numero_parcelas ?? 0);
-      const novoTotal = Math.max(Number(parcelaAtual.numero_parcela ?? 1), totalAtual - 1, cobrancaGeradaNumero - 1);
+      const novoTotal = Math.max(
+        Number(parcelaAtual.numero_parcela ?? 1),
+        totalAtual - 1,
+        cobrancaGeradaNumero - 1,
+      );
       const { error: empErr } = await supabase
         .from("emprestimos")
         .update({ numero_parcelas: novoTotal })
@@ -499,7 +559,10 @@ export const excluirParcela = createServerFn({ method: "POST" })
 
     if (restantesErr) {
       console.error("excluirParcela restantes error:", restantesErr);
-      return { ok: false, error: `Parcela excluída, mas falhou ao recalcular o contrato: ${restantesErr.message}` };
+      return {
+        ok: false,
+        error: `Parcela excluída, mas falhou ao recalcular o contrato: ${restantesErr.message}`,
+      };
     }
 
     const novoTotal = Number(restantes?.[0]?.numero_parcela ?? 0);
@@ -511,7 +574,10 @@ export const excluirParcela = createServerFn({ method: "POST" })
 
     if (empErr) {
       console.error("excluirParcela emprestimo error:", empErr);
-      return { ok: false, error: `Parcela excluída, mas falhou ao atualizar o contrato: ${empErr.message}` };
+      return {
+        ok: false,
+        error: `Parcela excluída, mas falhou ao atualizar o contrato: ${empErr.message}`,
+      };
     }
 
     return { ok: true, error: null };

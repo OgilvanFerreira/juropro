@@ -110,6 +110,9 @@ const fmtDate = (iso: string | null) => {
   return `${d}/${m}/${y}`;
 };
 
+const cleanObservacoes = (value: string | null | undefined) =>
+  (value ?? "").replace(/^\[Periodicidade:[^\]]+\]\s*/i, "").trim();
+
 const todayISO = () => {
   const d = new Date();
   d.setHours(0, 0, 0, 0);
@@ -239,6 +242,7 @@ function VencimentosPage() {
       base = base.filter(
         (p) =>
           (p.cliente_nome ?? "").toLowerCase().includes(termo) ||
+          cleanObservacoes(p.observacoes).toLowerCase().includes(termo) ||
           p.contrato_codigo.toLowerCase().includes(termo),
       );
     }
@@ -329,8 +333,7 @@ function VencimentosPage() {
       valor_pago: number;
       gerar_nova_cobranca?: boolean;
       nova_cobranca_periodicidade?: "mensal" | "quinzenal" | "semanal" | "diario";
-    }) =>
-      baixaParcela({ data: input }),
+    }) => baixaParcela({ data: input }),
     onSuccess: (res) => {
       if (!res.ok) {
         toast.error(res.error ?? "Falha ao registrar baixa.");
@@ -1067,7 +1070,10 @@ function RowDesktop({
 }) {
   return (
     <tr className="border-b border-border last:border-b-0 hover:bg-muted/30">
-      <td className="px-3 py-2.5 font-medium text-foreground">{item.cliente_nome ?? "—"}</td>
+      <td className="px-3 py-2.5">
+        <p className="font-medium text-foreground">{item.cliente_nome ?? "—"}</p>
+        <ObservacaoText value={item.observacoes} />
+      </td>
       <td className="px-3 py-2.5 text-muted-foreground">{item.contrato_codigo}</td>
       <td className="px-3 py-2.5 text-muted-foreground">
         {item.numero_parcela}/{item.parcelas_total || item.numero_parcela}
@@ -1128,6 +1134,7 @@ function CardMobile({
         </div>
         <StatusBadge status={item.statusCalc} />
       </div>
+      <ObservacaoText value={item.observacoes} className="mb-2" />
       <div className="grid grid-cols-2 gap-2 text-xs">
         <div>
           <p className="text-muted-foreground">Vencimento</p>
@@ -1161,6 +1168,16 @@ function CardMobile({
         />
       </div>
     </div>
+  );
+}
+
+function ObservacaoText({ value, className }: { value: string | null; className?: string }) {
+  const text = cleanObservacoes(value);
+  if (!text) return null;
+  return (
+    <p className={cn("mt-1 line-clamp-2 text-xs text-muted-foreground", className)} title={text}>
+      {text}
+    </p>
   );
 }
 
@@ -1330,13 +1347,17 @@ function BaixaDialog({
               <div className="rounded-lg border border-emerald-200 bg-emerald-50/70 p-3">
                 <div className="flex items-start justify-between gap-3">
                   <div className="space-y-1">
-                    <Label htmlFor="gerar-nova-cobranca" className="text-sm font-semibold text-foreground">
+                    <Label
+                      htmlFor="gerar-nova-cobranca"
+                      className="text-sm font-semibold text-foreground"
+                    >
                       {diferenca > 0.005
                         ? "Adicionar diferença na próxima cobrança?"
                         : "Gerar nova cobrança para os próximos 30 dias?"}
                     </Label>
                     <p className="text-xs text-muted-foreground">
-                      Será criada uma cobrança de {fmtBRL(valorNovaCobranca)} em {fmtDate(vencimentoNovaCobranca)}.
+                      Será criada uma cobrança de {fmtBRL(valorNovaCobranca)} em{" "}
+                      {fmtDate(vencimentoNovaCobranca)}.
                     </p>
                   </div>
                   <Switch
