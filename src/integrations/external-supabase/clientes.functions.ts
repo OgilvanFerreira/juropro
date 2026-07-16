@@ -2,15 +2,14 @@ import { createServerFn } from "@tanstack/react-start";
 import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { requireAuthForExternal } from "./auth-guard";
+import { fetchAllPages } from "./query-pagination.server";
 
 function getServerClient(opts?: { admin?: boolean }) {
   const url = process.env.EXTERNAL_SUPABASE_URL;
   const anonKey = process.env.EXTERNAL_SUPABASE_ANON_KEY;
   const serviceKey = process.env.EXTERNAL_SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !anonKey) {
-    throw new Error(
-      "EXTERNAL_SUPABASE_URL ou EXTERNAL_SUPABASE_ANON_KEY não configurados.",
-    );
+    throw new Error("EXTERNAL_SUPABASE_URL ou EXTERNAL_SUPABASE_ANON_KEY não configurados.");
   }
   // Para operações de escrita/exclusão usamos service_role (se disponível)
   // para bypassar RLS do projeto externo. Cai pra anon se não houver.
@@ -33,25 +32,24 @@ export type Cliente = {
 
 export const listClientes = createServerFn({ method: "GET" })
   .middleware([requireAuthForExternal])
-  .handler(
-  async ({ context }): Promise<{ data: Cliente[]; error: string | null }> => {
+  .handler(async ({ context }): Promise<{ data: Cliente[]; error: string | null }> => {
     const supabase = getServerClient();
-    const { data, error } = await supabase
-      .from("clientes")
-      .select(
-        "id, nome, email, telefone, cpf_cnpj, cidade, uf, created_at",
-      )
-      .eq("user_id", context.userId)
-      .order("created_at", { ascending: false })
-      .limit(500);
+    const { data, error } = await fetchAllPages<Cliente>((from, to) =>
+      supabase
+        .from("clientes")
+        .select("id, nome, email, telefone, cpf_cnpj, cidade, uf, created_at")
+        .eq("user_id", context.userId)
+        .order("created_at", { ascending: false })
+        .order("id", { ascending: false })
+        .range(from, to),
+    );
 
     if (error) {
       console.error("listClientes error:", error);
       return { data: [], error: error.message };
     }
-    return { data: (data ?? []) as Cliente[], error: null };
-  },
-);
+    return { data, error: null };
+  });
 
 const clienteInsertSchema = z.object({
   nome: z.string().trim().min(1).max(200),
@@ -97,10 +95,7 @@ export const getCliente = createServerFn({ method: "GET" })
   .middleware([requireAuthForExternal])
   .inputValidator((input: { id: string | number }) => getClienteSchema.parse(input))
   .handler(
-    async ({
-      data,
-      context,
-    }): Promise<{ data: ClienteFull | null; error: string | null }> => {
+    async ({ data, context }): Promise<{ data: ClienteFull | null; error: string | null }> => {
       const supabase = getServerClient();
       const { data: row, error } = await supabase
         .from("clientes")
@@ -126,10 +121,7 @@ export const updateCliente = createServerFn({ method: "POST" })
   .middleware([requireAuthForExternal])
   .inputValidator((input: ClienteUpdate) => clienteUpdateSchema.parse(input))
   .handler(
-    async ({
-      data,
-      context,
-    }): Promise<{ ok: boolean; error: string | null; code?: string }> => {
+    async ({ data, context }): Promise<{ ok: boolean; error: string | null; code?: string }> => {
       const supabase = getServerClient({ admin: true });
       const { id, ...rest } = data;
 
@@ -147,12 +139,18 @@ export const updateCliente = createServerFn({ method: "POST" })
       const cpfCnpjRaw = typeof payload.cpf_cnpj === "string" ? payload.cpf_cnpj : "";
       const cpfCnpjDigits = cpfCnpjRaw.replace(/\D/g, "");
       if (cpfCnpjDigits.length > 0) {
-        const { data: existing, error: checkError } = await supabase
-          .from("clientes")
-          .select("id, cpf_cnpj")
-          .eq("user_id", context.userId)
-          .not("cpf_cnpj", "is", null)
-          .limit(1000);
+        const { data: existing, error: checkError } = await fetchAllPages<{
+          id: string | number;
+          cpf_cnpj: string | null;
+        }>((from, to) =>
+          supabase
+            .from("clientes")
+            .select("id, cpf_cnpj")
+            .eq("user_id", context.userId)
+            .not("cpf_cnpj", "is", null)
+            .order("id", { ascending: true })
+            .range(from, to),
+        );
         if (checkError) {
           console.error("updateCliente duplicate-check error:", checkError);
           return { ok: false, error: checkError.message };
@@ -197,10 +195,7 @@ export const createCliente = createServerFn({ method: "POST" })
   .middleware([requireAuthForExternal])
   .inputValidator((input: ClienteInsert) => clienteInsertSchema.parse(input))
   .handler(
-    async ({
-      data,
-      context,
-    }): Promise<{ ok: boolean; error: string | null; code?: string }> => {
+    async ({ data, context }): Promise<{ ok: boolean; error: string | null; code?: string }> => {
       const supabase = getServerClient({ admin: true });
 
       // Limpa strings vazias para null para evitar problemas com colunas tipadas (date, etc.)
@@ -217,12 +212,18 @@ export const createCliente = createServerFn({ method: "POST" })
       const cpfCnpjRaw = typeof payload.cpf_cnpj === "string" ? payload.cpf_cnpj : "";
       const cpfCnpjDigits = cpfCnpjRaw.replace(/\D/g, "");
       if (cpfCnpjDigits.length > 0) {
-        const { data: existing, error: checkError } = await supabase
-          .from("clientes")
-          .select("id, cpf_cnpj")
-          .eq("user_id", context.userId)
-          .not("cpf_cnpj", "is", null)
-          .limit(1000);
+        const { data: existing, error: checkError } = await fetchAllPages<{
+          id: string | number;
+          cpf_cnpj: string | null;
+        }>((from, to) =>
+          supabase
+            .from("clientes")
+            .select("id, cpf_cnpj")
+            .eq("user_id", context.userId)
+            .not("cpf_cnpj", "is", null)
+            .order("id", { ascending: true })
+            .range(from, to),
+        );
 
         if (checkError) {
           console.error("createCliente duplicate-check error:", checkError);
@@ -262,30 +263,28 @@ export type DeleteClienteInput = z.infer<typeof deleteClienteSchema>;
 export const deleteCliente = createServerFn({ method: "POST" })
   .middleware([requireAuthForExternal])
   .inputValidator((input: DeleteClienteInput) => deleteClienteSchema.parse(input))
-  .handler(
-    async ({ data, context }): Promise<{ ok: boolean; error: string | null }> => {
-      const supabase = getServerClient({ admin: true });
-      // .select() força o retorno das linhas afetadas para sabermos se
-      // o DELETE realmente removeu algo (RLS pode silenciosamente bloquear).
-      const { data: deleted, error } = await supabase
-        .from("clientes")
-        .delete()
-        .eq("id", data.id)
-        .eq("user_id", context.userId)
-        .select("id");
+  .handler(async ({ data, context }): Promise<{ ok: boolean; error: string | null }> => {
+    const supabase = getServerClient({ admin: true });
+    // .select() força o retorno das linhas afetadas para sabermos se
+    // o DELETE realmente removeu algo (RLS pode silenciosamente bloquear).
+    const { data: deleted, error } = await supabase
+      .from("clientes")
+      .delete()
+      .eq("id", data.id)
+      .eq("user_id", context.userId)
+      .select("id");
 
-      if (error) {
-        console.error("deleteCliente error:", error);
-        return { ok: false, error: error.message };
-      }
-      if (!deleted || deleted.length === 0) {
-        console.error("deleteCliente: nenhuma linha removida (RLS?) id=", data.id);
-        return {
-          ok: false,
-          error:
-            "Nenhum registro foi excluído. Verifique as permissões (RLS) da tabela clientes ou se o SERVICE_ROLE_KEY do Supabase externo está configurado.",
-        };
-      }
-      return { ok: true, error: null };
-    },
-  );
+    if (error) {
+      console.error("deleteCliente error:", error);
+      return { ok: false, error: error.message };
+    }
+    if (!deleted || deleted.length === 0) {
+      console.error("deleteCliente: nenhuma linha removida (RLS?) id=", data.id);
+      return {
+        ok: false,
+        error:
+          "Nenhum registro foi excluído. Verifique as permissões (RLS) da tabela clientes ou se o SERVICE_ROLE_KEY do Supabase externo está configurado.",
+      };
+    }
+    return { ok: true, error: null };
+  });

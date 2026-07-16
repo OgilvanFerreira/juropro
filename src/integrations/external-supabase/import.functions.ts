@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { requireAuthForExternal } from "./auth-guard";
+import { fetchAllPages } from "./query-pagination.server";
 
 function getServerClient(opts?: { admin?: boolean }) {
   const url = process.env.EXTERNAL_SUPABASE_URL;
@@ -99,11 +100,18 @@ export const bulkImport = createServerFn({ method: "POST" })
     let parcelas_inseridas = 0;
 
     // 1) Carrega clientes do usuário para mapear cpf -> id
-    const { data: clientesExistentes, error: errCli } = await supabase
-      .from("clientes")
-      .select("id, cpf_cnpj, nome")
-      .eq("user_id", userId)
-      .limit(5000);
+    const { data: clientesExistentes, error: errCli } = await fetchAllPages<{
+      id: string | number;
+      cpf_cnpj: string | null;
+      nome: string | null;
+    }>((from, to) =>
+      supabase
+        .from("clientes")
+        .select("id, cpf_cnpj, nome")
+        .eq("user_id", userId)
+        .order("id", { ascending: true })
+        .range(from, to),
+    );
     if (errCli) {
       return {
         ok: false,
@@ -224,12 +232,24 @@ export const bulkImport = createServerFn({ method: "POST" })
       if (clienteId === undefined) continue;
       const clienteIdResolved: string | number = clienteId;
       // Empréstimos do cliente já no banco (detecta duplicatas via observacoes)
-      const { data: empsExist } = await supabase
-        .from("emprestimos")
-        .select("id, valor_principal, data_inicio, observacoes")
-        .eq("user_id", userId)
-        .eq("cliente_id", clienteIdResolved)
-        .limit(500);
+      const { data: empsExist, error: empsErr } = await fetchAllPages<{
+        id: string | number;
+        valor_principal: number | null;
+        data_inicio: string | null;
+        observacoes: string | null;
+      }>((from, to) =>
+        supabase
+          .from("emprestimos")
+          .select("id, valor_principal, data_inicio, observacoes")
+          .eq("user_id", userId)
+          .eq("cliente_id", clienteIdResolved)
+          .order("id", { ascending: true })
+          .range(from, to),
+      );
+      if (empsErr) {
+        warnings.push(`Empréstimos de "${cli.nome}": ${empsErr.message}`);
+        continue;
+      }
 
       for (const [contratoId, contrato] of cli.contratos.entries()) {
         const contratoIdFinal = isAutoContratoId(contratoId)
