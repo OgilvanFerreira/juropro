@@ -79,8 +79,18 @@ const maskCpf = (v: string) =>
     .replace(/^(\d{3})\.(\d{3})(\d)/, "$1.$2.$3")
     .replace(/\.(\d{3})(\d)/, ".$1-$2");
 
-const isMissingProfilesTableError = (error: string | null | undefined) =>
-  Boolean(error?.toLowerCase().includes("public.profiles"));
+const isMissingProfilesTableError = (error: string | null | undefined) => {
+  const text = error?.toLowerCase() ?? "";
+  return text.includes("profiles") && text.includes("schema cache");
+};
+
+const asText = (value: unknown, fallback = "") =>
+  typeof value === "string" ? value : value === null || value === undefined ? fallback : String(value);
+
+const asUf = (value: unknown, fallback = "BA") => {
+  const uf = asText(value, fallback).toUpperCase();
+  return BRAZIL_UFS.includes(uf as (typeof BRAZIL_UFS)[number]) ? uf : fallback;
+};
 
 type SenhaForca = {
   pct: number;
@@ -264,15 +274,17 @@ function TabPerfil() {
     if (!profile) return;
     setForm((p) => ({
       ...p,
-      nome: profile.nome ?? p.nome,
-      email: profile.email ?? p.email,
-      telefone: profile.telefone ?? "",
-      cpf: profile.cpf ?? "",
-      cargo: profile.cargo ?? p.cargo,
-      cidade: profile.cidade ?? "",
-      uf: profile.uf ?? p.uf,
+      nome: asText(profile.nome, p.nome),
+      email: asText(profile.email, p.email),
+      telefone: asText(profile.telefone),
+      cpf: asText(profile.cpf),
+      cargo: asText(profile.cargo, p.cargo),
+      cidade: asText(profile.cidade),
+      uf: asUf(profile.uf, p.uf),
     }));
-    if (profile.avatar_url) setAvatar(profile.avatar_url);
+    if (typeof profile.avatar_url === "string" && profile.avatar_url.length > 0) {
+      setAvatar(profile.avatar_url);
+    }
   }, [profile, setAvatar]);
 
   const set = (field: keyof typeof form) => (e: ChangeEvent<HTMLInputElement>) =>
@@ -298,7 +310,7 @@ function TabPerfil() {
 
   const forca = avaliarSenha(novaSenha);
   const senhasOk = novaSenha.length > 0 && novaSenha === confSenha;
-  const iniciais = (form.nome || "GF")
+  const iniciais = asText(form.nome, "GF")
     .split(" ")
     .filter(Boolean)
     .slice(0, 2)

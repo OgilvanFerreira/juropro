@@ -15,8 +15,10 @@ export interface Profile {
   avatar_url: string | null;
 }
 
-const isMissingProfilesTableError = (message: string | null | undefined) =>
-  Boolean(message?.toLowerCase().includes("public.profiles"));
+const isMissingProfilesTableError = (message: string | null | undefined) => {
+  const text = message?.toLowerCase() ?? "";
+  return text.includes("profiles") && text.includes("schema cache");
+};
 
 export function useProfile() {
   const { user } = useAuth();
