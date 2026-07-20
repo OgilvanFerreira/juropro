@@ -257,7 +257,11 @@ export const createEmprestimo = createServerFn({ method: "POST" })
       if (parErr) {
         console.error("createEmprestimo parcelas error:", parErr);
         // tenta reverter o empréstimo para não deixar órfão
-        await supabase.from("emprestimos").delete().eq("id", created.id);
+        await supabase
+          .from("emprestimos")
+          .delete()
+          .eq("id", created.id)
+          .eq("user_id", context.userId);
         return {
           ok: false,
           error: `Empréstimo criado, mas falhou ao gerar parcelas: ${parErr.message}`,
@@ -375,7 +379,7 @@ export const updateEmprestimo = createServerFn({ method: "POST" })
       data.observacoes ? `\n\n${data.observacoes}` : ""
     }`;
 
-    const { error: updErr } = await supabase
+    const { data: updated, error: updErr } = await supabase
       .from("emprestimos")
       .update({
         cliente_id: data.cliente_id,
@@ -388,11 +392,15 @@ export const updateEmprestimo = createServerFn({ method: "POST" })
         ...(data.status ? { status: data.status } : {}),
       })
       .eq("id", data.id)
-      .eq("user_id", context.userId);
+      .eq("user_id", context.userId)
+      .select("id");
 
     if (updErr) {
       console.error("updateEmprestimo error:", updErr);
       return { ok: false, error: updErr.message };
+    }
+    if (!updated || updated.length === 0) {
+      return { ok: false, error: "Empréstimo não encontrado para este usuário." };
     }
 
     // Apaga parcelas antigas pendentes e regenera todas as parcelas (do mesmo usuário)
@@ -448,14 +456,18 @@ export const deleteEmprestimo = createServerFn({ method: "POST" })
       return { ok: false, error: parErr.message };
     }
 
-    const { error: empErr } = await supabase
+    const { data: deleted, error: empErr } = await supabase
       .from("emprestimos")
       .delete()
       .eq("id", data.id)
-      .eq("user_id", context.userId);
+      .eq("user_id", context.userId)
+      .select("id");
     if (empErr) {
       console.error("deleteEmprestimo error:", empErr);
       return { ok: false, error: empErr.message };
+    }
+    if (!deleted || deleted.length === 0) {
+      return { ok: false, error: "Empréstimo não encontrado para este usuário." };
     }
 
     return { ok: true, error: null };

@@ -308,7 +308,7 @@ export const bulkImport = createServerFn({ method: "POST" })
         const { error: parErr } = await supabase.from("parcelas").insert(parcelasPayload);
         if (parErr) {
           warnings.push(`Parcelas do contrato ${contratoIdFinal}: ${parErr.message}`);
-          await supabase.from("emprestimos").delete().eq("id", empCriado.id);
+          await supabase.from("emprestimos").delete().eq("id", empCriado.id).eq("user_id", userId);
           emprestimos_criados--;
           continue;
         }
