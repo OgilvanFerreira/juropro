@@ -15,6 +15,9 @@ export interface Profile {
   avatar_url: string | null;
 }
 
+const isMissingProfilesTableError = (message: string | null | undefined) =>
+  Boolean(message?.toLowerCase().includes("public.profiles"));
+
 export function useProfile() {
   const { user } = useAuth();
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -26,14 +29,26 @@ export function useProfile() {
       return;
     }
     setLoading(true);
-    const { data } = await supabase
-      .from("profiles" as never)
-      .select("*")
-      .eq("user_id", user.id)
-      .limit(1)
-      .maybeSingle();
-    setProfile((data as Profile | null) ?? null);
-    setLoading(false);
+    try {
+      const { data, error } = await supabase
+        .from("profiles" as never)
+        .select("*")
+        .eq("user_id", user.id)
+        .limit(1)
+        .maybeSingle();
+
+      if (error) {
+        if (!isMissingProfilesTableError(error.message)) {
+          console.error("useProfile reload error:", error);
+        }
+        setProfile(null);
+        return;
+      }
+
+      setProfile((data as Profile | null) ?? null);
+    } finally {
+      setLoading(false);
+    }
   }, [user]);
 
   useEffect(() => {

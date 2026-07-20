@@ -79,6 +79,9 @@ const maskCpf = (v: string) =>
     .replace(/^(\d{3})\.(\d{3})(\d)/, "$1.$2.$3")
     .replace(/\.(\d{3})(\d)/, ".$1-$2");
 
+const isMissingProfilesTableError = (error: string | null | undefined) =>
+  Boolean(error?.toLowerCase().includes("public.profiles"));
+
 type SenhaForca = {
   pct: number;
   label: string;
@@ -307,6 +310,7 @@ function TabPerfil() {
 
     // Trocar senha (se preenchida)
     const querTrocarSenha = senhaAtual || novaSenha || confSenha;
+    let senhaAlterada = false;
     if (querTrocarSenha) {
       if (!senhaAtual) {
         toast.error("Informe a senha atual");
@@ -350,6 +354,7 @@ function TabPerfil() {
       setSenhaAtual("");
       setNovaSenha("");
       setConfSenha("");
+      senhaAlterada = true;
       toast.success("Senha alterada com sucesso! Use a nova senha no próximo login.");
     }
 
@@ -366,6 +371,14 @@ function TabPerfil() {
 
     const { error: profileError } = await updateProfile(profilePayload);
     if (profileError) {
+      if (senhaAlterada && isMissingProfilesTableError(profileError)) {
+        setName(form.nome.trim());
+        setSaving(false);
+        toast.warning(
+          "Senha alterada. Os dados do perfil nao foram salvos porque a tabela profiles ainda nao existe no banco.",
+        );
+        return;
+      }
       toast.error(`Não foi possível salvar o perfil: ${profileError}`);
       setSaving(false);
       return;
